@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from typing import Protocol
 
-from src.erp.modules.orders.client import StandardClient
-from src.erp.modules.orders.schemas import (
+from erp.modules.orders.client import StandardClient
+from erp.modules.orders.schemas import (
     MarketplaceCreateOrder,
     MarketplaceOrder,
     MarketplaceOrderItem,
@@ -22,6 +22,10 @@ class MarketplaceOrderAdapter(Protocol):
 
     def cancel_order(self, order_id: str) -> None:
         """Cancel an order."""
+        ...
+
+    def sync_orders(self) -> list[MarketplaceOrder]:
+        """Explicit sync method (useful for FE button / cron)."""
         ...
 
 
