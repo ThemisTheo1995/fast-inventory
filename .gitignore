@@ -12,3 +12,9 @@ wheels/
 .ruff_cache
 
 .vscode/
+
+.env
+
+.pylintrc
+
+.flake8

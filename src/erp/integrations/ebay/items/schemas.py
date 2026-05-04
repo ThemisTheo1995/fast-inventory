@@ -1,7 +1,11 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
+from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from erp.integrations.ebay.items.enums import EbayItemStatus
 
 
 class EbayStatusEnum(StrEnum):
@@ -39,19 +43,21 @@ class EbayItem(BaseModel):
 
 
 class EbayCreateItem(BaseModel):
-    """
-    Input schema for triggering the 3-step eBay creation process.
-    """
-    sku: str
-    name: str = Field(..., min_length=1, max_length=80)
+    """Payload expected from the client to create an item."""
+    external_id: str
+    sku: str | None = None
+    title: str
     description: str
-    price: float
-    currency: str = "GBP"
+    price: Decimal
+    currency: str
     quantity: int = 0
-    category_id: str = Field(..., description="eBay Category ID, e.g., '31387'")
-    image_urls: list[str] = Field(default_factory=list)
+    status: EbayItemStatus = EbayItemStatus.DRAFT
+    images: list[str] = []
 
-    # Required for Step 2 (The Offer)
-    fulfillment_policy_id: str = Field(..., description="eBay Shipping Policy ID")
-    return_policy_id: str = Field(..., description="eBay Return Policy ID")
-    payment_policy_id: str = Field(..., description="eBay Payment Policy ID")
+
+class EbayItemResponse(EbayCreateItem):
+    """Payload returned to the client (includes DB-generated fields)."""
+    id: UUID
+
+    # Tells Pydantic it can read data directly from the SQLAlchemy ORM object
+    model_config = ConfigDict(from_attributes=True)

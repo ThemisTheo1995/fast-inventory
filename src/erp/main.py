@@ -7,7 +7,7 @@ app = FastAPI(title="ERP API")
 
 # Define the origins that are allowed to talk to your API
 origins = [
-    "http://localhost:5173", # Default Vite port
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
     # Add your production domain here later
 ]
