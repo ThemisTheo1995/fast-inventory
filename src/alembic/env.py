@@ -4,9 +4,7 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from erp.core.config import get_settings
-
-# 1. Import your Base
-from erp.database.base import Base
+from erp.model_registry import metadata as target_metadata
 
 config = context.config
 settings = get_settings()
@@ -16,8 +14,6 @@ config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
