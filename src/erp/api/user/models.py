@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from erp.api.models.base import BaseModel
+from erp.api.base.models import BaseModel
 
 
 class User(BaseModel):

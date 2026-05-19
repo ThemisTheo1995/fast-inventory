@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy import ARRAY, Enum as SQLEnum, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from erp.api.models.base import BaseModel
+from erp.api.base.models import BaseModel
 from erp.integrations.ebay.items.enums import EbayItemStatus
 
 

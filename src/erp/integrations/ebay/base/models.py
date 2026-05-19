@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Enum, ForeignKey, ForeignKeyConstraint, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from erp.api.models.base import BaseModel
+from erp.api.base.models import BaseModel
 from erp.integrations.ebay.base.enum import EbayPermissionRole
 
 
