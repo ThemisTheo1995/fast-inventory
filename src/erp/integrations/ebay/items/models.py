@@ -1,7 +1,8 @@
+import uuid
 from decimal import Decimal
 
-from sqlalchemy import ARRAY, Enum as SQLEnum, Integer, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ARRAY, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.api.base.models import BaseModel
 from erp.integrations.ebay.items.enums import EbayItemStatus
@@ -10,8 +11,14 @@ from erp.integrations.ebay.items.enums import EbayItemStatus
 class EbayItem(BaseModel):
     __tablename__ = "ebay_items"
 
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
     # eBay's specific ID (Needs to be a string as eBay item IDs can be very large)
-    external_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    external_id: Mapped[str] = mapped_column(String, index=True)
 
     # ERP Linkage
     sku: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
@@ -38,6 +45,13 @@ class EbayItem(BaseModel):
         default=list,
         nullable=False
     )
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "external_id", name="uq_workspace_ebay_external_id"),
+    )
+
+    # Relationships
+    workspace: Mapped["Workspace"] = relationship("Workspace")
 
     def __repr__(self) -> str:
         return f"<EbayItem(sku='{self.sku}', title='{self.title}', price={self.price})>"

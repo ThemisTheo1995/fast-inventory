@@ -2,7 +2,7 @@ from collections.abc import Generator
 from typing import Any
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from erp.core.config import get_settings
 
@@ -29,8 +29,10 @@ engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 # Base model
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 
 # Database Dependency for FastAPI routes

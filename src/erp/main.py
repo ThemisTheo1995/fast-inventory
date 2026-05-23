@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from erp import model_registry  # noqa: F401
 from erp.api.router import api_router
 
 app = FastAPI(title="ERP API")
