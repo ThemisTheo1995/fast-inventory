@@ -1,12 +1,12 @@
 from datetime import datetime
 from decimal import Decimal
 
-from erp.integrations.ebay.orders.client import EbayOrderClient
-from erp.modules.orders.adapter import MarketplaceOrderAdapter
-from erp.modules.orders.schemas import (
+from erp.api.modules.orders.adapter import MarketplaceOrderAdapter
+from erp.api.modules.orders.schemas import (
     MarketplaceOrder,
     MarketplaceOrderItem,
 )
+from erp.integrations.ebay.orders.client import EbayOrderClient
 
 
 class EbayOrderAdapter(MarketplaceOrderAdapter):

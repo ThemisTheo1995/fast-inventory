@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
+from erp.api.modules.orders.schemas import MarketplaceOrder
 from erp.integrations.ebay.orders.adapter import EbayOrderAdapter
 from erp.integrations.ebay.orders.repository import EbayOrderRepository
-from erp.modules.orders.schemas import MarketplaceOrder
 
 
 class EbayOrderService:

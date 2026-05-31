@@ -6,10 +6,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.4",
+    "bcrypt<=4.0.1",
     "fastapi>=0.135.1",
     "httpx>=0.28.1",
+    "passlib[bcrypt]>=1.7.4",
     "psycopg2-binary>=2.9.11",
     "pydantic-settings>=2.13.1",
+    "pydantic[email]>=2.12.5",
+    "pyjwt>=2.12.1",
     "sqlalchemy>=2.0.49",
     "uvicorn>=0.41.0",
 ]
@@ -56,12 +60,18 @@ select = [
     "TRY", # exception handling
     "PERF" # performance issues
 ]
+ignore = ["F821"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = [
+"src/tests/*" = [
     "ANN",
-    "S101"
+    "S101",
+    "F821"
 ]
+
+"src/erp/model_registry.py" = ["I001", "RUF022"]
+
+"src/alembic/versions/*.py" = ["ALL"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["erp"]

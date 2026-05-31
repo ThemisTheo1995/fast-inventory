@@ -7,8 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
 
-from erp.api.auth.exceptions import CredentialsException, WorkspaceNotFound
+from erp.api.auth.exceptions import CredentialsException
 from erp.api.auth.models import User
+from erp.api.workspace.exceptions import WorkspaceNotFound
 from erp.api.workspace.models import WorkspaceUser
 from erp.core.config import get_settings
 from erp.database.base import get_db
@@ -69,12 +70,11 @@ def get_current_workspace(
     """
     query = select(WorkspaceUser).where(
         WorkspaceUser.user_id == current_user.id,
-        WorkspaceUser.id == workspace_id
+        WorkspaceUser.workspace_id == workspace_id
     )
     result = db.execute(query)
     association = result.scalar_one_or_none()
 
-    print(association)
     if not association:
         raise WorkspaceNotFound()
 

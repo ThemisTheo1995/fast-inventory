@@ -1,9 +1,10 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import Enum as SQLEnum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.api.base.models import BaseModel
+from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
 
 
 class Workspace(BaseModel):
@@ -36,6 +37,20 @@ class WorkspaceUser(BaseModel):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String,
+        default=WorkspaceRoleEnum.READ_ONLY.value,
+        server_default="read_only",
+        nullable=False
+    )
+
+    status: Mapped[str] = mapped_column(
+        String,
+        default=InvitationStatusEnum.PENDING.value,
+        server_default="pending",
+        nullable=False
     )
 
     __table_args__ = (

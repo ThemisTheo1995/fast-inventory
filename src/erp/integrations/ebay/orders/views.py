@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from erp.api.modules.orders.schemas import MarketplaceOrder
 from erp.integrations.ebay.orders.dependencies import get_ebay_service
 from erp.integrations.ebay.orders.service import EbayOrderService
-from erp.modules.orders.schemas import MarketplaceOrder
 
 router = APIRouter()
 

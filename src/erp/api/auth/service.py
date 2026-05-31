@@ -17,6 +17,7 @@ from erp.api.auth.utils import (
     get_password_hash,
     verify_password,
 )
+from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from erp.api.workspace.models import Workspace, WorkspaceUser
 
 
@@ -51,7 +52,9 @@ class AuthService:
             # 4. Link them via WorkspaceUser
             workspace_user = WorkspaceUser(
                 user_id=user.id,
-                workspace_id=workspace.id
+                workspace_id=workspace.id,
+                role=WorkspaceRoleEnum.FULL_ADMIN,
+                status=InvitationStatusEnum.ACTIVE
             )
             self.db.add(workspace_user)
             self.db.flush()
@@ -103,13 +106,13 @@ class AuthService:
         self.db.add(new_session)
         self.db.commit()
 
-        workspace = user.workspaces[0] if user.workspaces else None
+        workspace_link = user.workspaces[0] if user.workspaces else None
 
         return TokenResponse(
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
             token_type="bearer",
-            workspace_id=workspace.id if workspace else None
+            workspace_id=workspace_link.workspace_id if workspace_link else None
         )
 
     def logout(self, data: LogoutRequest) -> None:

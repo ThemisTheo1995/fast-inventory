@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
-from erp.modules.orders.adapter import StandardOrderAdapter
-from erp.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
+from erp.api.modules.orders.adapter import StandardOrderAdapter
+from erp.api.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
 
 
 class OrderService:

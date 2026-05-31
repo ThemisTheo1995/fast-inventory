@@ -3,9 +3,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from erp.modules.orders.dependencies import get_order_service
-from erp.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
-from erp.modules.orders.service import OrderService
+from erp.api.modules.orders.dependencies import get_order_service
+from erp.api.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
+from erp.api.modules.orders.service import OrderService
 
 router = APIRouter()
 

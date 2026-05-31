@@ -20,7 +20,7 @@ if settings.ENVIRONMENT == "prod":
     })
 else:
     engine_kwargs.update({
-        "echo": True,
+        "echo": False,
     })
 
 # Create the engine

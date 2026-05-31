@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from typing import Protocol
 
-from erp.modules.orders.client import StandardClient
-from erp.modules.orders.schemas import (
+from erp.api.modules.orders.client import StandardClient
+from erp.api.modules.orders.schemas import (
     MarketplaceCreateOrder,
     MarketplaceOrder,
     MarketplaceOrderItem,

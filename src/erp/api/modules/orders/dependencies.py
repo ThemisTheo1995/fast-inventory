@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from erp.modules.orders.adapter import StandardOrderAdapter
-from erp.modules.orders.client import StandardClient
-from erp.modules.orders.service import OrderService
+from erp.api.modules.orders.adapter import StandardOrderAdapter
+from erp.api.modules.orders.client import StandardClient
+from erp.api.modules.orders.service import OrderService
 
 
 def get_client() -> StandardClient:

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from erp.api.modules.items.adapter import MarketplaceItemAdapter
 from erp.integrations.ebay.items.client import EbayItemClient
 from erp.integrations.ebay.items.schemas import (
     EbayCreateItem,
@@ -7,7 +8,6 @@ from erp.integrations.ebay.items.schemas import (
     EbayPrice,
     EbayStatusEnum,
 )
-from erp.modules.items.adapter import MarketplaceItemAdapter
 
 
 class EbayItemAdapter(MarketplaceItemAdapter):

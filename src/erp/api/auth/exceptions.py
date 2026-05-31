@@ -48,12 +48,3 @@ class SessionExpiredException(HTTPException):
             detail="Session has expired or been revoked. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-
-class WorkspaceNotFound(HTTPException):
-    def __init__(self) -> None:
-        super().__init__(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this workspace or it does not exist.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
