@@ -29,6 +29,7 @@ class EbayItem(BaseModel):
     Standard ERP representation of a marketplace item.
     Mapped from eBay Inventory/Offer data.
     """
+    workspace_id: UUID | None = Field(default=None, description="Associated ERP workspace UUID")
     external_id: str = Field(..., description="The listingId or offerId from the marketplace")
     sku: str = Field(..., description="The unique seller-defined SKU")
     marketplace: str = Field(default="eBay", description="Marketplace name")
@@ -44,6 +45,7 @@ class EbayItem(BaseModel):
 
 class EbayCreateItem(BaseModel):
     """Payload expected from the client to create an item."""
+    workspace_id: UUID
     external_id: str
     sku: str | None = None
     title: str

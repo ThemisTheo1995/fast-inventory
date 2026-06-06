@@ -1,10 +1,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from erp.api.auth.schemas import (
-    LoginRequest,
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
@@ -32,13 +32,13 @@ def register(
 
 @router.post("/login", response_model=TokenResponse)
 def login(
-    data: LoginRequest,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)]
 ) -> TokenResponse:
 
     service = AuthService(db)
 
-    return service.login(data)
+    return service.login(form_data)
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

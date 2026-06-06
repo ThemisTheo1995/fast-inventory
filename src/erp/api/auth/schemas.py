@@ -2,17 +2,14 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
+from erp.api.workspace.schemas import WorkspaceCreate
+
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     first_name: str | None = None
     last_name: str | None = None
-
-
-class WorkspaceCreate(BaseModel):
-    name: str
-    email: EmailStr
 
 
 class RegisterRequest(BaseModel):
@@ -30,13 +27,7 @@ class RegisterResponse(BaseModel):
     id: uuid.UUID
     workspace_id: uuid.UUID
 
-    class Config:
-        from_attributes = True
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LogoutRequest(BaseModel):

@@ -12,7 +12,8 @@ class EbayItemService:
 
     def get_items(self) -> list[EbayItem]:
         return self.adapter.get_items(
-            since=datetime.now(tz=UTC) - timedelta(days=30))
+            since=datetime.now(tz=UTC) - timedelta(days=30)
+        )
 
     def create_item(self, item_data: EbayCreateItem) -> EbayItem:
         """Create an eBay item explicitly in ERP's database (not on eBay)."""

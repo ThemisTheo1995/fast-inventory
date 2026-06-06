@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from erp.api.auth.exceptions import (
@@ -9,7 +10,7 @@ from erp.api.auth.exceptions import (
     UserExistsException,
 )
 from erp.api.auth.models import User, UserSession
-from erp.api.auth.schemas import LoginRequest, LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse
+from erp.api.auth.schemas import LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse
 from erp.api.auth.utils import (
     create_access_token,
     decode_token,
@@ -79,13 +80,13 @@ class AuthService:
             self.db.rollback()
             raise OnboardingFailedException(e) from e
 
-    def login(self, data: LoginRequest) -> TokenResponse:
-        """Service to login users."""
+    def login(self, data: OAuth2PasswordRequestForm) -> TokenResponse:
+        """Service to login users via OAuth2 Form Data."""
 
         # 1. Find user by email
-        user = self.db.query(User).filter(User.email == data.email).first()
+        user = self.db.query(User).filter(User.email == data.username).first()
 
-        # 2. Verify password (use generic error to prevent email enumeration)
+        # 2. Verify password
         if not user or not verify_password(data.password, user.hashed_password):
             raise CredentialsException()
 
@@ -106,13 +107,14 @@ class AuthService:
         self.db.add(new_session)
         self.db.commit()
 
-        workspace_link = user.workspaces[0] if user.workspaces else None
+        workspace_link = user.workspaces[0]
 
         return TokenResponse(
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
-            token_type="bearer",
-            workspace_id=workspace_link.workspace_id if workspace_link else None
+            # Ensure this is exactly "bearer" (lowercase is standard, but Swagger handles both)
+            token_type="bearer", 
+            workspace_id=workspace_link.workspace_id
         )
 
     def logout(self, data: LogoutRequest) -> None:

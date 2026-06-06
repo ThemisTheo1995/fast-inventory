@@ -1,3 +1,6 @@
+![FastAPI](https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi) ![Coverage](https://img.shields.io/badge/coverage-91%25-green)
+
+
 # ERP FastAPI Project
 
 ## 📁 Project Structure
@@ -117,7 +120,7 @@ sqlalchemy.url = ${DATABASE_URL}
 ## 🧪 Running Tests
 
 ```bash
-uv run pytest src/tests
+uv run pytest tests
 ```
 
 ---
@@ -127,19 +130,19 @@ uv run pytest src/tests
 ### Lint
 
 ```bash
-uv run ruff check src
+uv run ruff check
 ```
 
 ### Fix issues automatically
 
 ```bash
-uv run ruff check src --fix
+uv run ruff check --fix
 ```
 
 ### Format code
 
 ```bash
-uv run ruff format src
+uv run ruff format
 ```
 
 ---
@@ -152,16 +155,15 @@ uv run ruff format src
 | New migration    | `uv run alembic revision --autogenerate -m "msg"`    |
 | Apply migrations | `uv run alembic upgrade head`                        |
 | Rollback         | `uv run alembic downgrade -1`                        |
-| Run tests        | `uv run pytest src/tests`                            |
-| Lint             | `uv run ruff check src`                              |
-| Format           | `uv run ruff format src`                             |
+| Run tests        | `uv run pytest tests`                            |
+| Lint             | `uv run ruff check`                              |
+| Format           | `uv run ruff format`                             |
 
 ---
 
 ## ⚡ Tips
 
 * `uv run` ensures commands use the correct environment without manual activation
-* Keep imports relative to `src` (or configure PYTHONPATH if needed)
 * Use `ruff` instead of multiple tools (`flake8`, `isort`, `black`)
 
 ---
@@ -175,13 +177,13 @@ run:
 	uv run uvicorn erp.main:app --reload --app-dir src
 
 lint:
-	uv run ruff check src
+	uv run ruff check
 
 format:
-	uv run ruff format src
+	uv run ruff format
 
 test:
-	uv run pytest src/tests
+	uv run pytest tests
 
 migrate:
 	uv run alembic upgrade head

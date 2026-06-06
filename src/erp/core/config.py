@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str
+    TEST_DATABASE_URL: str | None = None
 
     # Shopify
     SHOPIFY_TEST_API_DOMAIN: str

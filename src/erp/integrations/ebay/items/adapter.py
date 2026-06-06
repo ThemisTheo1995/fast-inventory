@@ -28,16 +28,22 @@ class EbayItemAdapter(MarketplaceItemAdapter):
         self.client.cancel_order(order_id)
 
     def _map_item(self, raw: dict) -> EbayItem:
+        image_urls = raw["product"].get("imageUrls")
+        image_url = image_urls[0] if image_urls else None
+
         return EbayItem(
+            workspace_id=raw.get("workspace_id"),
             external_id=raw.get("listingId", "N/A"),
             sku=raw["sku"],
             name=raw["product"]["title"],
             price=EbayPrice(
                 value=float(raw["price"]["value"]),
-                currency=raw["price"]["currency"]
+                currency=raw["price"]["currency"],
             ),
-            stock_quantity=raw["availability"]["shipToLocationAvailability"]["quantity"],
+            stock_quantity=raw["availability"]["shipToLocationAvailability"][
+                "quantity"
+            ],
             status=EbayStatusEnum(raw["status"]),
-            image_url=raw["product"].get("imageUrls", [None])[0],
-            metadata=raw["product"].get("aspects", {})
+            image_url=image_url,
+            metadata=raw["product"].get("aspects", {}),
         )

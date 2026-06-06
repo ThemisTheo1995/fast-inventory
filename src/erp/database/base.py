@@ -36,7 +36,7 @@ class Base(DeclarativeBase):
 
 
 # Database Dependency for FastAPI routes
-def get_db() -> Generator[Session, Any, None]:
+def get_db() -> Generator[Session, Any]:
     db = SessionLocal()
     try:
         yield db

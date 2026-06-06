@@ -1,4 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+
+class WorkspaceCreate(BaseModel):
+    name: str
+    email: EmailStr
 
 
 class WorkspaceMemberResponse(BaseModel):
@@ -8,8 +13,7 @@ class WorkspaceMemberResponse(BaseModel):
     role_id: str
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InviteMemberRequest(BaseModel):

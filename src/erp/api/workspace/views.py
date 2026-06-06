@@ -12,7 +12,7 @@ from erp.database.base import get_db
 router = APIRouter()
 
 
-@router.get("", response_model=list[WorkspaceMemberResponse])
+@router.get("/members", response_model=list[WorkspaceMemberResponse])
 def get_members(
     workspace_id: str,
     db: Annotated[Session, Depends(get_db)]
@@ -23,7 +23,7 @@ def get_members(
     return service.get_workspace_users(workspace_id)
 
 
-@router.post("/invite", response_model=WorkspaceMemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/members/invite", response_model=WorkspaceMemberResponse, status_code=status.HTTP_201_CREATED)
 def invite_member(
     workspace_id: str,
     payload: InviteMemberRequest,
@@ -40,7 +40,7 @@ def invite_member(
     )
 
 
-@router.patch("/{user_id}/role", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/members/{user_id}/role", status_code=status.HTTP_204_NO_CONTENT)
 def change_role(
     workspace_id: str,
     user_id: str, payload: UpdateRoleRequest,
@@ -57,7 +57,7 @@ def change_role(
     )
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_member(
     workspace_id: str,
     user_id: str,

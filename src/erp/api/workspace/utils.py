@@ -19,7 +19,7 @@ def guard_against_self_action(actor_id: str, target_user_id: str, is_eviction: b
 
 
 def guard_rank_immunity(actor_role: str, target_member_role: str) -> None:
-    """RULE 2: Lower-tier roles cannot modify or delete higher/equal-tier roles."""
+    """RULE 2: Lower-tier roles cannot modify or delete higher roles."""
     actor_weight = ROLE_WEIGHTS.get(actor_role.lower(), 1)
     target_weight = ROLE_WEIGHTS.get(target_member_role.lower(), 1)
 

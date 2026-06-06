@@ -9,7 +9,6 @@ from erp.model_registry import metadata as target_metadata
 config = context.config
 settings = get_settings()
 
-# 3. Force cast to string (Crucial if using Pydantic PostgresDsn/Url types)
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
 if config.config_file_name is not None:

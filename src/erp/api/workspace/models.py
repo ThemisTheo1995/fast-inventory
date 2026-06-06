@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Enum as SQLEnum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.api.base.models import BaseModel
