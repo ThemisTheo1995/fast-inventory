@@ -1,10 +1,27 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from erp import model_registry  # noqa: F401
 from erp.api.router import api_router
+from erp.core.exceptions import BaseAppError
 
 app = FastAPI(title="ERP API")
+
+
+# Global Exception
+@app.exception_handler(BaseAppError)
+async def custom_app_exception_handler(_request: Request, exc: BaseAppError) -> JSONResponse:
+    """
+    Catches all BaseAppErrors and returns a standardised JSON format.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error_code": exc.code,
+            "detail": exc.detail
+        }
+    )
 
 # Define the origins that are allowed to talk to your API
 origins = [

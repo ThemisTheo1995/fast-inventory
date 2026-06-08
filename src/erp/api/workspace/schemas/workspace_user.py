@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
@@ -6,8 +8,8 @@ class WorkspaceCreate(BaseModel):
     email: EmailStr
 
 
-class WorkspaceMemberResponse(BaseModel):
-    id: str
+class WorkspaceUserResponse(BaseModel):
+    id: UUID
     name: str | None = None
     email: EmailStr
     role_id: str
@@ -16,10 +18,10 @@ class WorkspaceMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class InviteMemberRequest(BaseModel):
+class InviteWorkspaceUserRequest(BaseModel):
     email: EmailStr
     role_id: str
 
 
-class UpdateRoleRequest(BaseModel):
+class UpdateWorkspaceUserRoleRequest(BaseModel):
     role_id: str

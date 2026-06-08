@@ -1,10 +1,10 @@
 import pytest
 
 from erp.api.workspace.exceptions import (
-    PrivilegeEscalationBlocked,
-    RankImmunityViolation,
-    SelfEvictionBlocked,
-    SelfModificationBlocked,
+    PrivilegeEscalationBlockedError,
+    RankImmunityViolationError,
+    SelfEvictionBlockedError,
+    SelfModificationBlockedError,
 )
 from erp.api.workspace.utils import (
     guard_against_self_action,
@@ -30,18 +30,18 @@ def test_guard_against_self_action_happy_path():
 def test_guard_against_self_action_raises_self_modification():
     """
     When an actor tries to modify themselves (actor_id == target_user_id) 
-    and is_eviction is False, it must raise SelfModificationBlocked.
+    and is_eviction is False, it must raise SelfModificationBlockedError.
     """
-    with pytest.raises(SelfModificationBlocked):
+    with pytest.raises(SelfModificationBlockedError):
         guard_against_self_action(actor_id="user_123", target_user_id="user_123", is_eviction=False)
 
 
 def test_guard_against_self_action_raises_self_eviction():
     """
     When an actor tries to evict themselves (actor_id == target_user_id) 
-    and is_eviction is True, it must raise SelfEvictionBlocked.
+    and is_eviction is True, it must raise SelfEvictionBlockedError.
     """
-    with pytest.raises(SelfEvictionBlocked):
+    with pytest.raises(SelfEvictionBlockedError):
         guard_against_self_action(actor_id="user_123", target_user_id="user_123", is_eviction=True)
 
 
@@ -73,9 +73,9 @@ def test_guard_rank_immunity_happy_paths(actor_role, target_member_role):
 def test_guard_rank_immunity_raises_violation(actor_role, target_member_role):
     """
     When an actor has a strictly lower weight than their target, the function 
-    must defend the higher-tier user and raise RankImmunityViolation.
+    must defend the higher-tier user and raise RankImmunityViolationError.
     """
-    with pytest.raises(RankImmunityViolation):
+    with pytest.raises(RankImmunityViolationError):
         guard_rank_immunity(actor_role, target_member_role)
 
 
@@ -93,7 +93,7 @@ def test_guard_rank_immunity_edge_cases_case_insensitivity(actor_role, target_me
 
     # Mixed case that should be caught and rejected correctly
     if actor_role.lower() == "edit_only" and target_member_role.lower() == "full_admin":
-        with pytest.raises(RankImmunityViolation):
+        with pytest.raises(RankImmunityViolationError):
             guard_rank_immunity(actor_role, target_member_role)
 
 
@@ -108,7 +108,7 @@ def test_guard_rank_immunity_edge_cases_unknown_roles(actor_role, target_member_
     to a default weight value of 1 without throwing a KeyError.
     """
     if should_raise:
-        with pytest.raises(RankImmunityViolation):
+        with pytest.raises(RankImmunityViolationError):
             guard_rank_immunity(actor_role, target_member_role)
     else:
         assert guard_rank_immunity(actor_role, target_member_role) is None
@@ -142,9 +142,9 @@ def test_guard_privilege_escalation_raises_violation(actor_role, requested_role)
     """
     EXCEPTION PATH:
     An actor attempting to grant a role carrying a strictly heavier weight than
-    their own must be blocked by a PrivilegeEscalationBlocked exception.
+    their own must be blocked by a PrivilegeEscalationBlockedError exception.
     """
-    with pytest.raises(PrivilegeEscalationBlocked):
+    with pytest.raises(PrivilegeEscalationBlockedError):
         guard_privilege_escalation(actor_role, requested_role)
 
 
@@ -158,7 +158,7 @@ def test_guard_privilege_escalation_edge_cases_unknown_and_case():
     assert guard_privilege_escalation("EDIT_ONLY", "read_only") is None
 
     # Unknown actor role fallback (defaults to 1) trying to grant a level 2 role (Blocked)
-    with pytest.raises(PrivilegeEscalationBlocked):
+    with pytest.raises(PrivilegeEscalationBlockedError):
         guard_privilege_escalation("anonymous_ghost_role", "edit_only")
 
     # Unknown requested role fallback (defaults to 1) being assigned by an Editor (Allowed)

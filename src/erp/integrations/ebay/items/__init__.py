@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from erp.api.auth.dependencies import get_current_active_user, get_current_workspace
+from erp.api.auth.permissions import verify_workspace_access
 
 from .views import router as ebay_items_router
 
@@ -11,7 +11,6 @@ router.include_router(
     prefix="/{workspace_id}/integrations/ebay/items",
     tags=["Ebay-Items"],
     dependencies=[
-        Depends(get_current_active_user),
-        Depends(get_current_workspace)
+        Depends(verify_workspace_access)
     ]
 )

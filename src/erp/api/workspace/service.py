@@ -1,13 +1,49 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from erp.api.auth.models import User
-from erp.api.workspace.exceptions import UserAlreadyActiveMember, WorkspaceMemberNotFound
-from erp.api.workspace.models import WorkspaceUser
-from erp.api.workspace.schemas import WorkspaceMemberResponse
+from erp.api.workspace.exceptions import (
+    UserAlreadyActiveMemberError,
+    WorkspaceMemberNotFoundError,
+    WorkspaceNotFoundError,
+)
+from erp.api.workspace.models import Workspace, WorkspaceUser
+from erp.api.workspace.schemas.workspace import WorkspaceUpdate
+from erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
 from erp.api.workspace.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
 
 
-class PermissionService:
+class WorkspaceService:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def get_workspace(self, workspace_id: UUID) -> Workspace:
+        """Retrieves a workspace by its ID. Raises a 404 if it does not exist."""
+        workspace = self.db.query(Workspace).filter(Workspace.id == workspace_id).first()
+
+        if not workspace:
+            raise WorkspaceNotFoundError()
+
+        return workspace
+
+    def update_workspace(self, workspace_id: UUID, update_data: WorkspaceUpdate) -> Workspace:
+        """Updates an existing workspace based on provided fields."""
+
+        workspace = self.get_workspace(workspace_id)
+
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        for key, value in update_dict.items():
+            setattr(workspace, key, value)
+
+        self.db.commit()
+        self.db.refresh(workspace)
+
+        return workspace
+
+
+class WorkspaceUserService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
@@ -19,7 +55,7 @@ class PermissionService:
             WorkspaceUser.is_deleted.is_(False)
         ).first()
         if not link:
-            raise WorkspaceMemberNotFound()
+            raise WorkspaceMemberNotFoundError()
         return link
 
     def get_workspace_users(self, workspace_id: str) -> list[dict]:
@@ -39,7 +75,7 @@ class PermissionService:
         for ws_user, user in results:
             full_name = f"{user.first_name} {user.last_name}".strip() if user.first_name else None
             members.append(
-                WorkspaceMemberResponse(
+                WorkspaceUserResponse(
                     id=str(user.id),
                     name=full_name,
                     email=user.email,
@@ -68,12 +104,12 @@ class PermissionService:
 
         if existing_link:
             if not existing_link.is_deleted:
-                raise UserAlreadyActiveMember()
+                raise UserAlreadyActiveMemberError()
             existing_link.is_deleted = False
             existing_link.role = role
             existing_link.status = "pending"
             self.db.commit()
-            return WorkspaceMemberResponse(
+            return WorkspaceUserResponse(
                 id=str(user.id),
                 name=f"{user.first_name} {user.last_name}".strip() or None,
                 email=email,
@@ -90,7 +126,7 @@ class PermissionService:
         )
         self.db.add(new_member)
         self.db.commit()
-        return WorkspaceMemberResponse(
+        return WorkspaceUserResponse(
             id=str(user.id),
             name=None,
             email=email,

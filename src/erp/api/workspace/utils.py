@@ -1,8 +1,8 @@
 from erp.api.workspace.exceptions import (
-    PrivilegeEscalationBlocked,
-    RankImmunityViolation,
-    SelfEvictionBlocked,
-    SelfModificationBlocked,
+    PrivilegeEscalationBlockedError,
+    RankImmunityViolationError,
+    SelfEvictionBlockedError,
+    SelfModificationBlockedError,
 )
 
 ROLE_WEIGHTS = {
@@ -15,7 +15,7 @@ ROLE_WEIGHTS = {
 def guard_against_self_action(actor_id: str, target_user_id: str, is_eviction: bool = False) -> None:
     """RULE 1: Prevent users from managing or deleting their own roles."""
     if actor_id == target_user_id:
-        raise SelfEvictionBlocked() if is_eviction else SelfModificationBlocked()
+        raise SelfEvictionBlockedError() if is_eviction else SelfModificationBlockedError()
 
 
 def guard_rank_immunity(actor_role: str, target_member_role: str) -> None:
@@ -24,7 +24,7 @@ def guard_rank_immunity(actor_role: str, target_member_role: str) -> None:
     target_weight = ROLE_WEIGHTS.get(target_member_role.lower(), 1)
 
     if target_weight > actor_weight:
-        raise RankImmunityViolation()
+        raise RankImmunityViolationError()
 
 
 def guard_privilege_escalation(actor_role: str, requested_role: str) -> None:
@@ -33,4 +33,4 @@ def guard_privilege_escalation(actor_role: str, requested_role: str) -> None:
     requested_weight = ROLE_WEIGHTS.get(requested_role.lower(), 1)
 
     if requested_weight > actor_weight:
-        raise PrivilegeEscalationBlocked()
+        raise PrivilegeEscalationBlockedError()

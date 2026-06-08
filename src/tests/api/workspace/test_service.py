@@ -4,16 +4,16 @@ import pytest
 
 from erp.api.auth.models import User
 from erp.api.workspace.exceptions import (
-    PrivilegeEscalationBlocked,
-    RankImmunityViolation,
-    SelfEvictionBlocked,
-    SelfModificationBlocked,
-    UserAlreadyActiveMember,
-    WorkspaceMemberNotFound,
+    PrivilegeEscalationBlockedError,
+    RankImmunityViolationError,
+    SelfEvictionBlockedError,
+    SelfModificationBlockedError,
+    UserAlreadyActiveMemberError,
+    WorkspaceMemberNotFoundError,
 )
 from erp.api.workspace.models import Workspace, WorkspaceUser
-from erp.api.workspace.schemas import WorkspaceMemberResponse
-from erp.api.workspace.service import PermissionService
+from erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
+from erp.api.workspace.service import WorkspaceUserService
 
 # ============================================================================
 # LOOKUP HELPER TESTS (`_get_active_workspace_user`)
@@ -22,7 +22,7 @@ from erp.api.workspace.service import PermissionService
 
 def test_get_active_workspace_user_happy_path(db_session):
     """Should return the WorkspaceUser record when it exists."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
 
     workspace = Workspace(name="WS", email="w@t.com")
     db_session.add(workspace)
@@ -53,15 +53,15 @@ def test_get_active_workspace_user_happy_path(db_session):
 
 
 def test_get_active_workspace_user_raises_not_found_if_missing(db_session):
-    """Should raise WorkspaceMemberNotFound if no matching record exists."""
-    service = PermissionService(db_session)
-    with pytest.raises(WorkspaceMemberNotFound):
+    """Should raise WorkspaceMemberNotFoundError if no matching record exists."""
+    service = WorkspaceUserService(db_session)
+    with pytest.raises(WorkspaceMemberNotFoundError):
         service._get_active_workspace_user(str(uuid.uuid4()), str(uuid.uuid4()))
 
 
 def test_get_active_workspace_user_raises_not_found_if_soft_deleted(db_session):
     """Should treat soft-deleted workspace members as non-existent."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
 
     workspace = Workspace(name="WS", email="w01@t.com")
     db_session.add(workspace)
@@ -86,7 +86,7 @@ def test_get_active_workspace_user_raises_not_found_if_soft_deleted(db_session):
     db_session.add(link)
     db_session.flush()
 
-    with pytest.raises(WorkspaceMemberNotFound):
+    with pytest.raises(WorkspaceMemberNotFoundError):
         service._get_active_workspace_user(str(workspace.id), str(user.id))
 
 
@@ -97,7 +97,7 @@ def test_get_active_workspace_user_raises_not_found_if_soft_deleted(db_session):
 
 def test_get_workspace_users_happy_path_and_name_formatting(db_session):
     """Should fetch all active members and format full names correctly."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w1@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -140,15 +140,15 @@ def test_get_workspace_users_happy_path_and_name_formatting(db_session):
     members = service.get_workspace_users(str(workspace.id))
 
     assert len(members) == 2
-    assert isinstance(members[0], WorkspaceMemberResponse)
-    assert members[0].id == str(u1.id)
+    assert isinstance(members[0], WorkspaceUserResponse)
+    assert members[0].id == u1.id
     assert members[0].name == "John Doe"
     assert members[1].name == "Solo"
 
 
 def test_get_workspace_users_excludes_soft_deleted_records(db_session):
     """Should ignore workspace links or user records that are soft-deleted."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w2@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -208,7 +208,7 @@ def test_get_workspace_users_excludes_soft_deleted_records(db_session):
 
     members = service.get_workspace_users(str(workspace.id))
     assert len(members) == 1
-    assert members[0].id == str(u_active.id)
+    assert members[0].id == u_active.id
 
 
 # ============================================================================
@@ -218,7 +218,7 @@ def test_get_workspace_users_excludes_soft_deleted_records(db_session):
 
 def test_invite_member_happy_path_new_user(db_session):
     """Should create a fresh User shell and link record on invitation."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w02@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -264,7 +264,7 @@ def test_invite_member_happy_path_new_user(db_session):
 
 def test_invite_member_happy_path_existing_user_without_link(db_session):
     """Should leverage existing user profile but create a new pending link."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w3@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -302,14 +302,14 @@ def test_invite_member_happy_path_existing_user_without_link(db_session):
         role="read_only",
         actor_id=str(actor.id),
     )
-    assert response.id == str(existing_user.id)
+    assert response.id == existing_user.id
     assert response.name is None
     assert response.email == "known@test.com"
 
 
 def test_invite_member_exception_privilege_escalation(db_session):
     """Should block invitation if role is higher than actor's clearance."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w4@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -333,7 +333,7 @@ def test_invite_member_exception_privilege_escalation(db_session):
     db_session.add(actor_link)
     db_session.flush()
 
-    with pytest.raises(PrivilegeEscalationBlocked):
+    with pytest.raises(PrivilegeEscalationBlockedError):
         service.invite_member(
             str(workspace.id),
             email="target@test.com",
@@ -343,8 +343,8 @@ def test_invite_member_exception_privilege_escalation(db_session):
 
 
 def test_invite_member_exception_user_already_active(db_session):
-    """Should raise UserAlreadyActiveMember if target link is active."""
-    service = PermissionService(db_session)
+    """Should raise UserAlreadyActiveMemberError if target link is active."""
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w5@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -382,7 +382,7 @@ def test_invite_member_exception_user_already_active(db_session):
     db_session.add_all([actor_link, target_link])
     db_session.flush()
 
-    with pytest.raises(UserAlreadyActiveMember):
+    with pytest.raises(UserAlreadyActiveMemberError):
         service.invite_member(
             str(workspace.id),
             email="active-member@test.com",
@@ -393,7 +393,7 @@ def test_invite_member_exception_user_already_active(db_session):
 
 def test_invite_member_resurrects_soft_deleted_link(db_session):
     """Should restore and reset tracking metrics for soft-deleted links."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w6@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -454,7 +454,7 @@ def test_invite_member_resurrects_soft_deleted_link(db_session):
 
 def test_update_role_happy_path(db_session):
     """Should modify member's role tier when hierarchy allows."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w7@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -504,11 +504,11 @@ def test_update_role_happy_path(db_session):
 
 def test_update_role_exception_self_modification_blocked(db_session):
     """Should instantly block users attempting to adjust their own roles."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     ws_id = str(uuid.uuid4())
     actor_id = str(uuid.uuid4())
 
-    with pytest.raises(SelfModificationBlocked):
+    with pytest.raises(SelfModificationBlockedError):
         service.update_role(
             ws_id, target_user_id=actor_id, new_role="full_admin", actor_id=actor_id
         )
@@ -516,7 +516,7 @@ def test_update_role_exception_self_modification_blocked(db_session):
 
 def test_update_role_exception_rank_immunity_violation(db_session):
     """Should block users attempting to mutate roles of equal/higher tiers."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w8@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -553,7 +553,7 @@ def test_update_role_exception_rank_immunity_violation(db_session):
     db_session.add_all([actor, target])
     db_session.flush()
 
-    with pytest.raises(RankImmunityViolation):
+    with pytest.raises(RankImmunityViolationError):
         service.update_role(
             str(workspace.id),
             target_user_id=str(target_user.id),
@@ -564,7 +564,7 @@ def test_update_role_exception_rank_immunity_violation(db_session):
 
 def test_update_role_exception_privilege_escalation_blocked(db_session):
     """Should prevent user from raising a peer's role above their own."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w9@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -601,7 +601,7 @@ def test_update_role_exception_privilege_escalation_blocked(db_session):
     db_session.add_all([actor, target])
     db_session.flush()
 
-    with pytest.raises(PrivilegeEscalationBlocked):
+    with pytest.raises(PrivilegeEscalationBlockedError):
         service.update_role(
             str(workspace.id),
             target_user_id=str(target_user.id),
@@ -617,7 +617,7 @@ def test_update_role_exception_privilege_escalation_blocked(db_session):
 
 def test_remove_member_happy_path(db_session):
     """Should soft-delete relationship record when hierarchy allows."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w10@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -666,17 +666,17 @@ def test_remove_member_happy_path(db_session):
 
 def test_remove_member_exception_self_eviction_blocked(db_session):
     """Should explicitly prevent users from deleting their own membership."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     ws_id = str(uuid.uuid4())
     actor_id = str(uuid.uuid4())
 
-    with pytest.raises(SelfEvictionBlocked):
+    with pytest.raises(SelfEvictionBlockedError):
         service.remove_member(ws_id, target_user_id=actor_id, actor_id=actor_id)
 
 
 def test_remove_member_exception_rank_immunity_violation(db_session):
     """Should protect higher or equal tier accounts from deletion."""
-    service = PermissionService(db_session)
+    service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="ws1@t.com")
     db_session.add(workspace)
     db_session.flush()
@@ -713,7 +713,7 @@ def test_remove_member_exception_rank_immunity_violation(db_session):
     db_session.add_all([actor, target])
     db_session.flush()
 
-    with pytest.raises(RankImmunityViolation):
+    with pytest.raises(RankImmunityViolationError):
         service.remove_member(
             str(workspace.id),
             target_user_id=str(target_user.id),

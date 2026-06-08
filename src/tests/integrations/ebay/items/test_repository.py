@@ -1,8 +1,5 @@
 import uuid
 from decimal import Decimal
-from unittest.mock import patch
-
-import pytest
 
 from erp.api.workspace.models import Workspace
 from erp.integrations.ebay.items.enums import EbayItemStatus

@@ -1,16 +1,17 @@
-from fastapi import HTTPException, status
+from fastapi import status
+
+from erp.core.exceptions import BaseAppError
 
 
-class WorkspaceNotFound(HTTPException):
+class WorkspaceNotFoundError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this workspace or it does not exist.",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="You do not have permission to access this workspace or it does not exist."
         )
 
 
-class WorkspaceMemberNotFound(HTTPException):
+class WorkspaceMemberNotFoundError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -18,7 +19,7 @@ class WorkspaceMemberNotFound(HTTPException):
         )
 
 
-class UserAlreadyActiveMember(HTTPException):
+class UserAlreadyActiveMemberError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -26,7 +27,7 @@ class UserAlreadyActiveMember(HTTPException):
         )
 
 
-class SelfModificationBlocked(HTTPException):
+class SelfModificationBlockedError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -34,7 +35,7 @@ class SelfModificationBlocked(HTTPException):
         )
 
 
-class SelfEvictionBlocked(HTTPException):
+class SelfEvictionBlockedError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -42,7 +43,7 @@ class SelfEvictionBlocked(HTTPException):
         )
 
 
-class RankImmunityViolation(HTTPException):
+class RankImmunityViolationError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -50,9 +51,9 @@ class RankImmunityViolation(HTTPException):
         )
 
 
-class PrivilegeEscalationBlocked(HTTPException):
+class PrivilegeEscalationBlockedError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access Denied: You cannot escalate privileges beyond your own authorization ceiling.",
+            detail="Access Denied: You cannot escalate privileges beyond your own authorisation ceiling.",
         )

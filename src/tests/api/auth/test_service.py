@@ -5,10 +5,10 @@ import pytest
 from fastapi.security import OAuth2PasswordRequestForm
 
 from erp.api.auth.exceptions import (
-    CredentialsException,
-    OnboardingFailedException,
+    CredentialsExceptionError,
+    OnboardingFailedExceptionError,
     TokenInvalidError,
-    UserExistsException,
+    UserExistsExceptionError,
 )
 from erp.api.auth.models import User, UserSession
 from erp.api.auth.schemas import LogoutRequest, RegisterRequest, UserCreate
@@ -16,7 +16,7 @@ from erp.api.auth.service import AuthService
 from erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
 from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from erp.api.workspace.models import Workspace, WorkspaceUser
-from erp.api.workspace.schemas import WorkspaceCreate
+from erp.api.workspace.schemas.workspace import WorkspaceCreate
 
 # ============================================================================
 # ONBOARDING SERVICE TESTS (`onboard`)
@@ -58,7 +58,7 @@ def test_onboard_happy_path(db_session):
 def test_onboard_exception_user_already_exists(db_session):
     """
     If a user email already exists in the system, pre-check must raise
-    UserExistsException immediately before running any downstream database flushes.
+    UserExistsExceptionError immediately before running any downstream database flushes.
     """
     auth_service = AuthService(db_session)
 
@@ -72,7 +72,7 @@ def test_onboard_exception_user_already_exists(db_session):
         workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com")
     )
 
-    with pytest.raises(UserExistsException):
+    with pytest.raises(UserExistsExceptionError):
         auth_service.onboard(request_data)
 
 
@@ -81,7 +81,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     EXCEPTION PATH & EDGE CASE:
     If any uncaught database/internal error occurs mid-transaction (e.g. JWT token generation failure),
     the system must catch it, execute a transaction rollback to prevent orphaned records, 
-    and raise an OnboardingFailedException wrapper.
+    and raise an OnboardingFailedExceptionError wrapper.
     """
     auth_service = AuthService(db_session)
     request_data = RegisterRequest(
@@ -91,7 +91,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
 
     # Force an internal failure mid-flight by patching 'generate_token_pair' to raise a runtime error
     with patch("erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")):  # noqa: SIM117
-        with pytest.raises(OnboardingFailedException):
+        with pytest.raises(OnboardingFailedExceptionError):
             auth_service.onboard(request_data)
 
     # Assert that rollback successfully kept database clean of partial/orphaned items
@@ -166,7 +166,7 @@ def test_login_user_with_no_workspaces_raises_index_error(db_session):
 def test_login_exception_invalid_credentials(db_session, email, password):
     """
     Any invalid permutation of username or password must safely bubble up a unified
-    CredentialsException to obscure system internals and block automated user enumeration.
+    CredentialsExceptionError to obscure system internals and block automated user enumeration.
     """
     auth_service = AuthService(db_session)
 
@@ -191,7 +191,7 @@ def test_login_exception_invalid_credentials(db_session, email, password):
 
     login_data = OAuth2PasswordRequestForm(username=email, password=password)
 
-    with pytest.raises(CredentialsException):
+    with pytest.raises(CredentialsExceptionError):
         auth_service.login(login_data)
 
 

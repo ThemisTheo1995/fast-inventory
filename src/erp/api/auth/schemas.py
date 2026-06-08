@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from erp.api.workspace.schemas import WorkspaceCreate
+from erp.api.workspace.schemas.workspace import WorkspaceCreate
 
 
 class UserCreate(BaseModel):

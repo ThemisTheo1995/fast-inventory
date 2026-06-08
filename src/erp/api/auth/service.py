@@ -4,10 +4,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from erp.api.auth.exceptions import (
-    CredentialsException,
-    OnboardingFailedException,
+    CredentialsExceptionError,
+    OnboardingFailedExceptionError,
     TokenInvalidError,
-    UserExistsException,
+    UserExistsExceptionError,
 )
 from erp.api.auth.models import User, UserSession
 from erp.api.auth.schemas import LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse
@@ -31,7 +31,7 @@ class AuthService:
 
         # 1. Pre-check email existence
         if self.db.query(User).filter(User.email == data.user.email).first():
-            raise UserExistsException()
+            raise UserExistsExceptionError()
 
         try:
             # 2. Create the Workspace
@@ -78,7 +78,7 @@ class AuthService:
 
         except Exception as e:
             self.db.rollback()
-            raise OnboardingFailedException(e) from e
+            raise OnboardingFailedExceptionError() from e
 
     def login(self, data: OAuth2PasswordRequestForm) -> TokenResponse:
         """Service to login users via OAuth2 Form Data."""
@@ -88,7 +88,7 @@ class AuthService:
 
         # 2. Verify password
         if not user or not verify_password(data.password, user.hashed_password):
-            raise CredentialsException()
+            raise CredentialsExceptionError()
 
         # 3. Generate tokens
         tokens = generate_token_pair(user.id)
@@ -112,8 +112,7 @@ class AuthService:
         return TokenResponse(
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
-            # Ensure this is exactly "bearer" (lowercase is standard, but Swagger handles both)
-            token_type="bearer", 
+            token_type="bearer",
             workspace_id=workspace_link.workspace_id
         )
 

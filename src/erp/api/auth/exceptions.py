@@ -1,5 +1,5 @@
-from fastapi import HTTPException, status
-
+from fastapi import status
+from erp.core.exceptions import BaseAppError
 
 class TokenError(Exception):
     """Base class for token-related exceptions."""
@@ -16,7 +16,7 @@ class TokenInvalidError(TokenError):
     pass
 
 
-class UserExistsException(HTTPException):
+class UserExistsExceptionError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -24,27 +24,25 @@ class UserExistsException(HTTPException):
         )
 
 
-class OnboardingFailedException(HTTPException):
-    def __init__(self, error: Exception) -> None:
+class OnboardingFailedExceptionError(BaseAppError):
+    def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Onboarding failed: {error!s}"
+            detail="Onboarding failed, please contact support."
         )
 
 
-class CredentialsException(HTTPException):
+class CredentialsExceptionError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Could not validate credentials."
         )
 
 
-class SessionExpiredException(HTTPException):
+class InsufficientPermissionsError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session has expired or been revoked. Please log in again.",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the required permissions to perform this action in this workspace."
         )
