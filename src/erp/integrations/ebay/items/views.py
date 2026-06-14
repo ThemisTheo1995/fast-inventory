@@ -9,7 +9,7 @@ from erp.integrations.ebay.items.service import EbayItemService
 router = APIRouter()
 
 
-@router.get("/", response_model=list[EbayItem], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[EbayItem], status_code=status.HTTP_200_OK)
 def get_items(
     service: Annotated[EbayItemService, Depends(get_ebay_service)]
 ) -> list[EbayItem]:

@@ -74,11 +74,13 @@ class AuthService:
             self.db.add(user_session)
 
             self.db.commit()
-            return workspace_user
 
         except Exception as e:
             self.db.rollback()
             raise OnboardingFailedExceptionError() from e
+
+        else:
+            return workspace_user
 
     def login(self, data: OAuth2PasswordRequestForm) -> TokenResponse:
         """Service to login users via OAuth2 Form Data."""

@@ -15,7 +15,7 @@ from erp.integrations.ebay.items.schemas import EbayCreateItem
 def test_create_item_happy_path(db_session):
     """
     HAPPY PATH:
-    A valid EbayCreateItem payload with a real, active workspace_id 
+    A valid EbayCreateItem payload with a real, active workspace_id
     should cleanly save to the database, commit, and return the populated EbayItem instance.
     """
     repo = EbayItemRepository(db_session)

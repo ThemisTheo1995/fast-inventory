@@ -1,5 +1,7 @@
 from fastapi import status
+
 from erp.core.exceptions import BaseAppError
+
 
 class TokenError(Exception):
     """Base class for token-related exceptions."""

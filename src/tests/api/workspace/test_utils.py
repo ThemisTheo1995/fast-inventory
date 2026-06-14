@@ -19,7 +19,7 @@ from erp.api.workspace.utils import (
 
 def test_guard_against_self_action_happy_path():
     """
-    When the actor ID and target user ID are different, the function should 
+    When the actor ID and target user ID are different, the function should
     execute cleanly and return None (no exceptions raised).
     """
     # Checking both modification and eviction permutations
@@ -29,7 +29,7 @@ def test_guard_against_self_action_happy_path():
 
 def test_guard_against_self_action_raises_self_modification():
     """
-    When an actor tries to modify themselves (actor_id == target_user_id) 
+    When an actor tries to modify themselves (actor_id == target_user_id)
     and is_eviction is False, it must raise SelfModificationBlockedError.
     """
     with pytest.raises(SelfModificationBlockedError):
@@ -38,7 +38,7 @@ def test_guard_against_self_action_raises_self_modification():
 
 def test_guard_against_self_action_raises_self_eviction():
     """
-    When an actor tries to evict themselves (actor_id == target_user_id) 
+    When an actor tries to evict themselves (actor_id == target_user_id)
     and is_eviction is True, it must raise SelfEvictionBlockedError.
     """
     with pytest.raises(SelfEvictionBlockedError):
@@ -59,7 +59,7 @@ def test_guard_against_self_action_raises_self_eviction():
 ])
 def test_guard_rank_immunity_happy_paths(actor_role, target_member_role):
     """
-    Actors with a higher or equal tier weight can safely manage target users 
+    Actors with a higher or equal tier weight can safely manage target users
     without triggering immunity blocks.
     """
     assert guard_rank_immunity(actor_role, target_member_role) is None
@@ -72,7 +72,7 @@ def test_guard_rank_immunity_happy_paths(actor_role, target_member_role):
 ])
 def test_guard_rank_immunity_raises_violation(actor_role, target_member_role):
     """
-    When an actor has a strictly lower weight than their target, the function 
+    When an actor has a strictly lower weight than their target, the function
     must defend the higher-tier user and raise RankImmunityViolationError.
     """
     with pytest.raises(RankImmunityViolationError):

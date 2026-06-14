@@ -25,7 +25,7 @@ router = APIRouter()
 # Workspace
 # ------------------------------
 
-@router.get("/", response_model=WorkspaceResponse)
+@router.get("", response_model=WorkspaceResponse)
 def get_workspace(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)]
@@ -36,7 +36,7 @@ def get_workspace(
     return service.get_workspace(workspace_id)
 
 
-@router.patch("/", response_model=WorkspaceResponse)
+@router.patch("", response_model=WorkspaceResponse)
 def update_workspace(
     workspace_id: UUID,
     update_data: WorkspaceUpdate,
@@ -76,7 +76,7 @@ def add_member(
         workspace_id=workspace_id,
         email=payload.email,
         role=payload.role_id,
-        actor_id=str(current_user.id)
+        actor_id=current_user.id
     )
 
 
@@ -93,7 +93,7 @@ def change_member_role(
         workspace_id=workspace_id,
         target_user_id=user_id,
         new_role=payload.role_id,
-        actor_id=str(current_user.id)
+        actor_id=current_user.id
     )
 
 
@@ -109,5 +109,5 @@ def remove_member(
     service.remove_member(
         workspace_id=workspace_id,
         target_user_id=user_id,
-        actor_id=str(current_user.id)
+        actor_id=current_user.id
     )

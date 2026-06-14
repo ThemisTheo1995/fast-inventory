@@ -80,7 +80,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     """
     EXCEPTION PATH & EDGE CASE:
     If any uncaught database/internal error occurs mid-transaction (e.g. JWT token generation failure),
-    the system must catch it, execute a transaction rollback to prevent orphaned records, 
+    the system must catch it, execute a transaction rollback to prevent orphaned records,
     and raise an OnboardingFailedExceptionError wrapper.
     """
     auth_service = AuthService(db_session)
@@ -114,12 +114,22 @@ def test_login_happy_path(db_session):
     raw_password = "MySuperSecretPassword"
 
     # Set up user and link workspace
-    user = User(email="login_ok@example.com", first_name="Login", last_name="User", hashed_password=get_password_hash(raw_password))
+    user = User(
+        email="login_ok@example.com",
+        first_name="Login",
+        last_name="User",
+        hashed_password=get_password_hash(raw_password)
+    )
     workspace = Workspace(name="User Space", email="space@user.com")
     db_session.add_all([user, workspace])
     db_session.flush()
 
-    link = WorkspaceUser(user_id=user.id, workspace_id=workspace.id, role=WorkspaceRoleEnum.FULL_ADMIN, status=InvitationStatusEnum.ACTIVE)
+    link = WorkspaceUser(
+        user_id=user.id,
+        workspace_id=workspace.id,
+        role=WorkspaceRoleEnum.FULL_ADMIN,
+        status=InvitationStatusEnum.ACTIVE
+    )
     db_session.add(link)
     db_session.commit()
 
@@ -237,7 +247,7 @@ def test_login_purges_multiple_concurrent_sessions(db_session):
 def test_logout_happy_path(db_session):
     """
     HAPPY PATH:
-    Passing a clean active refresh token must successfully remove the specific matching 
+    Passing a clean active refresh token must successfully remove the specific matching
     session token mapping from the backend persistence layer.
     """
     auth_service = AuthService(db_session)
@@ -275,7 +285,7 @@ def test_logout_edge_case_token_missing_claims(db_session):
 def test_logout_silently_swallows_decoding_exceptions(db_session):
     """
     EXCEPTION PATH & EDGE CASE:
-    If an expired, forged, or structurally damaged token enters logout, the routine 
+    If an expired, forged, or structurally damaged token enters logout, the routine
     must cleanly execute a database rollback, swallow the validation failure, and return silently.
     """
     auth_service = AuthService(db_session)
@@ -293,7 +303,7 @@ def test_logout_silently_swallows_decoding_exceptions(db_session):
 
 def test_refresh_token_happy_path(db_session):
     """
-    A valid, live refresh token matched against an open tracking record 
+    A valid, live refresh token matched against an open tracking record
     must quickly mint and yield a clean TokenRefreshResponse wrapper.
     """
     auth_service = AuthService(db_session)
@@ -335,7 +345,7 @@ def test_refresh_token_exception_wrong_token_type(db_session):
 ])
 def test_refresh_token_exception_missing_required_claims(db_session, mock_payload):
     """
-    If a valid token payload fails basic validation checks because identity keys 
+    If a valid token payload fails basic validation checks because identity keys
     are missing from the payload dictionary structure, it must raise a TokenInvalidError.
     """
     auth_service = AuthService(db_session)

@@ -47,7 +47,7 @@ class WorkspaceUserService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def _get_active_workspace_user(self, workspace_id: str, user_id: str) -> WorkspaceUser:
+    def _get_active_workspace_user(self, workspace_id: UUID, user_id: UUID) -> WorkspaceUser:
         """Internal helper to dry up member lookups."""
         link = self.db.query(WorkspaceUser).filter(
             WorkspaceUser.workspace_id == workspace_id,
@@ -86,7 +86,7 @@ class WorkspaceUserService:
 
         return members
 
-    def invite_member(self, workspace_id: str, email: str, role: str, actor_id: str) -> dict:
+    def invite_member(self, workspace_id: UUID, email: str, role: str, actor_id: UUID) -> dict:
         """Invite a user while enforcing safeguards against privilege escalation."""
         actor = self._get_active_workspace_user(workspace_id, actor_id)
 
@@ -134,7 +134,7 @@ class WorkspaceUserService:
             status="pending",
         )
 
-    def update_role(self, workspace_id: str, target_user_id: str, new_role: str, actor_id: str) -> None:
+    def update_role(self, workspace_id: UUID, target_user_id: UUID, new_role: str, actor_id: UUID) -> None:
         """Modify an active member's role while strictly enforcing hierarchical safeguards."""
 
         guard_against_self_action(actor_id, target_user_id, is_eviction=False)
@@ -148,7 +148,7 @@ class WorkspaceUserService:
         target.role = new_role
         self.db.commit()
 
-    def remove_member(self, workspace_id: str, target_user_id: str, actor_id: str) -> None:
+    def remove_member(self, workspace_id: UUID, target_user_id: UUID, actor_id: UUID) -> None:
         """Soft-delete a member's workspace relationship record with authority validation."""
 
         guard_against_self_action(actor_id, target_user_id, is_eviction=True)
