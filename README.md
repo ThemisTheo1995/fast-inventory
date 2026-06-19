@@ -1,5 +1,7 @@
-![FastAPI](https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi) ![Coverage](https://img.shields.io/badge/coverage-91%25-green)
-
+<p align="center">
+  <img src="https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/coverage-91%25-green" alt="Coverage">
+</p>
 
 # ERP FastAPI Project
 
