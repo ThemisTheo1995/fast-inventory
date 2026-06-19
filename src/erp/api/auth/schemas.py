@@ -34,11 +34,17 @@ class LogoutRequest(BaseModel):
     refresh_token: str
 
 
+class TokenUser(BaseModel):
+    role: str
+    status: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
     workspace_id: uuid.UUID
+    user: TokenUser
 
 
 class TokenRefreshResponse(BaseModel):

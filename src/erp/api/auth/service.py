@@ -10,7 +10,7 @@ from erp.api.auth.exceptions import (
     UserExistsExceptionError,
 )
 from erp.api.auth.models import User, UserSession
-from erp.api.auth.schemas import LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse
+from erp.api.auth.schemas import LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse, TokenUser
 from erp.api.auth.utils import (
     create_access_token,
     decode_token,
@@ -115,7 +115,11 @@ class AuthService:
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
             token_type="bearer",
-            workspace_id=workspace_link.workspace_id
+            workspace_id=workspace_link.workspace_id,
+            user=TokenUser(
+                role=workspace_link.role,
+                status=workspace_link.status
+            )
         )
 
     def logout(self, data: LogoutRequest) -> None:

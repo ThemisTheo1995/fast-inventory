@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from erp.api.auth.dependencies import get_current_active_user
 from erp.api.auth.exceptions import InsufficientPermissionsError
 from erp.api.auth.models import User
+from erp.api.workspace.enums import InvitationStatusEnum
 from erp.api.workspace.exceptions import WorkspaceNotFoundError
 from erp.api.workspace.models import WorkspaceUser
 from erp.database.base import get_db
@@ -45,7 +46,8 @@ def verify_workspace_access(
     # CHECK 2: Validate the user actually belongs to this workspace
     query = select(WorkspaceUser).where(
         WorkspaceUser.user_id == current_user.id,
-        WorkspaceUser.workspace_id == workspace_id
+        WorkspaceUser.workspace_id == workspace_id,
+        WorkspaceUser.status == InvitationStatusEnum.ACTIVE
     )
     workspace_link = db.execute(query).scalar_one_or_none()
 
@@ -57,8 +59,8 @@ def verify_workspace_access(
     user_weight = ROLE_WEIGHTS.get(workspace_link.role.lower(), 0)
 
     if user_weight < required_weight:
-        # You can use your existing custom exception here
         raise InsufficientPermissionsError()
 
-    # Returning the link is useful if specific endpoints need to know the user's exact role
+    request.state.workspace_user = workspace_link
+
     return workspace_link
