@@ -1,3 +1,8 @@
+# Copyright 2026 Your Name
+#
+# Licensed under the Apache License, Version 2.0
+
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
