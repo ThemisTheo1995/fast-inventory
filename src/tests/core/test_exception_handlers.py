@@ -11,6 +11,7 @@ from erp.main import app
 # your global exception handlers. We use a weird prefix
 # (/_test_exceptions) so they never collide with real routes.
 
+
 @app.get("/_test_exceptions/custom")
 def _trigger_custom():
     raise BaseAppError(detail="You shall not pass", status_code=403, code="access_denied")

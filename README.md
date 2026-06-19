@@ -1,7 +1,21 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi" alt="FastAPI">
-  <img src="https://img.shields.io/badge/coverage-91%25-green" alt="Coverage">
+  <img src="https://img.shields.io/badge/coverage-91%25-green?style=for-the-badge" alt="Coverage">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?style=for-the-badge&logo=apache" alt="License">
 </p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.13-3776AB.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python Version">
+  <img src="https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/uv-Package%20Manager-DE5FE9.svg?style=for-the-badge&logo=astral&logoColor=white" alt="uv Package Manager">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Alembic-Migrations-D32F2F.svg?style=for-the-badge&logo=alembic&logoColor=white" alt="Alembic">
+  <img src="https://img.shields.io/badge/Pydantic-V2-E92063.svg?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic">
+</p>
+
+---
 
 # ERP FastAPI Project
 
@@ -158,6 +172,7 @@ uv run ruff format
 | Apply migrations | `uv run alembic upgrade head`                        |
 | Rollback         | `uv run alembic downgrade -1`                        |
 | Run tests        | `uv run pytest tests`                            |
+| Run coverage     | `uv run pytest --cov=src/erp`                    |
 | Lint             | `uv run ruff check`                              |
 | Format           | `uv run ruff format`                             |
 

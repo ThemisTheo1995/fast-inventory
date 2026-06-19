@@ -20,3 +20,7 @@ wheels/
 .flake8
 
 .pytest_cache/
+
+htmlcov
+
+.coverage
