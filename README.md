@@ -211,7 +211,6 @@ migrate:
 ## 📄 License
 
 This project is licensed under the Apache License 2.0.
-
 You are free to use, modify, distribute, and use this software commercially, provided that you comply with the terms of the license.
 
 See the `LICENSE` file for the full license text.
