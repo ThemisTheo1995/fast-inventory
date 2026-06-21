@@ -13,7 +13,7 @@ from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
         (WorkspaceRoleEnum.FULL_ADMIN, "Full Admin"),
         (WorkspaceRoleEnum.EDIT_ONLY, "Edit Only"),
         (WorkspaceRoleEnum.READ_ONLY, "Read Only"),
-    ]
+    ],
 )
 def test_workspace_role_enum_labels(role, expected_label):
     """
@@ -27,12 +27,13 @@ def test_workspace_role_enum_labels(role, expected_label):
 # INVITATION STATUS ENUM TESTS
 # ============================================================================
 
+
 @pytest.mark.parametrize(
     "status, expected_label",
     [
         (InvitationStatusEnum.ACTIVE, "Active"),
         (InvitationStatusEnum.PENDING, "Pending"),
-    ]
+    ],
 )
 def test_invitation_status_enum_labels(status, expected_label):
     """

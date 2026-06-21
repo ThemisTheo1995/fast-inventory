@@ -19,14 +19,6 @@ from erp.integrations.models import Integration
 # EBAY
 from erp.integrations.ebay.items.models import EbayItem
 
-__all__ = [
-    "Base",
-    "User",
-    "UserSession",
-    "Workspace",
-    "WorkspaceUser",
-    "Integration",
-    "EbayItem"
-]
+__all__ = ["Base", "User", "UserSession", "Workspace", "WorkspaceUser", "Integration", "EbayItem"]
 
 metadata = Base.metadata

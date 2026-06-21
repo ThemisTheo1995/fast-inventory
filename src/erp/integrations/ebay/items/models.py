@@ -12,9 +12,7 @@ class EbayItem(BaseModel):
     __tablename__ = "ebay_items"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True, nullable=False
     )
 
     # eBay's specific ID (Needs to be a string as eBay item IDs can be very large)
@@ -35,20 +33,12 @@ class EbayItem(BaseModel):
     quantity: Mapped[int] = mapped_column(Integer, default=0)
 
     status: Mapped[EbayItemStatus] = mapped_column(
-        SQLEnum(EbayItemStatus, native_enum=False, length=50),
-        default=EbayItemStatus.DRAFT,
-        index=True
+        SQLEnum(EbayItemStatus, native_enum=False, length=50), default=EbayItemStatus.DRAFT, index=True
     )
 
-    images: Mapped[list[str]] = mapped_column(
-        ARRAY(String),
-        default=list,
-        nullable=False
-    )
+    images: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint("workspace_id", "external_id", name="uq_workspace_ebay_external_id"),
-    )
+    __table_args__ = (UniqueConstraint("workspace_id", "external_id", name="uq_workspace_ebay_external_id"),)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace")

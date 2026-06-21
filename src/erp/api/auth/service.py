@@ -55,7 +55,7 @@ class AuthService:
                 email=data.user.email,
                 first_name=data.user.first_name,
                 last_name=data.user.last_name,
-                hashed_password=hashed_pw
+                hashed_password=hashed_pw,
             )
             self.db.add(user)
             self.db.flush()
@@ -65,7 +65,7 @@ class AuthService:
                 user_id=user.id,
                 workspace_id=workspace.id,
                 role=WorkspaceRoleEnum.FULL_ADMIN,
-                status=InvitationStatusEnum.ACTIVE
+                status=InvitationStatusEnum.ACTIVE,
             )
             self.db.add(workspace_user)
             self.db.flush()
@@ -76,11 +76,7 @@ class AuthService:
 
             # 6. Track the session in the DB
             expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
-            user_session = UserSession(
-                user_id=user.id,
-                session_id=refresh_payload["jti"],
-                expires_at=expires_at
-            )
+            user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
             self.db.add(user_session)
 
             self.db.commit()
@@ -95,11 +91,7 @@ class AuthService:
                 refresh_token=tokens["refresh_token"],
                 token_type="bearer",
                 workspace_id=workspace_user.workspace_id,
-                user=TokenUser(
-                    id=workspace_user.id,
-                    role=workspace_user.role,
-                    status=workspace_user.status
-                )
+                user=TokenUser(id=workspace_user.id, role=workspace_user.role, status=workspace_user.status),
             )
 
     def onboard(self, data: OnboardRequest) -> TokenResponse:
@@ -111,10 +103,11 @@ class AuthService:
             raise InvitationNotFoundExceptionError()
 
         # 2. Verify there is a pending workspace link for this user
-        workspace_user = self.db.query(WorkspaceUser).filter(
-            WorkspaceUser.is_deleted.is_(False),
-            WorkspaceUser.user_id == user.id
-        ).first()
+        workspace_user = (
+            self.db.query(WorkspaceUser)
+            .filter(WorkspaceUser.is_deleted.is_(False), WorkspaceUser.user_id == user.id)
+            .first()
+        )
 
         if not workspace_user:
             raise InvitationNotFoundExceptionError()
@@ -137,11 +130,7 @@ class AuthService:
 
             # 6. Save tracking session
             expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
-            user_session = UserSession(
-                user_id=user.id,
-                session_id=refresh_payload["jti"],
-                expires_at=expires_at
-            )
+            user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
             self.db.add(user_session)
 
             self.db.commit()
@@ -152,10 +141,7 @@ class AuthService:
                 refresh_token=tokens["refresh_token"],
                 token_type=tokens["token_type"],
                 workspace_id=workspace_user.workspace_id,
-                user=TokenUser(
-                    role=workspace_user.role,
-                    status=workspace_user.status
-                )
+                user=TokenUser(role=workspace_user.role, status=workspace_user.status),
             )
 
         except Exception as e:
@@ -181,11 +167,7 @@ class AuthService:
 
         # 5. Create new single active UserSession record
         expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
-        new_session = UserSession(
-            user_id=user.id,
-            session_id=refresh_payload["jti"],
-            expires_at=expires_at
-        )
+        new_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
         self.db.add(new_session)
         self.db.commit()
 
@@ -196,10 +178,7 @@ class AuthService:
             refresh_token=tokens["refresh_token"],
             token_type="bearer",
             workspace_id=workspace_user.workspace_id,
-            user=TokenUser(
-                role=workspace_user.role,
-                status=workspace_user.status
-            )
+            user=TokenUser(role=workspace_user.role, status=workspace_user.status),
         )
 
     def logout(self, data: LogoutRequest) -> None:
@@ -215,10 +194,11 @@ class AuthService:
                 return
 
             # 2. Delete the specific session from the database
-            deleted_count = self.db.query(UserSession).filter(
-                UserSession.user_id == user_id,
-                UserSession.session_id == session_id
-            ).delete(synchronize_session=False)
+            deleted_count = (
+                self.db.query(UserSession)
+                .filter(UserSession.user_id == user_id, UserSession.session_id == session_id)
+                .delete(synchronize_session=False)
+            )
 
             # 3. Commit the transaction if a session was found and deleted
             if deleted_count > 0:
@@ -244,10 +224,11 @@ class AuthService:
         if not user_id or not session_id:
             raise TokenInvalidError()
 
-        active_session = self.db.query(UserSession).filter(
-            UserSession.user_id == user_id,
-            UserSession.session_id == session_id
-        ).first()
+        active_session = (
+            self.db.query(UserSession)
+            .filter(UserSession.user_id == user_id, UserSession.session_id == session_id)
+            .first()
+        )
 
         if not active_session:
             # The session was revoked or overwritten by a newer login
@@ -258,8 +239,4 @@ class AuthService:
 
         # You can choose to return just the new access token,
         # or pass back the same refresh token to keep the payload consistent.
-        return RefreshResponse(
-            access_token=new_access_token,
-            refresh_token=data.refresh_token,
-            token_type="bearer"
-        )
+        return RefreshResponse(access_token=new_access_token, refresh_token=data.refresh_token, token_type="bearer")

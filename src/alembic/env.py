@@ -30,8 +30,8 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         # --- PRODUCTION UPGRADES ---
-        compare_type=True,             # Detects changes like String(50) -> String(100)
-        compare_server_default=True,   # Detects changes to default values
+        compare_type=True,  # Detects changes like String(50) -> String(100)
+        compare_server_default=True,  # Detects changes to default values
     )
 
     with context.begin_transaction():
@@ -51,8 +51,8 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             # --- PRODUCTION UPGRADES ---
-            compare_type=True,             # Detects changes like String(50) -> String(100)
-            compare_server_default=True,   # Detects changes to default values
+            compare_type=True,  # Detects changes like String(50) -> String(100)
+            compare_server_default=True,  # Detects changes to default values
         )
 
         with context.begin_transaction():

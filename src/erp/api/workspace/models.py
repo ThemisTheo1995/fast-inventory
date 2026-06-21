@@ -25,21 +25,17 @@ class Workspace(BaseModel):
 
     # Relationships
     workspace_users: Mapped[list["WorkspaceUser"]] = relationship(
-        "WorkspaceUser",
-        back_populates="workspace",
-        cascade="all, delete-orphan"
+        "WorkspaceUser", back_populates="workspace", cascade="all, delete-orphan"
     )
     integrations: Mapped[list["Integration"]] = relationship(
-        "Integration",
-        back_populates="workspace",
-        cascade="all, delete-orphan"
+        "Integration", back_populates="workspace", cascade="all, delete-orphan"
     )
 
     # ----------------------------
     # Validators
     # ----------------------------
 
-    @validates('email')
+    @validates("email")
     def validate_email(self, _key: str, email_address: str) -> str:
         """Basic email format validation using regex."""
 
@@ -53,7 +49,7 @@ class Workspace(BaseModel):
 
         return email_address.lower()
 
-    @validates('phone_number')
+    @validates("phone_number")
     def validate_phone_number(self, _key: str, phone: str) -> str:
         """Basic phone number validation using regex for E.164 format."""
         if not phone:
@@ -71,6 +67,7 @@ class WorkspaceUser(BaseModel):
     """
     Represents a tenant (workspace/user).
     """
+
     __tablename__ = "workspace_users"
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -81,22 +78,14 @@ class WorkspaceUser(BaseModel):
     )
 
     role: Mapped[str] = mapped_column(
-        String,
-        default=WorkspaceRoleEnum.READ_ONLY.value,
-        server_default="read_only",
-        nullable=False
+        String, default=WorkspaceRoleEnum.READ_ONLY.value, server_default="read_only", nullable=False
     )
 
     status: Mapped[str] = mapped_column(
-        String,
-        default=InvitationStatusEnum.PENDING.value,
-        server_default="pending",
-        nullable=False
+        String, default=InvitationStatusEnum.PENDING.value, server_default="pending", nullable=False
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "workspace_id", name="uq_workspace_and_user"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "workspace_id", name="uq_workspace_and_user"),)
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="workspaces")

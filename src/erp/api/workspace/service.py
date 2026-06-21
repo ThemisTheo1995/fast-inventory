@@ -49,11 +49,15 @@ class WorkspaceUserService:
 
     def _get_active_workspace_user(self, workspace_id: UUID, user_id: UUID) -> WorkspaceUser:
         """Internal helper to dry up member lookups."""
-        link = self.db.query(WorkspaceUser).filter(
-            WorkspaceUser.workspace_id == workspace_id,
-            WorkspaceUser.user_id == user_id,
-            WorkspaceUser.is_deleted.is_(False)
-        ).first()
+        link = (
+            self.db.query(WorkspaceUser)
+            .filter(
+                WorkspaceUser.workspace_id == workspace_id,
+                WorkspaceUser.user_id == user_id,
+                WorkspaceUser.is_deleted.is_(False),
+            )
+            .first()
+        )
         if not link:
             raise WorkspaceMemberNotFoundError()
         return link
@@ -66,7 +70,7 @@ class WorkspaceUserService:
             .filter(
                 WorkspaceUser.workspace_id == workspace_id,
                 WorkspaceUser.is_deleted.is_(False),
-                User.is_deleted.is_(False)
+                User.is_deleted.is_(False),
             )
             .all()
         )
@@ -98,9 +102,11 @@ class WorkspaceUserService:
             self.db.add(user)
             self.db.flush()
 
-        existing_link = self.db.query(WorkspaceUser).filter(
-            WorkspaceUser.workspace_id == workspace_id, WorkspaceUser.user_id == user.id
-        ).first()
+        existing_link = (
+            self.db.query(WorkspaceUser)
+            .filter(WorkspaceUser.workspace_id == workspace_id, WorkspaceUser.user_id == user.id)
+            .first()
+        )
 
         if existing_link:
             if not existing_link.is_deleted:
@@ -118,11 +124,7 @@ class WorkspaceUserService:
             )
 
         new_member = WorkspaceUser(
-            workspace_id=workspace_id,
-            user_id=user.id,
-            role=role,
-            status="pending",
-            is_deleted=False
+            workspace_id=workspace_id, user_id=user.id, role=role, status="pending", is_deleted=False
         )
         self.db.add(new_member)
         self.db.commit()

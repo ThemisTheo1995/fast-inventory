@@ -25,10 +25,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Safely verifies an incoming password against the stored bcrypt hash.
     """
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
-    )
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
@@ -40,12 +37,7 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
     else:
         expire = datetime.now(UTC) + timedelta(minutes=settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {
-        "exp": expire,
-        "iat": datetime.now(UTC),
-        "sub": str(subject),
-        "type": "access"
-    }
+    to_encode = {"exp": expire, "iat": datetime.now(UTC), "sub": str(subject), "type": "access"}
 
     return jwt.encode(to_encode, settings.AUTH_SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
 
@@ -65,7 +57,7 @@ def create_refresh_token(subject: str, expires_delta: timedelta | None = None) -
         "iat": datetime.now(UTC),
         "sub": str(subject),
         "type": "refresh",
-        "jti": str(uuid.uuid4())  # Unique identifier for the token
+        "jti": str(uuid.uuid4()),  # Unique identifier for the token
     }
 
     return jwt.encode(to_encode, settings.AUTH_SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
@@ -113,5 +105,5 @@ def generate_token_pair(subject: str) -> dict[str, str]:
     return {
         "access_token": create_access_token(subject),
         "refresh_token": create_refresh_token(subject),
-        "token_type": "bearer"
+        "token_type": "bearer",
     }

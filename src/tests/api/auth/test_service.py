@@ -32,7 +32,7 @@ def test_onboard_happy_path(db_session):
     auth_service = AuthService(db_session)
     request_data = RegisterRequest(
         user=UserCreate(email="happy@example.com", password="SecurePassword123!", first_name="John", last_name="Doe"),
-        workspace=WorkspaceCreate(name="Happy Tech LLC", email="billing@happytech.com")
+        workspace=WorkspaceCreate(name="Happy Tech LLC", email="billing@happytech.com"),
     )
 
     token_response = auth_service.register(request_data)
@@ -71,7 +71,7 @@ def test_onboard_exception_user_already_exists(db_session):
 
     request_data = RegisterRequest(
         user=UserCreate(email="exists@example.com", password="password123"),
-        workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com")
+        workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com"),
     )
 
     with pytest.raises(UserExistsExceptionError):
@@ -88,7 +88,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     auth_service = AuthService(db_session)
     request_data = RegisterRequest(
         user=UserCreate(email="rollback@example.com", password="password123"),
-        workspace=WorkspaceCreate(name="Rollback Inc", email="rb@inc.com")
+        workspace=WorkspaceCreate(name="Rollback Inc", email="rb@inc.com"),
     )
 
     # Force an internal failure mid-flight by patching 'generate_token_pair' to raise a runtime error
@@ -120,7 +120,7 @@ def test_login_happy_path(db_session):
         email="login_ok@example.com",
         first_name="Login",
         last_name="User",
-        hashed_password=get_password_hash(raw_password)
+        hashed_password=get_password_hash(raw_password),
     )
     workspace = Workspace(name="User Space", email="space@user.com")
     db_session.add_all([user, workspace])
@@ -130,7 +130,7 @@ def test_login_happy_path(db_session):
         user_id=user.id,
         workspace_id=workspace.id,
         role=WorkspaceRoleEnum.FULL_ADMIN,
-        status=InvitationStatusEnum.ACTIVE
+        status=InvitationStatusEnum.ACTIVE,
     )
     db_session.add(link)
     db_session.commit()
@@ -159,7 +159,7 @@ def test_login_user_with_no_workspaces_raises_index_error(db_session):
         email="orphan@example.com",
         first_name="Orphaned",
         last_name="User",
-        hashed_password=get_password_hash(raw_password)
+        hashed_password=get_password_hash(raw_password),
     )
     db_session.add(user)
     db_session.flush()
@@ -170,11 +170,14 @@ def test_login_user_with_no_workspaces_raises_index_error(db_session):
         auth_service.login(login_data)
 
 
-@pytest.mark.parametrize("email, password", [
-    ("exists_user@example.com", "incorrect_password"),
-    ("missing_user@example.com", "any_password"),
-    ("exists_user@example.com", ""),
-])
+@pytest.mark.parametrize(
+    "email, password",
+    [
+        ("exists_user@example.com", "incorrect_password"),
+        ("missing_user@example.com", "any_password"),
+        ("exists_user@example.com", ""),
+    ],
+)
 def test_login_exception_invalid_credentials(db_session, email, password):
     """
     Any invalid permutation of username or password must safely bubble up a unified
@@ -186,7 +189,7 @@ def test_login_exception_invalid_credentials(db_session, email, password):
         email="exists_user@example.com",
         first_name="Target",
         last_name="User",
-        hashed_password=get_password_hash("real_password")
+        hashed_password=get_password_hash("real_password"),
     )
     workspace = Workspace(name="Target Space", email="target@space.com")
     db_session.add_all([user, workspace])
@@ -196,7 +199,7 @@ def test_login_exception_invalid_credentials(db_session, email, password):
         user_id=user.id,
         workspace_id=workspace.id,
         role=WorkspaceRoleEnum.FULL_ADMIN,
-        status=InvitationStatusEnum.ACTIVE
+        status=InvitationStatusEnum.ACTIVE,
     )
     db_session.add(link)
     db_session.flush()
@@ -223,7 +226,7 @@ def test_login_purges_multiple_concurrent_sessions(db_session):
         user_id=user.id,
         workspace_id=workspace.id,
         role=WorkspaceRoleEnum.FULL_ADMIN,
-        status=InvitationStatusEnum.ACTIVE
+        status=InvitationStatusEnum.ACTIVE,
     )
 
     session_1 = UserSession(user_id=user.id, session_id="session-alpha", expires_at=datetime.now(UTC))
@@ -245,6 +248,7 @@ def test_login_purges_multiple_concurrent_sessions(db_session):
 # ============================================================================
 # LOGOUT SERVICE TESTS (`logout`)
 # ============================================================================
+
 
 def test_logout_happy_path(db_session):
     """
@@ -303,6 +307,7 @@ def test_logout_silently_swallows_decoding_exceptions(db_session):
 # 4. REFRESH TOKEN SERVICE TESTS (`refresh_token`)
 # ============================================================================
 
+
 def test_refresh_token_happy_path(db_session):
     """
     A valid, live refresh token matched against an open tracking record
@@ -342,11 +347,14 @@ def test_refresh_token_exception_wrong_token_type(db_session):
         auth_service.refresh_token(data)
 
 
-@pytest.mark.parametrize("mock_payload", [
-    {"type": "refresh", "jti": "missing-sub"},                 # Missing subject field
-    {"type": "refresh", "sub": "missing-jti"},                 # Missing tracking ID field
-    {"type": "refresh"},                                       # Missing both fields
-])
+@pytest.mark.parametrize(
+    "mock_payload",
+    [
+        {"type": "refresh", "jti": "missing-sub"},  # Missing subject field
+        {"type": "refresh", "sub": "missing-jti"},  # Missing tracking ID field
+        {"type": "refresh"},  # Missing both fields
+    ],
+)
 def test_refresh_token_exception_missing_required_claims(db_session, mock_payload):
     """
     If a valid token payload fails basic validation checks because identity keys

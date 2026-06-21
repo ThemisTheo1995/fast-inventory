@@ -18,15 +18,11 @@ class User(BaseModel):
 
     # Relationships
     sessions: Mapped[list["UserSession"]] = relationship(
-        "UserSession",
-        back_populates="user",
-        cascade="all, delete-orphan"
+        "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
 
     workspaces: Mapped[list["WorkspaceUser"]] = relationship(
-        "WorkspaceUser",
-        back_populates="user",
-        cascade="all, delete-orphan"
+        "WorkspaceUser", back_populates="user", cascade="all, delete-orphan"
     )
 
 

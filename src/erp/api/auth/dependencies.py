@@ -17,10 +17,7 @@ SECRET_KEY = settings.AUTH_SECRET_KEY
 ALGORITHM = settings.AUTH_ALGORITHM
 
 
-def get_current_user(
-    db: Annotated[Session, Depends(get_db)],
-    token: str = Depends(oauth2_scheme)
-) -> User:
+def get_current_user(db: Annotated[Session, Depends(get_db)], token: str = Depends(oauth2_scheme)) -> User:
     """
     Global dependency to authenticate incoming requests via Access Token.
     Validates the signature, ensures the user exists, and checks session validity.
@@ -44,9 +41,7 @@ def get_current_user(
     return user
 
 
-def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)]
-) -> User:
+def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     """
     Optional layer: 'is_active' or banned status
     """

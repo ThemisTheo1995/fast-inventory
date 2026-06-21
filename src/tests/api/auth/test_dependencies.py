@@ -43,6 +43,7 @@ def mock_active_user_endpoint(current_active_user: Annotated[User, Depends(get_c
 # HELPER FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 def test_client(db_session):
     """
@@ -57,10 +58,12 @@ def test_client(db_session):
 @pytest.fixture
 def create_jwt():
     """Helper tool to encode valid/invalid testing tokens."""
+
     def _encode(user_id: str, token_type: str = "access", expires_delta: timedelta | None = None):
         expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=15))
         payload = {"sub": str(user_id), "type": token_type, "exp": expire}
         return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
     return _encode
 
 
@@ -72,7 +75,7 @@ def persisted_user(db_session):
         email="dep_test@example.com",
         first_name="Dep",
         last_name="Tester",
-        hashed_password=get_password_hash("secure_pass")
+        hashed_password=get_password_hash("secure_pass"),
     )
     db_session.add(user)
     db_session.flush()
@@ -82,6 +85,7 @@ def persisted_user(db_session):
 # ============================================================================
 # DEPENDENCY TEST CASES
 # ============================================================================
+
 
 def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
     """
@@ -102,12 +106,9 @@ def test_get_current_user_invalid_signature(test_client):
     fail authentication instantly.
     """
     bad_token = jwt.encode(
-        {
-            "sub": str(uuid.uuid4()),
-            "type": "access"
-        },
+        {"sub": str(uuid.uuid4()), "type": "access"},
         "WRONG_SECRET_KEY_WRONG_SECRET_KEY_WRONG_SECRET_KEY",
-        algorithm=ALGORITHM
+        algorithm=ALGORITHM,
     )
 
     response = test_client.get("/test-user", headers={"Authorization": f"Bearer {bad_token}"})

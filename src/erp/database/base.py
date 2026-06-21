@@ -13,15 +13,19 @@ engine_kwargs = {
 }
 
 if settings.ENVIRONMENT == "prod":
-    engine_kwargs.update({
-        "pool_size": 20,
-        "max_overflow": 10,
-        "echo": False,
-    })
+    engine_kwargs.update(
+        {
+            "pool_size": 20,
+            "max_overflow": 10,
+            "echo": False,
+        }
+    )
 else:
-    engine_kwargs.update({
-        "echo": False,
-    })
+    engine_kwargs.update(
+        {
+            "echo": False,
+        }
+    )
 
 # Create the engine
 engine = create_engine(settings.DATABASE_URL, **engine_kwargs)

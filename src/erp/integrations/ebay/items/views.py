@@ -10,9 +10,7 @@ router = APIRouter()
 
 
 @router.get("", response_model=list[EbayItem], status_code=status.HTTP_200_OK)
-def get_items(
-    service: Annotated[EbayItemService, Depends(get_ebay_service)]
-) -> list[EbayItem]:
+def get_items(service: Annotated[EbayItemService, Depends(get_ebay_service)]) -> list[EbayItem]:
     """
     Fetch eBay items (via ERP mapping layer)
     """
@@ -21,8 +19,7 @@ def get_items(
 
 @router.post("/", response_model=EbayItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(
-    item_in: EbayCreateItem,
-    service: Annotated[EbayItemService, Depends(get_ebay_service)]
+    item_in: EbayCreateItem, service: Annotated[EbayItemService, Depends(get_ebay_service)]
 ) -> EbayItemResponse:
     """
     Creates a new eBay item record in the ERP (not on eBay).
@@ -32,16 +29,14 @@ def create_item(
     if not item:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to create ERP(eBay) item. Please verify the provided data."
+            detail="Failed to create ERP(eBay) item. Please verify the provided data.",
         )
 
     return item
 
 
 @router.post("/sync", response_model=list[EbayItem], status_code=status.HTTP_200_OK)
-def sync_items(
-    service: Annotated[EbayItemService, Depends(get_ebay_service)]
-) -> list[EbayItem]:
+def sync_items(service: Annotated[EbayItemService, Depends(get_ebay_service)]) -> list[EbayItem]:
     """
     Trigger manual sync from eBay
     (useful for FE button or cron jobs)

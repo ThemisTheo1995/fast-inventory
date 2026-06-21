@@ -25,11 +25,9 @@ router = APIRouter()
 # Workspace
 # ------------------------------
 
+
 @router.get("", response_model=WorkspaceResponse)
-def get_workspace(
-    workspace_id: UUID,
-    db: Annotated[Session, Depends(get_db)]
-) -> WorkspaceResponse:
+def get_workspace(workspace_id: UUID, db: Annotated[Session, Depends(get_db)]) -> WorkspaceResponse:
 
     service = WorkspaceService(db)
 
@@ -38,9 +36,7 @@ def get_workspace(
 
 @router.patch("", response_model=WorkspaceResponse)
 def update_workspace(
-    workspace_id: UUID,
-    update_data: WorkspaceUpdate,
-    db: Annotated[Session, Depends(get_db)]
+    workspace_id: UUID, update_data: WorkspaceUpdate, db: Annotated[Session, Depends(get_db)]
 ) -> WorkspaceResponse:
 
     service = WorkspaceService(db)
@@ -52,11 +48,9 @@ def update_workspace(
 # WorkspaceUsers
 # ------------------------------
 
+
 @router.get("/members", response_model=list[WorkspaceUserResponse])
-def get_members(
-    workspace_id: UUID,
-    db: Annotated[Session, Depends(get_db)]
-) -> list[WorkspaceUserResponse]:
+def get_members(workspace_id: UUID, db: Annotated[Session, Depends(get_db)]) -> list[WorkspaceUserResponse]:
 
     service = WorkspaceUserService(db)
 
@@ -68,32 +62,27 @@ def add_member(
     workspace_id: UUID,
     payload: InviteWorkspaceUserRequest,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> WorkspaceUserResponse:
 
     service = WorkspaceUserService(db)
     return service.invite_member(
-        workspace_id=workspace_id,
-        email=payload.email,
-        role=payload.role_id,
-        actor_id=current_user.id
+        workspace_id=workspace_id, email=payload.email, role=payload.role_id, actor_id=current_user.id
     )
 
 
 @router.patch("/members/{user_id}/role", status_code=status.HTTP_204_NO_CONTENT)
 def change_member_role(
     workspace_id: UUID,
-    user_id: UUID, payload: UpdateWorkspaceUserRoleRequest,
+    user_id: UUID,
+    payload: UpdateWorkspaceUserRoleRequest,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> None:
 
     service = WorkspaceUserService(db)
     service.update_role(
-        workspace_id=workspace_id,
-        target_user_id=user_id,
-        new_role=payload.role_id,
-        actor_id=current_user.id
+        workspace_id=workspace_id, target_user_id=user_id, new_role=payload.role_id, actor_id=current_user.id
     )
 
 
@@ -102,12 +91,8 @@ def remove_member(
     workspace_id: UUID,
     user_id: UUID,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> None:
 
     service = WorkspaceUserService(db)
-    service.remove_member(
-        workspace_id=workspace_id,
-        target_user_id=user_id,
-        actor_id=current_user.id
-    )
+    service.remove_member(workspace_id=workspace_id, target_user_id=user_id, actor_id=current_user.id)

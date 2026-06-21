@@ -21,6 +21,7 @@ class RegisterRequest(BaseModel):
     Composite schema used for onboarding:
     creates User + Workspace + WorkspaceUser link.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     user: UserCreate
@@ -60,6 +61,7 @@ class RefreshResponse(BaseModel):
 # LOGOUT WORKSPACE USER
 # ===================================
 
+
 class LogoutRequest(BaseModel):
     refresh_token: str
 
@@ -67,6 +69,7 @@ class LogoutRequest(BaseModel):
 # =======================================================
 # ONBOARD WORKSPACE USER
 # =======================================================
+
 
 class OnboardRequest(BaseModel):
     email: EmailStr = Field(..., description="The email address that received the workspace invitation.")
