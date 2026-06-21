@@ -18,6 +18,22 @@ jobs:
     name: Lint & Test
     runs-on: ubuntu-latest
 
+    # Spin up an isolated Postgres database
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: temp_password
+          POSTGRES_DB: temp_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,11 +47,21 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Lint and Format with Ruff
+      - name: Ruff Check
         run: |
           uv run ruff check .
           uv run ruff format --check .
 
       - name: Run tests with Pytest
         run: uv run pytest src/tests/
-  
+        env:
+          ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+          AUTH_ALGORITHM: ${{ vars.AUTH_ALGORITHM }}
+          AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES }}
+          AUTH_REFRESH_TOKEN_EXPIRE_DAYS: ${{ vars.AUTH_REFRESH_TOKEN_EXPIRE_DAYS }}
+          SHOPIFY_TEST_API_DOMAIN: ${{ vars.SHOPIFY_TEST_API_DOMAIN }}
+
+          DATABASE_URL: postgresql://postgres:temp_password@localhost:5432/temp_db
+          TEST_DATABASE_URL: postgresql://postgres:temp_password@localhost:5432/temp_db
+          SHOPIFY_TEST_SECRET_API_KEY: ${{ secrets.SHOPIFY_TEST_SECRET_API_KEY }}
+          AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
