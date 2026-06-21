@@ -4,13 +4,23 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from erp.api.auth.exceptions import (
+    AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
+    InvitationNotFoundExceptionError,
     OnboardingFailedExceptionError,
     TokenInvalidError,
     UserExistsExceptionError,
 )
 from erp.api.auth.models import User, UserSession
-from erp.api.auth.schemas import LogoutRequest, RegisterRequest, TokenRefreshResponse, TokenResponse, TokenUser
+from erp.api.auth.schemas import (
+    LogoutRequest,
+    OnboardRequest,
+    RefreshResponse,
+    RefreshToken,
+    RegisterRequest,
+    TokenResponse,
+    TokenUser,
+)
 from erp.api.auth.utils import (
     create_access_token,
     decode_token,
@@ -26,8 +36,8 @@ class AuthService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def onboard(self, data: RegisterRequest) -> WorkspaceUser:
-        """Service to onbaord completely new customers."""
+    def register(self, data: RegisterRequest) -> WorkspaceUser:
+        """Service to register completely new customers."""
 
         # 1. Pre-check email existence
         if self.db.query(User).filter(User.email == data.user.email).first():
@@ -80,7 +90,77 @@ class AuthService:
             raise OnboardingFailedExceptionError() from e
 
         else:
-            return workspace_user
+            return TokenResponse(
+                access_token=tokens["access_token"],
+                refresh_token=tokens["refresh_token"],
+                token_type="bearer",
+                workspace_id=workspace_user.workspace_id,
+                user=TokenUser(
+                    id=workspace_user.id,
+                    role=workspace_user.role,
+                    status=workspace_user.status
+                )
+            )
+
+    def onboard(self, data: OnboardRequest) -> TokenResponse:
+        """Service to fully onboard and activate an invited workspace user."""
+
+        # 1. Locate the pre-seeded user record from invite_member step
+        user = self.db.query(User).filter(User.email == data.email).first()
+        if not user:
+            raise InvitationNotFoundExceptionError()
+
+        # 2. Verify there is a pending workspace link for this user
+        workspace_user = self.db.query(WorkspaceUser).filter(
+            WorkspaceUser.is_deleted.is_(False),
+            WorkspaceUser.user_id == user.id
+        ).first()
+
+        if not workspace_user:
+            raise InvitationNotFoundExceptionError()
+
+        if workspace_user.status != InvitationStatusEnum.PENDING.value and user.hashed_password:
+            raise AccountAlreadyOnboardedExceptionError()
+
+        try:
+            # 3. Finalise User account details
+            user.hashed_password = get_password_hash(data.password)
+            user.first_name = data.first_name
+            user.last_name = data.last_name
+
+            # 4. Promote status to active
+            workspace_user.status = InvitationStatusEnum.ACTIVE.value
+
+            # 5. Issue Auth Token Infrastructure payload
+            tokens = generate_token_pair(user.id)
+            refresh_payload = decode_token(tokens["refresh_token"])
+
+            # 6. Save tracking session
+            expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
+            user_session = UserSession(
+                user_id=user.id,
+                session_id=refresh_payload["jti"],
+                expires_at=expires_at
+            )
+            self.db.add(user_session)
+
+            self.db.commit()
+
+            # 7. Construct the response schema
+            return TokenResponse(
+                access_token=tokens["access_token"],
+                refresh_token=tokens["refresh_token"],
+                token_type=tokens["token_type"],
+                workspace_id=workspace_user.workspace_id,
+                user=TokenUser(
+                    role=workspace_user.role,
+                    status=workspace_user.status
+                )
+            )
+
+        except Exception as e:
+            self.db.rollback()
+            raise OnboardingFailedExceptionError() from e
 
     def login(self, data: OAuth2PasswordRequestForm) -> TokenResponse:
         """Service to login users via OAuth2 Form Data."""
@@ -109,16 +189,16 @@ class AuthService:
         self.db.add(new_session)
         self.db.commit()
 
-        workspace_link = user.workspaces[0]
+        workspace_user = user.workspaces[0]
 
         return TokenResponse(
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
             token_type="bearer",
-            workspace_id=workspace_link.workspace_id,
+            workspace_id=workspace_user.workspace_id,
             user=TokenUser(
-                role=workspace_link.role,
-                status=workspace_link.status
+                role=workspace_user.role,
+                status=workspace_user.status
             )
         )
 
@@ -148,12 +228,12 @@ class AuthService:
             self.db.rollback()
             pass
 
-    def refresh_token(self, refresh_token: str) -> TokenRefreshResponse:
+    def refresh_token(self, data: RefreshToken) -> RefreshResponse:
         """
         Validates a refresh token against the database session store
         and issues a new short-lived access token.
         """
-        payload = decode_token(refresh_token)
+        payload = decode_token(data.refresh_token)
 
         if payload.get("type") != "refresh":
             raise TokenInvalidError()
@@ -178,8 +258,8 @@ class AuthService:
 
         # You can choose to return just the new access token,
         # or pass back the same refresh token to keep the payload consistent.
-        return TokenRefreshResponse(
+        return RefreshResponse(
             access_token=new_access_token,
-            refresh_token=refresh_token,
+            refresh_token=data.refresh_token,
             token_type="bearer"
         )

@@ -6,31 +6,42 @@ from sqlalchemy.orm import Session
 
 from erp.api.auth.schemas import (
     LogoutRequest,
-    RefreshRequest,
+    OnboardRequest,
+    RefreshResponse,
+    RefreshToken,
     RegisterRequest,
-    RegisterResponse,
-    TokenRefreshResponse,
     TokenResponse,
 )
 from erp.api.auth.service import AuthService
-from erp.api.workspace.models import WorkspaceUser
 from erp.database.base import get_db
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=RegisterResponse)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(
     data: RegisterRequest,
     db: Annotated[Session, Depends(get_db)]
-) -> WorkspaceUser:
+) -> TokenResponse:
+
+    service = AuthService(db)
+
+    return service.register(data)
+
+
+@router.post("/onboard", response_model=TokenResponse, status_code=status.HTTP_200_OK)
+def onboard(
+    data: OnboardRequest,
+    db: Annotated[Session, Depends(get_db)]
+) -> TokenResponse:
+    """Finalises profiles for users invited to an existing workspace."""
 
     service = AuthService(db)
 
     return service.onboard(data)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
 def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)]
@@ -54,11 +65,11 @@ def logout(
     return {"detail": "Successfully logged out"}
 
 
-@router.post("/refresh", response_model=TokenRefreshResponse)
+@router.post("/refresh", response_model=RefreshResponse, status_code=status.HTTP_200_OK)
 def refresh_token_endpoint(
-    data: RefreshRequest,
+    data: RefreshToken,
     db: Annotated[Session, Depends(get_db)]
-) -> TokenRefreshResponse:
+) -> RefreshResponse:
     service = AuthService(db)
 
-    return service.refresh_token(data.refresh_token)
+    return service.refresh_token(data)

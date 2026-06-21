@@ -101,7 +101,14 @@ def test_get_current_user_invalid_signature(test_client):
     Tokens tampered with or signed with an incorrect key must
     fail authentication instantly.
     """
-    bad_token = jwt.encode({"sub": str(uuid.uuid4()), "type": "access"}, "WRONG_SECRET_KEY", algorithm=ALGORITHM)
+    bad_token = jwt.encode(
+        {
+            "sub": str(uuid.uuid4()),
+            "type": "access"
+        },
+        "WRONG_SECRET_KEY_WRONG_SECRET_KEY_WRONG_SECRET_KEY",
+        algorithm=ALGORITHM
+    )
 
     response = test_client.get("/test-user", headers={"Authorization": f"Bearer {bad_token}"})
     assert response.status_code == 401
