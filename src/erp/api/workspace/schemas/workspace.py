@@ -22,7 +22,7 @@ class WorkspaceUpdate(BaseModel):
     address_line2: str | None = Field(None, max_length=255)
     postal_code: str | None = Field(None, max_length=20)
 
-    @field_validator('phone_number')
+    @field_validator("phone_number")
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
         """

@@ -8,11 +8,7 @@ class WorkspaceRoleEnum(StrEnum):
 
     @property
     def label(self) -> str:
-        labels = {
-            "full_admin": "Full Admin",
-            "edit_only": "Edit Only",
-            "read_only": "Read Only"
-        }
+        labels = {"full_admin": "Full Admin", "edit_only": "Edit Only", "read_only": "Read Only"}
         return labels[self.value]
 
 
@@ -22,8 +18,5 @@ class InvitationStatusEnum(StrEnum):
 
     @property
     def label(self) -> str:
-        labels = {
-            "active": "Active",
-            "pending": "Pending"
-        }
+        labels = {"active": "Active", "pending": "Pending"}
         return labels[self.value]

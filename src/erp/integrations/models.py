@@ -17,18 +17,14 @@ class Integration(BaseModel):
     __tablename__ = "workspace_integrations"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True, nullable=False
     )
 
     provider_type: Mapped[ProviderType] = mapped_column(String(50), nullable=False)
 
     credentials: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    __table_args__ = (
-        UniqueConstraint("workspace_id", "provider_type", name="uq_workspace_provider"),
-    )
+    __table_args__ = (UniqueConstraint("workspace_id", "provider_type", name="uq_workspace_provider"),)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="integrations")

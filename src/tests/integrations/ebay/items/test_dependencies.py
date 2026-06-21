@@ -72,9 +72,7 @@ def test_get_ebay_service_orchestrates_dependencies():
     mock_repository = MagicMock(spec=EbayItemRepository)
 
     # Act
-    service = get_ebay_service(
-        adapter=mock_adapter, repository=mock_repository
-    )
+    service = get_ebay_service(adapter=mock_adapter, repository=mock_repository)
 
     # Assert
     assert service is not None

@@ -20,6 +20,7 @@ def _trigger_custom():
 class DummyPayload(BaseModel):
     workspace_id: int
 
+
 @app.post("/_test_exceptions/validation")
 def _trigger_validation(payload: DummyPayload):
     return payload
@@ -29,6 +30,7 @@ def _trigger_validation(payload: DummyPayload):
 def _trigger_unhandled():
     msg = "This is a secret database traceback that should never leak!"
     raise ValueError(msg)
+
 
 # ---------------------------------------------------------
 # 2. Test Cases using your existing `client` fixture
@@ -40,10 +42,7 @@ def test_custom_app_error_handler(client):
     response = client.get("/_test_exceptions/custom")
 
     assert response.status_code == 403
-    assert response.json() == {
-        "detail": "You shall not pass",
-        "code": "access_denied"
-    }
+    assert response.json() == {"detail": "You shall not pass", "code": "access_denied"}
 
 
 def test_validation_exception_handler(client):
@@ -79,7 +78,7 @@ def test_unhandled_exception_handler():
     assert response.status_code == 500
     assert response.json() == {
         "detail": "An unexpected system error occurred. Please try again later.",
-        "code": "internal_server_error"
+        "code": "internal_server_error",
     }
 
     # Strictly ensure the internal traceback message did not leak

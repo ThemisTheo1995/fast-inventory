@@ -13,9 +13,7 @@ def get_client() -> EbayItemClient:
     return EbayItemClient()
 
 
-def get_adapter(
-    client: Annotated[EbayItemClient, Depends(get_client)]
-) -> EbayItemAdapter:
+def get_adapter(client: Annotated[EbayItemClient, Depends(get_client)]) -> EbayItemAdapter:
     return EbayItemAdapter(client)
 
 
@@ -25,6 +23,6 @@ def get_repository(db: Annotated[Session, Depends(get_db)]) -> EbayItemRepositor
 
 def get_ebay_service(
     adapter: Annotated[EbayItemAdapter, Depends(get_adapter)],
-    repository: Annotated[EbayItemRepository, Depends(get_repository)]
+    repository: Annotated[EbayItemRepository, Depends(get_repository)],
 ) -> EbayItemService:
     return EbayItemService(adapter, repository)

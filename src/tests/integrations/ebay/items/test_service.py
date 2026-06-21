@@ -54,9 +54,7 @@ def test_get_items_calculates_correct_30_day_delta(mock_adapter, target_service)
     mock_adapter.get_items.assert_called_once_with(since=expected_since)
 
 
-def test_create_item_delegates_explicitly_to_repository(
-    mock_repository, target_service
-):
+def test_create_item_delegates_explicitly_to_repository(mock_repository, target_service):
     """
     Creating an item must hand off the exact schema payload to the database
     repository without intercepting or mutating its properties.

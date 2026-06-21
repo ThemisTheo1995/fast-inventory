@@ -36,7 +36,7 @@ def test_create_item_happy_path(db_session):
         currency="USD",
         quantity=5,
         status=EbayItemStatus.DRAFT,
-        images=["https://example.com/watch1.jpg", "https://example.com/watch2.jpg"]
+        images=["https://example.com/watch1.jpg", "https://example.com/watch2.jpg"],
     )
 
     # Act
@@ -71,7 +71,7 @@ def test_create_item_exception_unique_constraint_violation(db_session):
         description="Existing item description.",
         price=Decimal("100.00"),
         currency="USD",
-        quantity=1
+        quantity=1,
     )
     db_session.add(existing_item)
     db_session.flush()
@@ -83,7 +83,7 @@ def test_create_item_exception_unique_constraint_violation(db_session):
         title="Duplicate Entry Attempt",
         description="Should get rolled back.",
         price=Decimal("150.00"),
-        currency="USD"
+        currency="USD",
     )
 
     # Act
@@ -109,7 +109,7 @@ def test_create_item_exception_foreign_key_violation(db_session):
         title="Orphaned Item",
         description="No parent workspace.",
         price=Decimal("19.99"),
-        currency="USD"
+        currency="USD",
     )
 
     # Act
@@ -133,12 +133,12 @@ def test_create_item_edge_case_minimal_fields(db_session):
     minimal_payload = EbayCreateItem(
         workspace_id=workspace.id,
         external_id="ebay_minimal_99",
-        sku=None,         # Explicitly null
-        images=[],        # Empty array list
+        sku=None,  # Explicitly null
+        images=[],  # Empty array list
         title="Minimal Item",
         description="Stripped down payload tracking.",
         price=Decimal("5.00"),
-        currency="USD"
+        currency="USD",
     )
 
     # Act

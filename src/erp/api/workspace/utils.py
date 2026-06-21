@@ -5,11 +5,7 @@ from erp.api.workspace.exceptions import (
     SelfModificationBlockedError,
 )
 
-ROLE_WEIGHTS = {
-    "full_admin": 3,
-    "edit_only": 2,
-    "read_only": 1
-}
+ROLE_WEIGHTS = {"full_admin": 3, "edit_only": 2, "read_only": 1}
 
 
 def guard_against_self_action(actor_id: str, target_user_id: str, is_eviction: bool = False) -> None:

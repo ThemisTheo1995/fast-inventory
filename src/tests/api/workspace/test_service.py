@@ -201,9 +201,7 @@ def test_get_workspace_users_excludes_soft_deleted_records(db_session):
         is_deleted=False,
     )
 
-    db_session.add_all(
-        [u_active, l_active, u_del_link, l_del_link, u_del_user, l_del_user]
-    )
+    db_session.add_all([u_active, l_active, u_del_link, l_del_link, u_del_user, l_del_user])
     db_session.flush()
 
     members = service.get_workspace_users(str(workspace.id))
@@ -255,11 +253,7 @@ def test_invite_member_happy_path_new_user(db_session):
 
     created_user = db_session.query(User).filter_by(email="stranger@test.com").one()
     assert created_user.hashed_password == ""
-    assert (
-        db_session.query(WorkspaceUser)
-        .filter_by(workspace_id=str(workspace.id), user_id=created_user.id)
-        .one()
-    )
+    assert db_session.query(WorkspaceUser).filter_by(workspace_id=str(workspace.id), user_id=created_user.id).one()
 
 
 def test_invite_member_happy_path_existing_user_without_link(db_session):
@@ -509,9 +503,7 @@ def test_update_role_exception_self_modification_blocked(db_session):
     actor_id = str(uuid.uuid4())
 
     with pytest.raises(SelfModificationBlockedError):
-        service.update_role(
-            ws_id, target_user_id=actor_id, new_role="full_admin", actor_id=actor_id
-        )
+        service.update_role(ws_id, target_user_id=actor_id, new_role="full_admin", actor_id=actor_id)
 
 
 def test_update_role_exception_rank_immunity_violation(db_session):

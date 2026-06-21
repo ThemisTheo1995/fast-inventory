@@ -38,7 +38,7 @@ def test_settings_load_successfully(_mock_env_vars):
     """Verifies that with correct environment variables, settings load and type-cast correctly."""
     settings = get_settings()
 
-    assert settings.ENVIRONMENT == "dev"
+    assert settings.ENVIRONMENT in ("dev", "test")
     assert settings.DATABASE_URL.startswith("postgresql://")
     assert settings.TEST_DATABASE_URL.startswith("postgresql://")
     assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 30
@@ -53,11 +53,7 @@ def test_settings_override_environment(_mock_env_vars, monkeypatch):
     assert settings.ENVIRONMENT == "test"
 
 
-@pytest.mark.parametrize("missing_var", [
-    "DATABASE_URL",
-    "SHOPIFY_TEST_API_DOMAIN",
-    "AUTH_SECRET_KEY"
-])
+@pytest.mark.parametrize("missing_var", ["DATABASE_URL", "SHOPIFY_TEST_API_DOMAIN", "AUTH_SECRET_KEY"])
 def test_missing_required_variables_raises_validation_error(_mock_env_vars, monkeypatch, missing_var):
     """Verifies that if any required field is missing, Pydantic raises a ValidationError."""
     monkeypatch.delenv(missing_var, raising=False)

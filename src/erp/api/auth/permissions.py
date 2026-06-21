@@ -13,21 +13,17 @@ from erp.api.workspace.exceptions import WorkspaceNotFoundError
 from erp.api.workspace.models import WorkspaceUser
 from erp.database.base import get_db
 
-ROLE_WEIGHTS = {
-    "full_admin": 3,
-    "edit_only": 2,
-    "read_only": 1
-}
+ROLE_WEIGHTS = {"full_admin": 3, "edit_only": 2, "read_only": 1}
 
 # Map HTTP methods to the minimum required role weight
 METHOD_WEIGHTS = {
-    "GET": 1,      # read_only, edit_only, full_admin
+    "GET": 1,  # read_only, edit_only, full_admin
     "OPTIONS": 1,
     "HEAD": 1,
-    "POST": 2,     # edit_only, full_admin
+    "POST": 2,  # edit_only, full_admin
     "PUT": 2,
     "PATCH": 2,
-    "DELETE": 3    # full_admin only
+    "DELETE": 3,  # full_admin only
 }
 
 
@@ -36,7 +32,7 @@ def verify_workspace_access(
     workspace_id: UUID,
     # CHECK 1: This sub-dependency guarantees an active, authenticated user
     current_user: Annotated[User, Depends(get_current_active_user)],
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
 ) -> WorkspaceUser:
     """
     Master dependency for workspace routes.
@@ -47,7 +43,7 @@ def verify_workspace_access(
     query = select(WorkspaceUser).where(
         WorkspaceUser.user_id == current_user.id,
         WorkspaceUser.workspace_id == workspace_id,
-        WorkspaceUser.status == InvitationStatusEnum.ACTIVE
+        WorkspaceUser.status == InvitationStatusEnum.ACTIVE,
     )
     workspace_link = db.execute(query).scalar_one_or_none()
 

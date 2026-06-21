@@ -15,7 +15,7 @@ class EbayItemAdapter(MarketplaceItemAdapter):
         self.client = client
 
     def sync_items(self, since: datetime) -> list[EbayItem]:
-        return self.get_items(since=since)     # TODO: Replace with actual sync logic
+        return self.get_items(since=since)  # TODO: Replace with actual sync logic
 
     def get_items(self, since: datetime) -> list[EbayItem]:
         raw_items = self.client.get_items(since)
@@ -40,9 +40,7 @@ class EbayItemAdapter(MarketplaceItemAdapter):
                 value=float(raw["price"]["value"]),
                 currency=raw["price"]["currency"],
             ),
-            stock_quantity=raw["availability"]["shipToLocationAvailability"][
-                "quantity"
-            ],
+            stock_quantity=raw["availability"]["shipToLocationAvailability"]["quantity"],
             status=EbayStatusEnum(raw["status"]),
             image_url=image_url,
             metadata=raw["product"].get("aspects", {}),

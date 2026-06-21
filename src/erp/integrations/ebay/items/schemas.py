@@ -17,6 +17,7 @@ class EbayStatusEnum(StrEnum):
 
 # --- Shared Base Components ---
 
+
 class EbayPrice(BaseModel):
     value: float
     currency: str = "GBP"
@@ -24,11 +25,13 @@ class EbayPrice(BaseModel):
 
 # --- ERP Standard Schemas ---
 
+
 class EbayItem(BaseModel):
     """
     Standard ERP representation of a marketplace item.
     Mapped from eBay Inventory/Offer data.
     """
+
     workspace_id: UUID | None = Field(default=None, description="Associated ERP workspace UUID")
     external_id: str = Field(..., description="The listingId or offerId from the marketplace")
     sku: str = Field(..., description="The unique seller-defined SKU")
@@ -45,6 +48,7 @@ class EbayItem(BaseModel):
 
 class EbayCreateItem(BaseModel):
     """Payload expected from the client to create an item."""
+
     workspace_id: UUID
     external_id: str
     sku: str | None = None
@@ -59,6 +63,7 @@ class EbayCreateItem(BaseModel):
 
 class EbayItemResponse(EbayCreateItem):
     """Payload returned to the client (includes DB-generated fields)."""
+
     id: UUID
 
     # Tells Pydantic it can read data directly from the SQLAlchemy ORM object

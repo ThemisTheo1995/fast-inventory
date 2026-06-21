@@ -10,7 +10,5 @@ router.include_router(
     ebay_items_router,
     prefix="/{workspace_id}/integrations/ebay/items",
     tags=["Ebay-Items"],
-    dependencies=[
-        Depends(verify_workspace_access)
-    ]
+    dependencies=[Depends(verify_workspace_access)],
 )

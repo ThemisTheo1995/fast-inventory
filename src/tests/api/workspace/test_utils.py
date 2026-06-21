@@ -49,14 +49,18 @@ def test_guard_against_self_action_raises_self_eviction():
 # RANK IMMUNITY GUARD TESTS (`guard_rank_immunity`)
 # ============================================================================
 
-@pytest.mark.parametrize("actor_role, target_member_role", [
-    ("full_admin", "edit_only"),  # Higher rank acting on lower rank
-    ("full_admin", "read_only"),  # Higher rank acting on lowest rank
-    ("edit_only", "read_only"),   # Mid rank acting on lowest rank
-    ("full_admin", "full_admin"), # Equal tier: Admin acting on Admin
-    ("edit_only", "edit_only"),   # Equal tier: Editor acting on Editor
-    ("read_only", "read_only"),   # Equal tier: Reader acting on Reader
-])
+
+@pytest.mark.parametrize(
+    "actor_role, target_member_role",
+    [
+        ("full_admin", "edit_only"),  # Higher rank acting on lower rank
+        ("full_admin", "read_only"),  # Higher rank acting on lowest rank
+        ("edit_only", "read_only"),  # Mid rank acting on lowest rank
+        ("full_admin", "full_admin"),  # Equal tier: Admin acting on Admin
+        ("edit_only", "edit_only"),  # Equal tier: Editor acting on Editor
+        ("read_only", "read_only"),  # Equal tier: Reader acting on Reader
+    ],
+)
 def test_guard_rank_immunity_happy_paths(actor_role, target_member_role):
     """
     Actors with a higher or equal tier weight can safely manage target users
@@ -65,11 +69,14 @@ def test_guard_rank_immunity_happy_paths(actor_role, target_member_role):
     assert guard_rank_immunity(actor_role, target_member_role) is None
 
 
-@pytest.mark.parametrize("actor_role, target_member_role", [
-    ("edit_only", "full_admin"),  # Lower rank trying to modify higher rank
-    ("read_only", "full_admin"),  # Lowest rank trying to modify highest rank
-    ("read_only", "edit_only"),   # Lowest rank trying to modify mid rank
-])
+@pytest.mark.parametrize(
+    "actor_role, target_member_role",
+    [
+        ("edit_only", "full_admin"),  # Lower rank trying to modify higher rank
+        ("read_only", "full_admin"),  # Lowest rank trying to modify highest rank
+        ("read_only", "edit_only"),  # Lowest rank trying to modify mid rank
+    ],
+)
 def test_guard_rank_immunity_raises_violation(actor_role, target_member_role):
     """
     When an actor has a strictly lower weight than their target, the function
@@ -79,11 +86,14 @@ def test_guard_rank_immunity_raises_violation(actor_role, target_member_role):
         guard_rank_immunity(actor_role, target_member_role)
 
 
-@pytest.mark.parametrize("actor_role, target_member_role", [
-    ("FULL_ADMIN", "edit_only"),   # Uppercase actor string
-    ("edit_only", "READ_ONLY"),    # Uppercase target string
-    ("EdIt_OnLy", "FuLl_AdMiN"),   # Mixed-case string triggering exception path
-])
+@pytest.mark.parametrize(
+    "actor_role, target_member_role",
+    [
+        ("FULL_ADMIN", "edit_only"),  # Uppercase actor string
+        ("edit_only", "READ_ONLY"),  # Uppercase target string
+        ("EdIt_OnLy", "FuLl_AdMiN"),  # Mixed-case string triggering exception path
+    ],
+)
 def test_guard_rank_immunity_edge_cases_case_insensitivity(actor_role, target_member_role):
     """
     The guard handles case-insensitivity seamlessly due to internal string normalization.
@@ -97,11 +107,14 @@ def test_guard_rank_immunity_edge_cases_case_insensitivity(actor_role, target_me
             guard_rank_immunity(actor_role, target_member_role)
 
 
-@pytest.mark.parametrize("actor_role, target_member_role, should_raise", [
-    ("unregistered_guest_role", "read_only", False),       # 1 vs 1 (Equal weight fallback -> passes)
-    ("unregistered_guest_role", "full_admin", True),       # 1 vs 3 (Lower fallback -> raises)
-    ("full_admin", "some_corrupted_role_string", False),  # 3 vs 1 (Higher fallback -> passes)
-])
+@pytest.mark.parametrize(
+    "actor_role, target_member_role, should_raise",
+    [
+        ("unregistered_guest_role", "read_only", False),  # 1 vs 1 (Equal weight fallback -> passes)
+        ("unregistered_guest_role", "full_admin", True),  # 1 vs 3 (Lower fallback -> raises)
+        ("full_admin", "some_corrupted_role_string", False),  # 3 vs 1 (Higher fallback -> passes)
+    ],
+)
 def test_guard_rank_immunity_edge_cases_unknown_roles(actor_role, target_member_role, should_raise):
     """
     If a role is passed that doesn't exist in ROLE_WEIGHTS, it should safely fall back
@@ -118,13 +131,17 @@ def test_guard_rank_immunity_edge_cases_unknown_roles(actor_role, target_member_
 # PRIVILEGE ESCALATION GUARD TESTS (`guard_privilege_escalation`)
 # ============================================================================
 
-@pytest.mark.parametrize("actor_role, requested_role", [
-    ("full_admin", "full_admin"),   # Assigning an equal top tier
-    ("full_admin", "edit_only"),    # Assigning a lower tier
-    ("edit_only", "edit_only"),     # Assigning an equal mid tier
-    ("edit_only", "read_only"),     # Assigning a lower tier
-    ("read_only", "read_only"),     # Assigning an equal low tier
-])
+
+@pytest.mark.parametrize(
+    "actor_role, requested_role",
+    [
+        ("full_admin", "full_admin"),  # Assigning an equal top tier
+        ("full_admin", "edit_only"),  # Assigning a lower tier
+        ("edit_only", "edit_only"),  # Assigning an equal mid tier
+        ("edit_only", "read_only"),  # Assigning a lower tier
+        ("read_only", "read_only"),  # Assigning an equal low tier
+    ],
+)
 def test_guard_privilege_escalation_happy_paths(actor_role, requested_role):
     """
     An actor can always assign or invite a user to a role that is less than
@@ -133,11 +150,14 @@ def test_guard_privilege_escalation_happy_paths(actor_role, requested_role):
     assert guard_privilege_escalation(actor_role, requested_role) is None
 
 
-@pytest.mark.parametrize("actor_role, requested_role", [
-    ("edit_only", "full_admin"),  # Editor trying to grant Admin powers
-    ("read_only", "full_admin"),  # Reader trying to grant Admin powers
-    ("read_only", "edit_only"),   # Reader trying to grant Editor powers
-])
+@pytest.mark.parametrize(
+    "actor_role, requested_role",
+    [
+        ("edit_only", "full_admin"),  # Editor trying to grant Admin powers
+        ("read_only", "full_admin"),  # Reader trying to grant Admin powers
+        ("read_only", "edit_only"),  # Reader trying to grant Editor powers
+    ],
+)
 def test_guard_privilege_escalation_raises_violation(actor_role, requested_role):
     """
     EXCEPTION PATH:

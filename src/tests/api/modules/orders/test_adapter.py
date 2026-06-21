@@ -79,16 +79,12 @@ def test_runtime_checkable_alternative_insight():
     to your Protocol class definition in production, you can cleanly run
     isinstance() assertions directly inside your test loops like this:
     """
-    is_runtime_safe = getattr(
-        MarketplaceOrderAdapter, "_is_runtime_protocol", False
-    )
+    is_runtime_safe = getattr(MarketplaceOrderAdapter, "_is_runtime_protocol", False)
 
     if is_runtime_safe:
         # This branch runs if you decide to decorate the Protocol in production
         assert isinstance(DummyConformingAdapter(), MarketplaceOrderAdapter)
-        assert not isinstance(
-            DummyNonConformingAdapter(), MarketplaceOrderAdapter
-        )
+        assert not isinstance(DummyNonConformingAdapter(), MarketplaceOrderAdapter)
     else:
         # This branch runs because it's a standard static structural protocol
         with pytest.raises(TypeError, match="Instance and class checks can only be used"):

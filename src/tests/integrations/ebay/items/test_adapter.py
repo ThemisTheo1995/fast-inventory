@@ -69,9 +69,7 @@ def test_sync_items_delegates_to_get_items(mock_client, adapter, raw_ebay_item_d
     mock_client.get_items.assert_called_once_with(now)
 
 
-def test_get_items_maps_multiple_raw_client_payloads(
-    mock_client, adapter, raw_ebay_item_dict
-):
+def test_get_items_maps_multiple_raw_client_payloads(mock_client, adapter, raw_ebay_item_dict):
     """
     get_items must capture raw dictionaries from the API client layer and
     safely project them into a collection of structured EbayItem data objects.
