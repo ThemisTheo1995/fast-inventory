@@ -1,0 +1,39 @@
+name: Development-CI
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint and Format with Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run tests with Pytest
+        run: |
+          uv run pytest src/tests/
