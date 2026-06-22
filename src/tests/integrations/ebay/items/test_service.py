@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from freezegun import freeze_time
 
 from src.erp.integrations.ebay.items.schemas import EbayCreateItem
 from src.erp.integrations.ebay.items.service import EbayItemService

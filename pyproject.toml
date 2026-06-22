@@ -38,7 +38,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.3.0",
-    "freezegun>=1.5.5",
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.5",

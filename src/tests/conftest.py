@@ -1,10 +1,10 @@
 import pytest
+from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from alembic import command
 from src.erp.core.config import get_settings
 from src.erp.database.base import get_db
 from src.erp.main import app
