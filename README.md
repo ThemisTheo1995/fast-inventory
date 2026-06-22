@@ -167,7 +167,7 @@ uv run ruff format
 
 | Task             | Command                                              |
 | ---------------- | ---------------------------------------------------- |
-| Start API        | `uv run uvicorn erp.main:app --reload --app-dir src` |
+| Start API        | `uv run uvicorn erp.main:app --reload` |
 | New migration    | `uv run alembic revision --autogenerate -m "msg"`    |
 | Apply migrations | `uv run alembic upgrade head`                        |
 | Rollback         | `uv run alembic downgrade -1`                        |
