@@ -7,13 +7,13 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from erp.api.auth.dependencies import get_current_active_user, get_current_user
-from erp.api.auth.models import User
-from erp.api.auth.utils import get_password_hash
-from erp.core.config import get_settings
-from erp.core.exception_handlers import custom_app_error_handler
-from erp.core.exceptions import BaseAppError
-from erp.database.base import get_db
+from src.erp.api.auth.dependencies import get_current_active_user, get_current_user
+from src.erp.api.auth.models import User
+from src.erp.api.auth.utils import get_password_hash
+from src.erp.core.config import get_settings
+from src.erp.core.exception_handlers import custom_app_error_handler
+from src.erp.core.exceptions import BaseAppError
+from src.erp.database.base import get_db
 
 settings = get_settings()
 SECRET_KEY = settings.AUTH_SECRET_KEY

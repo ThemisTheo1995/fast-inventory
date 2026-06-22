@@ -2,16 +2,16 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from erp.api.auth.models import User
-from erp.api.workspace.exceptions import (
+from src.erp.api.auth.models import User
+from src.erp.api.workspace.exceptions import (
     UserAlreadyActiveMemberError,
     WorkspaceMemberNotFoundError,
     WorkspaceNotFoundError,
 )
-from erp.api.workspace.models import Workspace, WorkspaceUser
-from erp.api.workspace.schemas.workspace import WorkspaceUpdate
-from erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
-from erp.api.workspace.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
+from src.erp.api.workspace.models import Workspace, WorkspaceUser
+from src.erp.api.workspace.schemas.workspace import WorkspaceUpdate
+from src.erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
+from src.erp.api.workspace.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
 
 
 class WorkspaceService:

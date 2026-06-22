@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from erp.api.auth import router as auth_router
-from erp.api.workspace import router as workspace_router
-from erp.integrations.ebay.items import router as ebay_items_router
+from src.erp.api.auth import router as auth_router
+from src.erp.api.workspace import router as workspace_router
+from src.erp.integrations.ebay.items import router as ebay_items_router
 
 api_router = APIRouter()
 

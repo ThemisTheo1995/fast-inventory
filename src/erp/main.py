@@ -7,14 +7,14 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from erp import model_registry  # noqa: F401
-from erp.api.router import api_router
-from erp.core.exception_handlers import (
+from src.erp import model_registry  # noqa: F401
+from src.erp.api.router import api_router
+from src.erp.core.exception_handlers import (
     custom_app_error_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from erp.core.exceptions import BaseAppError
+from src.erp.core.exceptions import BaseAppError
 
 app = FastAPI(title="ERP API")
 

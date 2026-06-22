@@ -5,13 +5,13 @@ from fastapi import Depends, Request
 from sqlalchemy.future import select
 from sqlalchemy.orm import Session
 
-from erp.api.auth.dependencies import get_current_active_user
-from erp.api.auth.exceptions import InsufficientPermissionsError
-from erp.api.auth.models import User
-from erp.api.workspace.enums import InvitationStatusEnum
-from erp.api.workspace.exceptions import WorkspaceNotFoundError
-from erp.api.workspace.models import WorkspaceUser
-from erp.database.base import get_db
+from src.erp.api.auth.dependencies import get_current_active_user
+from src.erp.api.auth.exceptions import InsufficientPermissionsError
+from src.erp.api.auth.models import User
+from src.erp.api.workspace.enums import InvitationStatusEnum
+from src.erp.api.workspace.exceptions import WorkspaceNotFoundError
+from src.erp.api.workspace.models import WorkspaceUser
+from src.erp.database.base import get_db
 
 ROLE_WEIGHTS = {"full_admin": 3, "edit_only": 2, "read_only": 1}
 

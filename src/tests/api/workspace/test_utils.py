@@ -1,12 +1,12 @@
 import pytest
 
-from erp.api.workspace.exceptions import (
+from src.erp.api.workspace.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,
     SelfModificationBlockedError,
 )
-from erp.api.workspace.utils import (
+from src.erp.api.workspace.utils import (
     guard_against_self_action,
     guard_privilege_escalation,
     guard_rank_immunity,

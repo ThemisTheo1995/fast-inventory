@@ -4,7 +4,7 @@ from enum import StrEnum
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from erp.api.base.models import BaseModel
+from src.erp.api.base.models import BaseModel
 
 
 class ProviderType(StrEnum):

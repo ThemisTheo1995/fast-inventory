@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from erp.integrations.ebay.items.dependencies import get_ebay_service
-from erp.integrations.ebay.items.schemas import EbayCreateItem, EbayItem, EbayItemResponse
-from erp.integrations.ebay.items.service import EbayItemService
+from src.erp.integrations.ebay.items.dependencies import get_ebay_service
+from src.erp.integrations.ebay.items.schemas import EbayCreateItem, EbayItem, EbayItemResponse
+from src.erp.integrations.ebay.items.service import EbayItemService
 
 router = APIRouter()
 

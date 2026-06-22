@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Boolean, DateTime, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from erp.database.base import Base
+from src.erp.database.base import Base
 
 
 def utc_now() -> datetime:

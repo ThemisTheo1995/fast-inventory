@@ -1,7 +1,7 @@
 import random
 from datetime import UTC, datetime
 
-from erp.integrations.ebay.items.client import EbayItemClient
+from src.erp.integrations.ebay.items.client import EbayItemClient
 
 # ============================================================================
 # COUNT & STRUCTURAL INTEGRITY TESTS

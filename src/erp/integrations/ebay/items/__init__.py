@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from erp.api.auth.permissions import verify_workspace_access
+from src.erp.api.auth.permissions import verify_workspace_access
 
 from .views import router as ebay_items_router
 

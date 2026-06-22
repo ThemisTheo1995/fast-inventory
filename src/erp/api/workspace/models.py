@@ -4,8 +4,8 @@ import uuid
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from erp.api.base.models import BaseModel
-from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from src.erp.api.base.models import BaseModel
+from src.erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
 
 
 class Workspace(BaseModel):

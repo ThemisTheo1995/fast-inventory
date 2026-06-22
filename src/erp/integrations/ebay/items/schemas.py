@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from erp.integrations.ebay.items.enums import EbayItemStatus
+from src.erp.integrations.ebay.items.enums import EbayItemStatus
 
 
 class EbayStatusEnum(StrEnum):

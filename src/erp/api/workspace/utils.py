@@ -1,4 +1,4 @@
-from erp.api.workspace.exceptions import (
+from src.erp.api.workspace.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,

@@ -1,8 +1,8 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from erp.integrations.ebay.items.models import EbayItem
-from erp.integrations.ebay.items.schemas import EbayCreateItem
+from src.erp.integrations.ebay.items.models import EbayItem
+from src.erp.integrations.ebay.items.schemas import EbayCreateItem
 
 
 class EbayItemRepository:

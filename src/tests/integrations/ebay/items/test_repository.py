@@ -1,11 +1,11 @@
 import uuid
 from decimal import Decimal
 
-from erp.api.workspace.models import Workspace
-from erp.integrations.ebay.items.enums import EbayItemStatus
-from erp.integrations.ebay.items.models import EbayItem
-from erp.integrations.ebay.items.repository import EbayItemRepository
-from erp.integrations.ebay.items.schemas import EbayCreateItem
+from src.erp.api.workspace.models import Workspace
+from src.erp.integrations.ebay.items.enums import EbayItemStatus
+from src.erp.integrations.ebay.items.models import EbayItem
+from src.erp.integrations.ebay.items.repository import EbayItemRepository
+from src.erp.integrations.ebay.items.schemas import EbayCreateItem
 
 # ============================================================================
 # REPOSITORY TESTS

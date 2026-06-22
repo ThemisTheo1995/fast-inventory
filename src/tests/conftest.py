@@ -5,10 +5,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from alembic import command
-from erp.core.config import get_settings
-from erp.database.base import get_db
-from erp.main import app
-from erp.model_registry import metadata as target_metadata
+from src.erp.core.config import get_settings
+from src.erp.database.base import get_db
+from src.erp.main import app
+from src.erp.model_registry import metadata as target_metadata
 
 settings = get_settings()
 

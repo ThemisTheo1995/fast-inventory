@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from erp.api.modules.orders.adapter import MarketplaceOrderAdapter
-from erp.api.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
+from src.erp.api.modules.orders.adapter import MarketplaceOrderAdapter
+from src.erp.api.modules.orders.schemas import MarketplaceCreateOrder, MarketplaceOrder
 
 # ============================================================================
 # CONFORMING TEST IMPLEMENTATION
