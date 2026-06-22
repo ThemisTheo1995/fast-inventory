@@ -3,16 +3,17 @@ from datetime import UTC, datetime
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from erp.api.auth.exceptions import (
+from src.erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
     InvitationNotFoundExceptionError,
     OnboardingFailedExceptionError,
+    PricingPlanDoesNotExistError,
     TokenInvalidError,
     UserExistsExceptionError,
 )
-from erp.api.auth.models import User, UserSession
-from erp.api.auth.schemas import (
+from src.erp.api.auth.models import User, UserSession
+from src.erp.api.auth.schemas import (
     LogoutRequest,
     OnboardRequest,
     RefreshResponse,
@@ -21,15 +22,16 @@ from erp.api.auth.schemas import (
     TokenResponse,
     TokenUser,
 )
-from erp.api.auth.utils import (
+from src.erp.api.auth.utils import (
     create_access_token,
     decode_token,
     generate_token_pair,
     get_password_hash,
     verify_password,
 )
-from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from erp.api.workspace.models import Workspace, WorkspaceUser
+from src.erp.api.pricing.models import PricingPlan, PricingSubscription, PricingUsage
+from src.erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from src.erp.api.workspace.models import Workspace, WorkspaceUser
 
 
 class AuthService:
@@ -39,9 +41,16 @@ class AuthService:
     def register(self, data: RegisterRequest) -> WorkspaceUser:
         """Service to register completely new customers."""
 
-        # 1. Pre-check email existence
+        # 1. Pre-checks
+
+        # Email existence check
         if self.db.query(User).filter(User.email == data.user.email).first():
             raise UserExistsExceptionError()
+
+        # Price plan existence check
+        selected_plan = self.db.query(PricingPlan).filter(PricingPlan.name == data.plan).first()
+        if not selected_plan:
+            raise PricingPlanDoesNotExistError()
 
         try:
             # 2. Create the Workspace
@@ -49,7 +58,14 @@ class AuthService:
             self.db.add(workspace)
             self.db.flush()
 
-            # 3. Create the User
+            # 3 Pricing initialisation
+            subscription = PricingSubscription(workspace_id=workspace.id, plan_id=selected_plan.id)
+            self.db.add(subscription)
+
+            usage = PricingUsage(workspace_id=workspace.id, listings_count=0, api_count=0)
+            self.db.add(usage)
+
+            # 4. Create the User
             hashed_pw = get_password_hash(data.user.password)
             user = User(
                 email=data.user.email,
@@ -60,7 +76,7 @@ class AuthService:
             self.db.add(user)
             self.db.flush()
 
-            # 4. Link them via WorkspaceUser
+            # 5. Link them via WorkspaceUser
             workspace_user = WorkspaceUser(
                 user_id=user.id,
                 workspace_id=workspace.id,
@@ -70,11 +86,11 @@ class AuthService:
             self.db.add(workspace_user)
             self.db.flush()
 
-            # 5. Generate JWT tokens
+            # 6. Generate JWT tokens
             tokens = generate_token_pair(user.id)
             refresh_payload = decode_token(tokens["refresh_token"])
 
-            # 6. Track the session in the DB
+            # 7. Track the session in the DB
             expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
             user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
             self.db.add(user_session)

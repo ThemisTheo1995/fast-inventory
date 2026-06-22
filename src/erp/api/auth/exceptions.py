@@ -1,6 +1,6 @@
 from fastapi import status
 
-from erp.core.exceptions import BaseAppError
+from src.erp.core.exceptions import BaseAppError
 
 
 class TokenError(Exception):
@@ -58,3 +58,8 @@ class AccountAlreadyOnboardedExceptionError(BaseAppError):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This account has already been fully onboarded. Login instead.",
         )
+
+
+class PricingPlanDoesNotExistError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing plan does not exist.")

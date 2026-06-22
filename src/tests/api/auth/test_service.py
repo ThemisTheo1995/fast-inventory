@@ -4,19 +4,20 @@ from unittest.mock import patch
 import pytest
 from fastapi.security import OAuth2PasswordRequestForm
 
-from erp.api.auth.exceptions import (
+from src.erp.api.auth.exceptions import (
     CredentialsExceptionError,
     OnboardingFailedExceptionError,
     TokenInvalidError,
     UserExistsExceptionError,
 )
-from erp.api.auth.models import User, UserSession
-from erp.api.auth.schemas import LogoutRequest, RefreshToken, RegisterRequest, UserCreate
-from erp.api.auth.service import AuthService
-from erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
-from erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from erp.api.workspace.models import Workspace, WorkspaceUser
-from erp.api.workspace.schemas.workspace import WorkspaceCreate
+from src.erp.api.auth.models import User, UserSession
+from src.erp.api.auth.schemas import LogoutRequest, RefreshToken, RegisterRequest, UserCreate
+from src.erp.api.auth.service import AuthService
+from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
+from src.erp.api.pricing.enums import PlanName
+from src.erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from src.erp.api.workspace.models import Workspace, WorkspaceUser
+from src.erp.api.workspace.schemas.workspace import WorkspaceCreate
 
 # ============================================================================
 # REGISTER SERVICE TESTS (`register`)
@@ -33,6 +34,7 @@ def test_onboard_happy_path(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="happy@example.com", password="SecurePassword123!", first_name="John", last_name="Doe"),
         workspace=WorkspaceCreate(name="Happy Tech LLC", email="billing@happytech.com"),
+        plan=PlanName.PRO,
     )
 
     token_response = auth_service.register(request_data)
@@ -72,6 +74,7 @@ def test_onboard_exception_user_already_exists(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="exists@example.com", password="password123"),
         workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com"),
+        plan=PlanName.PRO,
     )
 
     with pytest.raises(UserExistsExceptionError):
@@ -89,10 +92,11 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="rollback@example.com", password="password123"),
         workspace=WorkspaceCreate(name="Rollback Inc", email="rb@inc.com"),
+        plan=PlanName.PRO,
     )
 
     # Force an internal failure mid-flight by patching 'generate_token_pair' to raise a runtime error
-    with patch("erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")):  # noqa: SIM117
+    with patch("src.erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")):  # noqa: SIM117
         with pytest.raises(OnboardingFailedExceptionError):
             auth_service.register(request_data)
 
@@ -284,7 +288,7 @@ def test_logout_edge_case_token_missing_claims(db_session):
     auth_service = AuthService(db_session)
     logout_data = LogoutRequest(refresh_token="invalid-token-missing-claims")
 
-    with patch("erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
+    with patch("src.erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
         auth_service.logout(logout_data)
 
 
@@ -362,7 +366,7 @@ def test_refresh_token_exception_missing_required_claims(db_session, mock_payloa
     """
     auth_service = AuthService(db_session)
 
-    with patch("erp.api.auth.service.decode_token", return_value=mock_payload), pytest.raises(TokenInvalidError):
+    with patch("src.erp.api.auth.service.decode_token", return_value=mock_payload), pytest.raises(TokenInvalidError):
         auth_service.refresh_token(RefreshToken(refresh_token="valid.token.payload"))
 
 

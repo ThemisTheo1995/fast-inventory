@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from erp.api.auth.models import User
-from erp.api.workspace.exceptions import (
+from src.erp.api.auth.models import User
+from src.erp.api.workspace.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,
@@ -11,9 +11,9 @@ from erp.api.workspace.exceptions import (
     UserAlreadyActiveMemberError,
     WorkspaceMemberNotFoundError,
 )
-from erp.api.workspace.models import Workspace, WorkspaceUser
-from erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
-from erp.api.workspace.service import WorkspaceUserService
+from src.erp.api.workspace.models import Workspace, WorkspaceUser
+from src.erp.api.workspace.schemas.workspace_user import WorkspaceUserResponse
+from src.erp.api.workspace.service import WorkspaceUserService
 
 # ============================================================================
 # LOOKUP HELPER TESTS (`_get_active_workspace_user`)

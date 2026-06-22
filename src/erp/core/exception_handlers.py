@@ -2,7 +2,7 @@ from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from erp.core.exceptions import BaseAppError
+from src.erp.core.exceptions import BaseAppError
 
 
 async def custom_app_error_handler(_request: Request, exc: BaseAppError) -> JSONResponse:

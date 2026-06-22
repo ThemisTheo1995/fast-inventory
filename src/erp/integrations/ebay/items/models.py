@@ -4,8 +4,8 @@ from decimal import Decimal
 from sqlalchemy import ARRAY, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from erp.api.base.models import BaseModel
-from erp.integrations.ebay.items.enums import EbayItemStatus
+from src.erp.api.base.models import BaseModel
+from src.erp.integrations.ebay.items.enums import EbayItemStatus
 
 
 class EbayItem(BaseModel):

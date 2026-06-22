@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from erp.core.config import get_settings
+from src.erp.core.config import get_settings
 
 settings = get_settings()
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from erp.api.modules.items.schemas import (
+from src.erp.api.modules.items.schemas import (
     MarketplaceCreateItem,
     MarketplaceItem,
 )

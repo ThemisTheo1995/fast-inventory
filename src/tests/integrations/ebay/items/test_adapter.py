@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from erp.integrations.ebay.items.adapter import EbayItemAdapter
-from erp.integrations.ebay.items.client import EbayItemClient
-from erp.integrations.ebay.items.schemas import (
+from src.erp.integrations.ebay.items.adapter import EbayItemAdapter
+from src.erp.integrations.ebay.items.client import EbayItemClient
+from src.erp.integrations.ebay.items.schemas import (
     EbayCreateItem,
     EbayItem,
     EbayPrice,

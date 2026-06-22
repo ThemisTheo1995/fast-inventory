@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from erp.api.auth.schemas import (
+from src.erp.api.auth.schemas import (
     LogoutRequest,
     OnboardRequest,
     RefreshResponse,
@@ -12,8 +12,8 @@ from erp.api.auth.schemas import (
     RegisterRequest,
     TokenResponse,
 )
-from erp.api.auth.service import AuthService
-from erp.database.base import get_db
+from src.erp.api.auth.service import AuthService
+from src.erp.database.base import get_db
 
 router = APIRouter()
 

@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from erp.api.modules.items.adapter import MarketplaceItemAdapter
-from erp.integrations.ebay.items.client import EbayItemClient
-from erp.integrations.ebay.items.schemas import (
+from src.erp.api.modules.items.adapter import MarketplaceItemAdapter
+from src.erp.integrations.ebay.items.client import EbayItemClient
+from src.erp.integrations.ebay.items.schemas import (
     EbayCreateItem,
     EbayItem,
     EbayPrice,

@@ -2,7 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from erp.api.workspace.schemas.workspace import WorkspaceCreate
+from src.erp.api.pricing.enums import PlanName
+from src.erp.api.workspace.schemas.workspace import WorkspaceCreate
 
 # =======================================================
 # REGISTER NEW WORKSPACE USER
@@ -17,15 +18,13 @@ class UserCreate(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    """
-    Composite schema used for onboarding:
-    creates User + Workspace + WorkspaceUser link.
-    """
+    """Composite schema for onboarding."""
 
     model_config = ConfigDict(extra="forbid")
 
     user: UserCreate
     workspace: WorkspaceCreate
+    plan: PlanName
 
 
 # =======================================================

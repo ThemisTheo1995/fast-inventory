@@ -1,10 +1,9 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
-from erp.core.config import get_settings
-from erp.model_registry import metadata as target_metadata
+from sqlalchemy import engine_from_config, pool
+from src.erp.core.config import get_settings
+from src.erp.model_registry import metadata as target_metadata
 
 config = context.config
 settings = get_settings()

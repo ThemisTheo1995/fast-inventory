@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from erp.core.exceptions import BaseAppError
-from erp.main import app
+from src.erp.core.exceptions import BaseAppError
+from src.erp.main import app
 
 # ---------------------------------------------------------
 # 1. Inject Temporary Routes into the Real App

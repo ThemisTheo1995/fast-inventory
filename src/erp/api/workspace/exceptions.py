@@ -1,6 +1,6 @@
 from fastapi import status
 
-from erp.core.exceptions import BaseAppError
+from src.erp.core.exceptions import BaseAppError
 
 
 class WorkspaceNotFoundError(BaseAppError):

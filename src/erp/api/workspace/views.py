@@ -4,19 +4,19 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from erp.api.auth.dependencies import get_current_active_user
-from erp.api.auth.models import User
-from erp.api.workspace.schemas.workspace import (
+from src.erp.api.auth.dependencies import get_current_active_user
+from src.erp.api.auth.models import User
+from src.erp.api.workspace.schemas.workspace import (
     WorkspaceResponse,
     WorkspaceUpdate,
 )
-from erp.api.workspace.schemas.workspace_user import (
+from src.erp.api.workspace.schemas.workspace_user import (
     InviteWorkspaceUserRequest,
     UpdateWorkspaceUserRoleRequest,
     WorkspaceUserResponse,
 )
-from erp.api.workspace.service import WorkspaceService, WorkspaceUserService
-from erp.database.base import get_db
+from src.erp.api.workspace.service import WorkspaceService, WorkspaceUserService
+from src.erp.database.base import get_db
 
 router = APIRouter()
 

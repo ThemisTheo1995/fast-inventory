@@ -2,11 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from erp.database.base import Session, get_db
-from erp.integrations.ebay.items.adapter import EbayItemAdapter
-from erp.integrations.ebay.items.client import EbayItemClient
-from erp.integrations.ebay.items.repository import EbayItemRepository
-from erp.integrations.ebay.items.service import EbayItemService
+from src.erp.database.base import Session, get_db
+from src.erp.integrations.ebay.items.adapter import EbayItemAdapter
+from src.erp.integrations.ebay.items.client import EbayItemClient
+from src.erp.integrations.ebay.items.repository import EbayItemRepository
+from src.erp.integrations.ebay.items.service import EbayItemService
 
 
 def get_client() -> EbayItemClient:

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
-from erp.integrations.ebay.items.adapter import EbayItemAdapter
-from erp.integrations.ebay.items.repository import EbayItemRepository
-from erp.integrations.ebay.items.schemas import EbayCreateItem, EbayItem
+from src.erp.integrations.ebay.items.adapter import EbayItemAdapter
+from src.erp.integrations.ebay.items.repository import EbayItemRepository
+from src.erp.integrations.ebay.items.schemas import EbayCreateItem, EbayItem
 
 
 class EbayItemService:

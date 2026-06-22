@@ -5,8 +5,8 @@ from typing import Any
 import bcrypt
 import jwt
 
-from erp.api.auth.exceptions import TokenExpiredError, TokenInvalidError
-from erp.core.config import get_settings
+from src.erp.api.auth.exceptions import TokenExpiredError, TokenInvalidError
+from src.erp.core.config import get_settings
 
 settings = get_settings()
 
