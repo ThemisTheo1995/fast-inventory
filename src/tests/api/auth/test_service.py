@@ -34,7 +34,7 @@ def test_onboard_happy_path(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="happy@example.com", password="SecurePassword123!", first_name="John", last_name="Doe"),
         workspace=WorkspaceCreate(name="Happy Tech LLC", email="billing@happytech.com"),
-        plan=PlanName.PRO
+        plan=PlanName.PRO,
     )
 
     token_response = auth_service.register(request_data)
@@ -74,7 +74,7 @@ def test_onboard_exception_user_already_exists(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="exists@example.com", password="password123"),
         workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com"),
-        plan=PlanName.PRO
+        plan=PlanName.PRO,
     )
 
     with pytest.raises(UserExistsExceptionError):
@@ -92,7 +92,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     request_data = RegisterRequest(
         user=UserCreate(email="rollback@example.com", password="password123"),
         workspace=WorkspaceCreate(name="Rollback Inc", email="rb@inc.com"),
-        plan=PlanName.PRO
+        plan=PlanName.PRO,
     )
 
     # Force an internal failure mid-flight by patching 'generate_token_pair' to raise a runtime error

@@ -62,7 +62,4 @@ class AccountAlreadyOnboardedExceptionError(BaseAppError):
 
 class PricingPlanDoesNotExistError(BaseAppError):
     def __init__(self) -> None:
-        super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Pricing plan does not exist."
-        )
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing plan does not exist.")
