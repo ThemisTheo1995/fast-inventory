@@ -46,7 +46,8 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_pricing_subscriptions_id'), 'pricing_subscriptions', ['id'], unique=False)
-    op.create_index(op.f('ix_pricing_subscriptions_workspace_id'), 'pricing_subscriptions', ['workspace_id'], unique=False)
+    op.create_index(
+        op.f('ix_pricing_subscriptions_workspace_id'), 'pricing_subscriptions', ['workspace_id'], unique=False)
     op.create_table('pricing_usage',
     sa.Column('workspace_id', sa.Uuid(), nullable=False),
     sa.Column('listings_count', sa.Integer(), nullable=False),
