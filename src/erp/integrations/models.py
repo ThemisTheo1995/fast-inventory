@@ -16,9 +16,7 @@ class ProviderType(StrEnum):
 class Integration(BaseModel):
     __tablename__ = "workspace_integrations"
 
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), index=True, nullable=False)
 
     provider_type: Mapped[ProviderType] = mapped_column(String(50), nullable=False)
 

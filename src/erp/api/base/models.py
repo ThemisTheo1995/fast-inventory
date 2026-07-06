@@ -1,14 +1,11 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.erp.core.utils import utc_now
 from src.erp.database.base import Base
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC)
 
 
 class BaseModel(Base):
@@ -28,3 +25,9 @@ class BaseModel(Base):
     )
 
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    def soft_delete(self) -> None:
+        """Soft deletes the record by setting is_deleted to True and updating the deleted_at timestamp."""
+        self.is_deleted = True
+        self.deleted_at = utc_now()

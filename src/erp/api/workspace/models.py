@@ -1,11 +1,9 @@
 import re
-import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from src.erp.api.base.models import BaseModel
-from src.erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
 
 
 class Workspace(BaseModel):
@@ -24,16 +22,15 @@ class Workspace(BaseModel):
     postal_code: Mapped[str] = mapped_column(String(20), nullable=True)
 
     # Relationships
-    workspace_users: Mapped[list["WorkspaceUser"]] = relationship(
-        "WorkspaceUser", back_populates="workspace", cascade="all, delete-orphan"
-    )
-    integrations: Mapped[list["Integration"]] = relationship(
-        "Integration", back_populates="workspace", cascade="all, delete-orphan"
-    )
+    workspace_users: Mapped[list["WorkspaceUser"]] = relationship("WorkspaceUser", back_populates="workspace")
 
-    # ----------------------------
-    # Validators
-    # ----------------------------
+    items: Mapped[list["Item"]] = relationship("Item", back_populates="workspace")
+    customers: Mapped[list["Customer"]] = relationship("Customer", back_populates="workspace")
+    suppliers: Mapped[list["Supplier"]] = relationship("Supplier", back_populates="workspace")
+    sell_orders: Mapped[list["SellOrder"]] = relationship("SellOrder", back_populates="workspace")
+    purchase_orders: Mapped[list["PurchaseOrder"]] = relationship("PurchaseOrder", back_populates="workspace")
+
+    integrations: Mapped[list["Integration"]] = relationship("Integration", back_populates="workspace")
 
     @validates("email")
     def validate_email(self, _key: str, email_address: str) -> str:
@@ -61,32 +58,3 @@ class Workspace(BaseModel):
             raise ValueError(msg)
 
         return phone
-
-
-class WorkspaceUser(BaseModel):
-    """
-    Represents a tenant (workspace/user).
-    """
-
-    __tablename__ = "workspace_users"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-
-    role: Mapped[str] = mapped_column(
-        String, default=WorkspaceRoleEnum.READ_ONLY.value, server_default="read_only", nullable=False
-    )
-
-    status: Mapped[str] = mapped_column(
-        String, default=InvitationStatusEnum.PENDING.value, server_default="pending", nullable=False
-    )
-
-    __table_args__ = (UniqueConstraint("user_id", "workspace_id", name="uq_workspace_and_user"),)
-
-    # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="workspaces")
-    workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="workspace_users")
