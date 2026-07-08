@@ -1,12 +1,17 @@
 from typing import Annotated
+from uuid import UUID
 
 import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.erp.api.auth.exceptions import CredentialsExceptionError
 from src.erp.api.auth.models import User
+from src.erp.api.workspace_user.enums import InvitationStatusEnum
+from src.erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
+from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.core.config import get_settings
 from src.erp.database.base import get_db
 
@@ -41,10 +46,21 @@ def get_current_user(db: Annotated[Session, Depends(get_db)], token: str = Depen
     return user
 
 
-def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    """
-    Optional layer: 'is_active' or banned status
-    """
-    # if not current_user.is_active:
-    #     raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+def get_current_workspace_user(
+    workspace_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> WorkspaceUser:
+
+    query = select(WorkspaceUser).where(
+        WorkspaceUser.user_id == current_user.id,
+        WorkspaceUser.workspace_id == workspace_id,
+        WorkspaceUser.status == InvitationStatusEnum.ACTIVE,
+        WorkspaceUser.is_deleted.is_(False),
+    )
+    workspace_user = db.execute(query).scalar_one_or_none()
+
+    if not workspace_user:
+        raise WorkspaceUserNotFoundError()
+
+    return workspace_user

@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import StrEnum, auto
 
 
 class PlanName(StrEnum):
@@ -6,3 +6,16 @@ class PlanName(StrEnum):
     PRO = "pro"
     ENTERPRISE = "enterprise"
     CUSTOM = "custom"
+
+
+class MetricType(StrEnum):
+    API_REQUEST = auto()
+    LISTING = auto()
+
+
+class HttpMethod(StrEnum):
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"

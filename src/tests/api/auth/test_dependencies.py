@@ -7,9 +7,12 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from src.erp.api.auth.dependencies import get_current_active_user, get_current_user
+from src.erp.api.auth.dependencies import get_current_user, get_current_workspace_user
 from src.erp.api.auth.models import User
 from src.erp.api.auth.utils import get_password_hash
+from src.erp.api.workspace.models import Workspace
+from src.erp.api.workspace_user.enums import InvitationStatusEnum
+from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.core.config import get_settings
 from src.erp.core.exception_handlers import custom_app_error_handler
 from src.erp.core.exceptions import BaseAppError
@@ -34,9 +37,15 @@ def mock_user_endpoint(current_user: Annotated[User, Depends(get_current_user)])
     return {"id": str(current_user.id), "email": current_user.email}
 
 
-@app.get("/test-active-user")
-def mock_active_user_endpoint(current_active_user: Annotated[User, Depends(get_current_active_user)]):
-    return {"id": str(current_active_user.id), "email": current_active_user.email}
+@app.get("/test-active-user/{workspace_id}")
+def mock_active_user_endpoint(workspace_user: Annotated[WorkspaceUser, Depends(get_current_workspace_user)]):
+    return {
+        "id": str(workspace_user.id),
+        "user_id": str(workspace_user.user_id),
+        "workspace_id": str(workspace_user.workspace_id),
+        "role": workspace_user.role,
+        "status": workspace_user.status,
+    }
 
 
 # ============================================================================
@@ -159,14 +168,35 @@ def test_get_current_user_not_found_in_db(test_client, create_jwt):
     assert response.status_code == 401
 
 
-def test_get_current_active_user_layer(test_client, create_jwt, persisted_user):
+def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, persisted_user):
     """
-    Verifies that the secondary dependency wrapper correctly forwards
-    the active authenticated user payload.
+    Verifies that the secondary dependency wrapper correctly fetches
+    the active workspace tenancy link when valid credentials and parameters match.
     """
+    workspace = Workspace(name="Test Base WS", email="base_ws@test.com")
+    db_session.add(workspace)
+    db_session.flush()
+
+    workspace_user_link = WorkspaceUser(
+        workspace_id=workspace.id,
+        user_id=persisted_user.id,
+        role="read_only",
+        status=InvitationStatusEnum.ACTIVE.value,
+        is_deleted=False,
+    )
+    db_session.add(workspace_user_link)
+    db_session.flush()
+
     token = create_jwt(user_id=persisted_user.id)
 
-    response = test_client.get("/test-active-user", headers={"Authorization": f"Bearer {token}"})
+    response = test_client.get(f"/test-active-user/{workspace.id}", headers={"Authorization": f"Bearer {token}"})
 
+    # 3. Assert
     assert response.status_code == 200
-    assert response.json() == {"id": str(persisted_user.id), "email": persisted_user.email}
+    assert response.json() == {
+        "id": str(workspace_user_link.id),
+        "user_id": str(persisted_user.id),
+        "workspace_id": str(workspace.id),
+        "role": "read_only",
+        "status": InvitationStatusEnum.ACTIVE.value,
+    }

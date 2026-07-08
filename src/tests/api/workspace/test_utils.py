@@ -6,7 +6,7 @@ from src.erp.api.workspace.exceptions import (
     SelfEvictionBlockedError,
     SelfModificationBlockedError,
 )
-from src.erp.api.workspace.utils import (
+from src.erp.api.workspace_user.utils import (
     guard_against_self_action,
     guard_privilege_escalation,
     guard_rank_immunity,

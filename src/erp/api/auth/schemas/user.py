@@ -1,9 +1,9 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from src.erp.api.pricing.enums import PlanName
-from src.erp.api.workspace.schemas.workspace import WorkspaceCreate
+from src.erp.api.workspace.schemas import WorkspaceCreate
 
 # =======================================================
 # REGISTER NEW WORKSPACE USER
@@ -63,15 +63,3 @@ class RefreshResponse(BaseModel):
 
 class LogoutRequest(BaseModel):
     refresh_token: str
-
-
-# =======================================================
-# ONBOARD WORKSPACE USER
-# =======================================================
-
-
-class OnboardRequest(BaseModel):
-    email: EmailStr = Field(..., description="The email address that received the workspace invitation.")
-    password: str = Field(..., min_length=8, description="The password chosen by the user.")
-    first_name: str = Field(..., min_length=1, description="The user's first name.")
-    last_name: str = Field(..., min_length=1, description="The user's last name.")

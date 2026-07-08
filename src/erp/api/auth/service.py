@@ -13,14 +13,14 @@ from src.erp.api.auth.exceptions import (
     UserExistsExceptionError,
 )
 from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.schemas import (
+from src.erp.api.auth.schemas.user import (
     LogoutRequest,
-    OnboardRequest,
     RefreshResponse,
     RefreshToken,
     RegisterRequest,
     TokenResponse,
     TokenUser,
+    UserCreate,
 )
 from src.erp.api.auth.utils import (
     create_access_token,
@@ -29,9 +29,11 @@ from src.erp.api.auth.utils import (
     get_password_hash,
     verify_password,
 )
-from src.erp.api.pricing.models import PricingPlan, PricingSubscription, PricingUsage
-from src.erp.api.workspace.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace.models import Workspace, WorkspaceUser
+from src.erp.api.pricing.models import PricingPlan, PricingSubscription
+from src.erp.api.workspace.enums import WorkspaceRoleEnum
+from src.erp.api.workspace.models import Workspace
+from src.erp.api.workspace_user.enums import InvitationStatusEnum
+from src.erp.api.workspace_user.models import WorkspaceUser
 
 
 class AuthService:
@@ -42,12 +44,11 @@ class AuthService:
         """Service to register completely new customers."""
 
         # 1. Pre-checks
-
-        # Email existence check
+        #   Email existence check
         if self.db.query(User).filter(User.email == data.user.email).first():
             raise UserExistsExceptionError()
 
-        # Price plan existence check
+        #   Price plan existence check
         selected_plan = self.db.query(PricingPlan).filter(PricingPlan.name == data.plan).first()
         if not selected_plan:
             raise PricingPlanDoesNotExistError()
@@ -58,12 +59,11 @@ class AuthService:
             self.db.add(workspace)
             self.db.flush()
 
-            # 3 Pricing initialisation
-            subscription = PricingSubscription(workspace_id=workspace.id, plan_id=selected_plan.id)
+            # 3 Create Subscription
+            subscription = PricingSubscription(
+                workspace_id=workspace.id, plan_id=selected_plan.id, is_active=True, is_paused=False
+            )
             self.db.add(subscription)
-
-            usage = PricingUsage(workspace_id=workspace.id, listings_count=0, api_count=0)
-            self.db.add(usage)
 
             # 4. Create the User
             hashed_pw = get_password_hash(data.user.password)
@@ -110,7 +110,7 @@ class AuthService:
                 user=TokenUser(id=workspace_user.id, role=workspace_user.role, status=workspace_user.status),
             )
 
-    def onboard(self, data: OnboardRequest) -> TokenResponse:
+    def onboard(self, data: UserCreate) -> TokenResponse:
         """Service to fully onboard and activate an invited workspace user."""
 
         # 1. Locate the pre-seeded user record from invite_member step

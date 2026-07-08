@@ -21,9 +21,7 @@ class User(BaseModel):
         "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
 
-    workspaces: Mapped[list["WorkspaceUser"]] = relationship(
-        "WorkspaceUser", back_populates="user", cascade="all, delete-orphan"
-    )
+    workspaces: Mapped[list["WorkspaceUser"]] = relationship("WorkspaceUser", back_populates="user")
 
 
 class UserSession(BaseModel):

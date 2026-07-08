@@ -11,22 +11,6 @@ class WorkspaceNotFoundError(BaseAppError):
         )
 
 
-class WorkspaceMemberNotFoundError(BaseAppError):
-    def __init__(self) -> None:
-        super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace member not found or access record lookup failed.",
-        )
-
-
-class UserAlreadyActiveMemberError(BaseAppError):
-    def __init__(self) -> None:
-        super().__init__(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is already an active member of this workspace.",
-        )
-
-
 class SelfModificationBlockedError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(

@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import Enum as SQLAlchemyEnum, ForeignKey, Integer
+from sqlalchemy import Boolean, Enum as SQLAlchemyEnum, ForeignKey, Index, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.erp.api.base.models import BaseModel
-from src.erp.api.pricing.enums import PlanName
+from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
 
 
 class PricingPlan(BaseModel):
@@ -21,15 +21,31 @@ class PricingPlan(BaseModel):
 class PricingSubscription(BaseModel):
     __tablename__ = "pricing_subscriptions"
 
-    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False, index=True)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pricing_plans.id"), nullable=False)
 
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_paused: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     plan: Mapped["PricingPlan"] = relationship(back_populates="subscriptions")
+
+    __table_args__ = (
+        Index(
+            "uq_active_subscription_per_workspace",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_active = true"),
+        ),
+    )
 
 
 class PricingUsage(BaseModel):
     __tablename__ = "pricing_usage"
 
-    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False, index=True)
-    listings_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    api_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pricing_plans.id"), nullable=False)
+
+    metric_type: Mapped[MetricType] = mapped_column(SQLAlchemyEnum(MetricType), nullable=False)
+    request_type: Mapped[HttpMethod] = mapped_column(SQLAlchemyEnum(HttpMethod), nullable=False)
+
+    __table_args__ = (Index("ix_usage_workspace_plan_date", "workspace_id", "plan_id", "created_at"),)

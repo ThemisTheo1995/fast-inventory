@@ -11,9 +11,7 @@ from src.erp.integrations.ebay.items.enums import EbayItemStatus
 class EbayItem(BaseModel):
     __tablename__ = "ebay_items"
 
-    workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), index=True, nullable=False)
 
     # eBay's specific ID (Needs to be a string as eBay item IDs can be very large)
     external_id: Mapped[str] = mapped_column(String, index=True)

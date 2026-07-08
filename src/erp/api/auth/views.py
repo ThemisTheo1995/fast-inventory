@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from src.erp.api.auth.schemas import (
+from src.erp.api.auth.schemas.user import (
     LogoutRequest,
-    OnboardRequest,
     RefreshResponse,
     RefreshToken,
     RegisterRequest,
     TokenResponse,
+    UserCreate,
 )
 from src.erp.api.auth.service import AuthService
 from src.erp.database.base import get_db
@@ -27,7 +27,7 @@ def register(data: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> 
 
 
 @router.post("/onboard", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-def onboard(data: OnboardRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+def onboard(data: UserCreate, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
     """Finalises profiles for users invited to an existing workspace."""
 
     service = AuthService(db)
@@ -56,7 +56,7 @@ def logout(data: LogoutRequest, db: Annotated[Session, Depends(get_db)]) -> dict
 
 
 @router.post("/refresh", response_model=RefreshResponse, status_code=status.HTTP_200_OK)
-def refresh_token_endpoint(data: RefreshToken, db: Annotated[Session, Depends(get_db)]) -> RefreshResponse:
+def refresh_token(data: RefreshToken, db: Annotated[Session, Depends(get_db)]) -> RefreshResponse:
     service = AuthService(db)
 
     return service.refresh_token(data)
