@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
+from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
+
 
 class WorkspaceUserInviteRequest(BaseModel):
     email: EmailStr
@@ -12,7 +14,7 @@ class WorkspaceUserUpdateRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     is_deleted: bool | None = None
-    role: str | None = None
+    role: WorkspaceRoleEnum | None = None
     status: str | None = None
 
 
@@ -20,7 +22,7 @@ class WorkspaceUserResponse(BaseModel):
     id: UUID | None = None
     name: str | None = None
     email: EmailStr
-    role: str
+    role: WorkspaceRoleEnum
     status: str
 
     model_config = ConfigDict(from_attributes=True)

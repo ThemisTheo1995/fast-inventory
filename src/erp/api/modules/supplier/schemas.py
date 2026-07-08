@@ -1,21 +1,8 @@
-import re
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-
-from src.erp.api.modules.supplier.exceptions import SupplierNameMustNotContainNumbersError
-
-
-def validate_and_format_supplier_name(v: str | None) -> str | None:
-    if v is None:
-        return None
-
-    if any(char.isdigit() for char in v):
-        raise SupplierNameMustNotContainNumbersError()
-
-    return re.sub(r"(^|[\s-])\S", lambda m: m.group(0).upper(), v.strip().lower())
 
 
 def sanitize_supplier_email_logic(v: str | None) -> str | None:
@@ -24,7 +11,7 @@ def sanitize_supplier_email_logic(v: str | None) -> str | None:
     return v.lower().strip()
 
 
-SupplierName = Annotated[str, Field(min_length=2, max_length=255), BeforeValidator(validate_and_format_supplier_name)]
+SupplierName = Annotated[str, Field(min_length=2, max_length=255)]
 SupplierEmail = Annotated[str | None, BeforeValidator(sanitize_supplier_email_logic), Field(default=None)]
 
 

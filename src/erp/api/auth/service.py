@@ -30,9 +30,8 @@ from src.erp.api.auth.utils import (
     verify_password,
 )
 from src.erp.api.pricing.models import PricingPlan, PricingSubscription
-from src.erp.api.workspace.enums import WorkspaceRoleEnum
 from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum
+from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from src.erp.api.workspace_user.models import WorkspaceUser
 
 
