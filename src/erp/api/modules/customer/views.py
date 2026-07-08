@@ -4,7 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerResponse, CustomerUpdate
+from src.erp.api.modules.customer.schemas import (
+    CustomerCreate,
+    CustomerPaginatedResponse,
+    CustomerResponse,
+    CustomerUpdate,
+)
 from src.erp.api.modules.customer.service import CustomerService
 from src.erp.database.base import get_db
 
@@ -22,16 +27,18 @@ def create_customer(
     return service.create_customer(workspace_id, data)
 
 
-@router.get("/customers", response_model=list[CustomerResponse])
+@router.get("/customers", response_model=CustomerPaginatedResponse)
 def get_customers(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
-    skip: int = 0,
-    limit: int = 100,
-) -> list[CustomerResponse]:
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 20,
+) -> CustomerPaginatedResponse:
 
     service = CustomerService(db)
-    return service.get_customers(workspace_id, skip, limit)
+
+    return service.get_customers(workspace_id, search, page, limit)
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerResponse)

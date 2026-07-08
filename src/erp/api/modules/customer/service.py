@@ -1,11 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.erp.api.modules.customer.exceptions import CustomerEmailExistsError, CustomerNotFoundError
 from src.erp.api.modules.customer.models import Customer
-from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerUpdate
+from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerPaginatedResponse, CustomerUpdate
 
 
 class CustomerService:
@@ -76,19 +76,35 @@ class CustomerService:
 
         return customer
 
-    def get_customers(self, workspace_id: UUID, skip: int = 0, limit: int = 100) -> list[Customer]:
-        """Fetches all non-deleted customers for a workspace."""
-        stmt = (
-            select(Customer)
-            .where(
-                Customer.workspace_id == workspace_id,
-                Customer.is_deleted.is_(False),
-            )
-            .offset(skip)
-            .limit(limit)
+    def get_customers(self, workspace_id: UUID, search: str | None = None, page: int = 1, limit: int = 20) -> dict:
+        """Fetches paginated customers and the total count."""
+
+        # Build the base query (filters applied, but NO limit/offset yet)
+        base_query = select(Customer).where(
+            Customer.workspace_id == workspace_id,
+            Customer.is_deleted.is_(False),
         )
 
-        return list(self.db.execute(stmt).scalars().all())
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.where(
+                or_(
+                    Customer.first_name.ilike(search_term),
+                    Customer.last_name.ilike(search_term),
+                    Customer.email.ilike(search_term),
+                )
+            )
+
+        # Get the total count of matching records
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total = self.db.execute(count_query).scalar_one()
+
+        # Apply pagination and fetch the actual items
+        skip = (page - 1) * limit
+        items_query = base_query.offset(skip).limit(limit)
+        items = list(self.db.execute(items_query).scalars().all())
+
+        return CustomerPaginatedResponse(items=items, total=total)
 
     def get_customer(self, workspace_id: UUID, customer_id: UUID) -> Customer:
         """Fetches a single active customer."""

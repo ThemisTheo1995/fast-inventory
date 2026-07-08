@@ -3,7 +3,6 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.erp.api.auth.models import User
-from src.erp.api.workspace.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
 from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.api.workspace_user.schemas import (
@@ -11,6 +10,7 @@ from src.erp.api.workspace_user.schemas import (
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
 )
+from src.erp.api.workspace_user.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
 
 
 class WorkspaceUserService:

@@ -1,25 +1,25 @@
 from src.erp.core.exceptions import BaseAppError
 
 
-class CustomerNotFoundError(BaseAppError):
+class SupplierNotFoundError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=404,
-            detail="Customer not found.",
+            detail="Supplier not found.",
         )
 
 
-class CustomerEmailExistsError(BaseAppError):
+class SupplierEmailExistsError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=409,
-            detail="A customer with this email already exists in this workspace.",
+            detail="A supplier with this email already exists in this workspace.",
         )
 
 
-class CustomerNameMustNotContainNumbersError(BaseAppError):
+class SupplierNameMustNotContainNumbersError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(
             status_code=409,
-            detail="Customer name must not contain numbers.",
+            detail="Supplier name must not contain numbers.",
         )

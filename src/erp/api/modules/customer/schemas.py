@@ -1,13 +1,36 @@
+import re
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+
+from src.erp.api.modules.customer.exceptions import CustomerNameMustNotContainNumbersError
+
+
+def validate_and_format_name(v: str | None) -> str | None:
+    if v is None:
+        return None
+
+    if any(char.isdigit() for char in v):
+        raise CustomerNameMustNotContainNumbersError()
+
+    return re.sub(r"(^|[\s-])\S", lambda m: m.group(0).upper(), v.strip().lower())
+
+
+def sanitize_email_logic(v: str) -> str:
+    return v.lower().strip()
+
+
+FirstName = Annotated[str, Field(min_length=2, max_length=50), BeforeValidator(validate_and_format_name)]
+LastName = Annotated[str | None, Field(default=None, max_length=50), BeforeValidator(validate_and_format_name)]
+Email = Annotated[str, BeforeValidator(sanitize_email_logic)]
 
 
 class CustomerBase(BaseModel):
-    first_name: str = Field(..., min_length=1, max_length=255)
-    last_name: str | None = Field(default=None, max_length=255)
-    email: EmailStr
+    first_name: FirstName
+    last_name: LastName
+    email: Email
 
 
 class CustomerCreate(CustomerBase):
@@ -16,12 +39,10 @@ class CustomerCreate(CustomerBase):
     pass
 
 
-class CustomerUpdate(BaseModel):
+class CustomerUpdate(CustomerBase):
     """Payload for patching a customer"""
 
-    first_name: str | None = Field(default=None, min_length=1, max_length=255)
-    last_name: str | None = Field(default=None, max_length=255)
-    email: EmailStr | None = None
+    pass
 
 
 class CustomerResponse(CustomerBase):
@@ -33,3 +54,10 @@ class CustomerResponse(CustomerBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CustomerPaginatedResponse(BaseModel):
+    """Payload for paginated customer lists."""
+
+    items: list[CustomerResponse]
+    total: int
