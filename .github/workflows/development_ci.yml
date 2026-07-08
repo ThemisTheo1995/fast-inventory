@@ -57,7 +57,7 @@ jobs:
       - name: Run tests with Pytest
         run: |
           uv run pytest src/tests/ \
-            --cov=src/erp \
+            --cov=erp \
             --cov-report=term-missing \
             --cov-fail-under=80 \
             --junitxml=pytest.xml
