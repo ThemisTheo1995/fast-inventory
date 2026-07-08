@@ -24,7 +24,7 @@ def target_workspace_user(db_session, seed_workspace, target_user) -> WorkspaceU
         user_id=target_user.id,
         workspace_id=seed_workspace,
         role=WorkspaceRoleEnum.READ_ONLY,
-        status=InvitationStatusEnum.ACTIVE
+        status=InvitationStatusEnum.ACTIVE,
     )
     db_session.add(ws_user)
     db_session.commit()

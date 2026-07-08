@@ -23,7 +23,7 @@ def test_router_invite_workspace_user(client, seed_workspace):
         "email": "invited-collaborator@test.com",
         "first_name": "New",
         "last_name": "Collaborator",
-        "role": WorkspaceRoleEnum.EDIT_ONLY
+        "role": WorkspaceRoleEnum.EDIT_ONLY,
     }
 
     response = client.post(f"/{seed_workspace}/workspace_users/invite", json=payload)
@@ -38,14 +38,9 @@ def test_router_invite_workspace_user(client, seed_workspace):
 
 def test_router_update_workspace_user(client, seed_workspace, target_workspace_user):
     """Verifies altering a workspace user role transitions cleanly via structural routes."""
-    payload = {
-        "role": WorkspaceRoleEnum.FULL_ADMIN
-    }
+    payload = {"role": WorkspaceRoleEnum.FULL_ADMIN}
 
-    response = client.patch(
-        f"/{seed_workspace}/workspace_users/{target_workspace_user.id}",
-        json=payload
-    )
+    response = client.patch(f"/{seed_workspace}/workspace_users/{target_workspace_user.id}", json=payload)
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -57,9 +52,7 @@ def test_router_update_workspace_user(client, seed_workspace, target_workspace_u
 def test_router_update_workspace_user_not_found(client, seed_workspace):
     """Verifies modifying a non-existent tracking reference inside a valid workspace gets a 404."""
     random_id = uuid.uuid4()
-    payload = {
-        "role": WorkspaceRoleEnum.READ_ONLY
-    }
+    payload = {"role": WorkspaceRoleEnum.READ_ONLY}
 
     response = client.patch(f"/{seed_workspace}/workspace_users/{random_id}", json=payload)
 
@@ -69,9 +62,7 @@ def test_router_update_workspace_user_not_found(client, seed_workspace):
 def test_router_update_workspace_user_unprocessible_no_role_found(client, seed_workspace):
     """Verifies modifying a workspace user with a non-existent role gets a 422."""
     random_id = uuid.uuid4()
-    payload = {
-        "role": "NOT_FOUND"
-    }
+    payload = {"role": "NOT_FOUND"}
 
     response = client.patch(f"/{seed_workspace}/workspace_users/{random_id}", json=payload)
 

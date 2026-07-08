@@ -23,7 +23,7 @@ def test_utc_now_returns_correct_time_and_timezone():
         ("2026-07-08 12:00:00", datetime(2026, 7, 1, 0, 0, tzinfo=UTC)),
         ("2026-01-01 00:00:00", datetime(2026, 1, 1, 0, 0, tzinfo=UTC)),
         ("2026-12-31 23:59:59", datetime(2026, 12, 1, 0, 0, tzinfo=UTC)),
-    ]
+    ],
 )
 def test_get_start_of_month(current_time, expected_start):
     """Verifies that regardless of the day or time, it resets cleanly to midnight on day 1."""
@@ -40,7 +40,7 @@ def test_get_start_of_month(current_time, expected_start):
         ("2026-04-15 06:30:00", datetime(2026, 4, 30, 23, 59, 59, 999999, tzinfo=UTC)),
         # Year end transition
         ("2026-12-25 00:00:00", datetime(2026, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)),
-    ]
+    ],
 )
 def test_get_end_of_month_regular_months(current_time, expected_end):
     """Verifies the calendar limits resolve accurately to the final microsecond of the month."""
