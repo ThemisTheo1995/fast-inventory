@@ -15,10 +15,9 @@ from src.erp.api.auth.schemas.user import LogoutRequest, RefreshToken, RegisterR
 from src.erp.api.auth.service import AuthService
 from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
 from src.erp.api.pricing.enums import PlanName
-from src.erp.api.workspace.enums import WorkspaceRoleEnum
 from src.erp.api.workspace.models import Workspace
 from src.erp.api.workspace.schemas import WorkspaceCreate
-from src.erp.api.workspace_user.enums import InvitationStatusEnum
+from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from src.erp.api.workspace_user.models import WorkspaceUser
 
 # ============================================================================

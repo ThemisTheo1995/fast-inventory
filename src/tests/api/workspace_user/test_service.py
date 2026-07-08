@@ -3,15 +3,16 @@ import uuid
 import pytest
 
 from src.erp.api.auth.models import User
-from src.erp.api.workspace.enums import WorkspaceRoleEnum
-from src.erp.api.workspace.exceptions import (
+from src.erp.api.workspace.models import Workspace
+from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
+from src.erp.api.workspace_user.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,
     SelfModificationBlockedError,
+    WorkspaceUserAlreadyInWorkspaceError,
+    WorkspaceUserNotFoundError,
 )
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.api.workspace_user.schemas import (
     WorkspaceUserInviteRequest,
