@@ -102,8 +102,4 @@ def generate_token_pair(subject: str) -> dict[str, str]:
     """
     Method to generate both tokens at login/registration.
     """
-    return {
-        "access_token": create_access_token(subject),
-        "refresh_token": create_refresh_token(subject),
-        "token_type": "bearer",
-    }
+    return {"access_token": create_access_token(subject), "refresh_token": create_refresh_token(subject)}

@@ -94,19 +94,17 @@ def active_workspace_user(db_session, seed_workspace, test_user):
 
 
 @pytest.fixture
-def auth_headers(test_user):
-    """Generates valid auth tokens using your application's native utility function."""
-    token = create_access_token(subject=str(test_user.id))
-    return {"Authorization": f"Bearer {token}"}
+def access_token(test_user):
+    return create_access_token(subject=str(test_user.id))
 
 
 @pytest.fixture
-def client(db_session, active_workspace_user, active_subscription, auth_headers):  # noqa
+def client(db_session, active_workspace_user, active_subscription, access_token):  # noqa
     """Overridden test client injecting database state and valid credentials."""
     app.dependency_overrides[get_db] = lambda: db_session
 
     with TestClient(app) as test_client:
-        test_client.headers.update(auth_headers)
+        test_client.cookies.set("access_token", access_token)
         yield test_client
 
     app.dependency_overrides.clear()

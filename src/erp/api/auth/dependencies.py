@@ -2,8 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Cookie, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,19 +15,20 @@ from src.erp.core.config import get_settings
 from src.erp.database.base import get_db
 
 settings = get_settings()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 SECRET_KEY = settings.AUTH_SECRET_KEY
 ALGORITHM = settings.AUTH_ALGORITHM
 
 
-def get_current_user(db: Annotated[Session, Depends(get_db)], token: str = Depends(oauth2_scheme)) -> User:
-    """
-    Global dependency to authenticate incoming requests via Access Token.
-    Validates the signature, ensures the user exists, and checks session validity.
-    """
+def get_current_user(
+    db: Annotated[Session, Depends(get_db)], access_token: Annotated[str | None, Cookie()] = None
+) -> User:
+
+    if not access_token:
+        raise CredentialsExceptionError()
+
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
 
         user_id: str = payload.get("sub")
         token_type: str = payload.get("type")

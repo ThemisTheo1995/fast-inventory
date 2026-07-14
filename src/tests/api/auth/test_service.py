@@ -11,7 +11,7 @@ from src.erp.api.auth.exceptions import (
     UserExistsExceptionError,
 )
 from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.schemas.user import LogoutRequest, RefreshToken, RegisterRequest, UserCreate
+from src.erp.api.auth.schemas.user import RegisterRequest, UserCreate
 from src.erp.api.auth.service import AuthService
 from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
 from src.erp.api.pricing.enums import PlanName
@@ -38,9 +38,9 @@ def test_onboard_happy_path(db_session):
         plan=PlanName.PRO,
     )
 
-    token_response = auth_service.register(request_data)
+    auth_service.register(request_data)
 
-    workspace_user = db_session.query(WorkspaceUser).filter_by(id=token_response.user.id).first()
+    workspace_user = db_session.query(WorkspaceUser).join(User).filter(User.email == "happy@example.com").first()
 
     # Check returned DTO
     assert workspace_user.role == WorkspaceRoleEnum.FULL_ADMIN
@@ -114,7 +114,7 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
 
 def test_login_happy_path(db_session):
     """
-    Providing matching credentials must successfully yield a TokenResponse,
+    Providing matching credentials must successfully yield a LoginResponse,
     clear out previous session records for security, and spin up a single new tracking session.
     """
     auth_service = AuthService(db_session)
@@ -262,50 +262,67 @@ def test_logout_happy_path(db_session):
     session token mapping from the backend persistence layer.
     """
     auth_service = AuthService(db_session)
-    user = User(email="logout_target@example.com", first_name="L", last_name="O", hashed_password="hash")
+
+    user = User(
+        email="logout_target@example.com",
+        first_name="L",
+        last_name="O",
+        hashed_password="hash",
+    )
     db_session.add(user)
     db_session.commit()
+    db_session.refresh(user)
 
     tokens = generate_token_pair(user.id)
     payload = decode_token(tokens["refresh_token"])
 
-    session = UserSession(user_id=user.id, session_id=payload["jti"], expires_at=datetime.now(UTC))
+    session = UserSession(
+        user_id=user.id,
+        session_id=payload["jti"],
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
     db_session.add(session)
     db_session.commit()
 
-    logout_data = LogoutRequest(refresh_token=tokens["refresh_token"])
-    auth_service.logout(logout_data)
+    auth_service.logout(tokens["refresh_token"])
 
     db_session.expire_all()
+
     assert db_session.query(UserSession).filter_by(session_id=payload["jti"]).first() is None
 
 
 def test_logout_edge_case_token_missing_claims(db_session):
     """
     EDGE CASE:
-    If a structurally sound token missing its 'sub' or 'jti' parameters passes into the layout,
-    the logout flow must recognize the mismatch and safely return early without calling database execution.
+    If a token payload is missing required identity claims, logout must safely return
+    without attempting to delete any session.
     """
     auth_service = AuthService(db_session)
-    logout_data = LogoutRequest(refresh_token="invalid-token-missing-claims")
 
-    with patch("src.erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
-        auth_service.logout(logout_data)
+    with patch(
+        "src.erp.api.auth.service.decode_token",
+        return_value={"type": "refresh"},
+    ):
+        # Should not raise
+        auth_service.logout("invalid-token-missing-claims")
 
 
 def test_logout_silently_swallows_decoding_exceptions(db_session):
     """
-    EXCEPTION PATH & EDGE CASE:
-    If an expired, forged, or structurally damaged token enters logout, the routine
-    must cleanly execute a database rollback, swallow the validation failure, and return silently.
+    EXCEPTION PATH:
+    If token decoding fails because the token is expired, forged, or malformed,
+    logout must swallow the exception and return without leaking errors.
     """
     auth_service = AuthService(db_session)
-    logout_data = LogoutRequest(refresh_token="complete-garbage-token-string")
 
-    try:
-        auth_service.logout(logout_data)
-    except Exception as e:
-        pytest.fail(f"Logout service leaked an exception path! Error: {e}")
+    with patch(
+        "src.erp.api.auth.service.decode_token",
+        side_effect=Exception("Invalid token"),
+    ):
+        try:
+            auth_service.logout("complete-garbage-token-string")
+        except Exception as e:
+            pytest.fail(f"Logout service leaked an exception path! Error: {e}")
 
 
 # ============================================================================
@@ -316,26 +333,34 @@ def test_logout_silently_swallows_decoding_exceptions(db_session):
 def test_refresh_token_happy_path(db_session):
     """
     A valid, live refresh token matched against an open tracking record
-    must quickly mint and yield a clean RefreshResponse wrapper.
+    must mint a new access token.
     """
     auth_service = AuthService(db_session)
-    user = User(email="refresh_me@example.com", first_name="R", last_name="M", hashed_password="hash")
+
+    user = User(
+        email="refresh_me@example.com",
+        first_name="R",
+        last_name="M",
+        hashed_password="hash",
+    )
     db_session.add(user)
     db_session.commit()
+    db_session.refresh(user)
 
     tokens = generate_token_pair(user.id)
     payload = decode_token(tokens["refresh_token"])
 
-    session = UserSession(user_id=user.id, session_id=payload["jti"], expires_at=datetime.now(UTC) + timedelta(hours=1))
+    session = UserSession(
+        user_id=user.id,
+        session_id=payload["jti"],
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
     db_session.add(session)
     db_session.commit()
-    data = RefreshToken(refresh_token=tokens["refresh_token"])
 
-    response = auth_service.refresh_token(data)
+    new_access_token = auth_service.refresh_token(tokens["refresh_token"])
 
-    assert response.access_token is not None
-    assert response.refresh_token == tokens["refresh_token"]
-    assert response.token_type == "bearer"
+    assert new_access_token is not None
 
 
 def test_refresh_token_exception_wrong_token_type(db_session):
@@ -344,12 +369,11 @@ def test_refresh_token_exception_wrong_token_type(db_session):
     token into the validation pipeline, it must instantly raise a TokenInvalidError.
     """
     auth_service = AuthService(db_session)
-    # Mint an ACCESS token explicitly
+
     access_token = create_access_token(subject="user_123")
-    data = RefreshToken(refresh_token=access_token)
 
     with pytest.raises(TokenInvalidError):
-        auth_service.refresh_token(data)
+        auth_service.refresh_token(access_token)
 
 
 @pytest.mark.parametrize(
@@ -367,22 +391,31 @@ def test_refresh_token_exception_missing_required_claims(db_session, mock_payloa
     """
     auth_service = AuthService(db_session)
 
-    with patch("src.erp.api.auth.service.decode_token", return_value=mock_payload), pytest.raises(TokenInvalidError):
-        auth_service.refresh_token(RefreshToken(refresh_token="valid.token.payload"))
+    with (
+        patch("src.erp.api.auth.service.decode_token", return_value=mock_payload),
+        pytest.raises(TokenInvalidError),
+    ):
+        auth_service.refresh_token("valid.token.payload")
 
 
 def test_refresh_token_exception_session_revoked_or_overwritten(db_session):
     """
     If a token is cryptographically authentic but its underlying tracking record has been deleted
-    from the database (revoked due to security breaches, logouts, or concurrent sign-ins),
-    the endpoint must reject the exchange and throw a TokenInvalidError.
+    from the database, the token exchange must fail.
     """
     auth_service = AuthService(db_session)
-    user = User(email="stale_session@example.com", first_name="S", last_name="S", hashed_password="hash")
+
+    user = User(
+        email="stale_session@example.com",
+        first_name="S",
+        last_name="S",
+        hashed_password="hash",
+    )
     db_session.add(user)
     db_session.commit()
+    db_session.refresh(user)
 
     tokens = generate_token_pair(user.id)
 
     with pytest.raises(TokenInvalidError):
-        auth_service.refresh_token(RefreshToken(refresh_token=tokens["refresh_token"]))
+        auth_service.refresh_token(tokens["refresh_token"])

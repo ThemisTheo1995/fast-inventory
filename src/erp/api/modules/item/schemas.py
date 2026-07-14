@@ -1,6 +1,17 @@
 from datetime import datetime
+from typing import Annotated
+from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+Title = Annotated[str | None, Field(default=None, max_length=255)]
+Sku = Annotated[str | None, Field(default=None, max_length=100)]
+BasePrice = Annotated[int | None, Field(default=None, ge=0)]
+
+
+# =======================================================
+# Mappers (for integrations)
+# =======================================================
 
 
 class MarketplaceItem(BaseModel):
@@ -16,3 +27,57 @@ class MarketplaceItem(BaseModel):
 
 class MarketplaceCreateItem(BaseModel):
     name: str = Field(..., description="Item name")
+
+
+# =======================================================
+# Common
+# =======================================================
+
+
+class ItemBase(BaseModel):
+    title: Title
+    sku: Sku
+    base_price: BasePrice
+
+
+class ItemResponse(BaseModel):
+    """Payload returned to the client."""
+
+    id: UUID
+    workspace_id: UUID
+    title: str
+    sku: str
+    base_price: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ItemPaginatedResponse(BaseModel):
+    """Payload for paginated item lists."""
+
+    items: list[ItemResponse]
+    total: int
+
+
+# =======================================================
+# Create Item
+# =======================================================
+
+
+class ItemCreate(ItemBase):
+    """Payload for creating a new item."""
+
+    pass
+
+
+# =======================================================
+# Update Item
+# =======================================================
+
+
+class ItemUpdate(ItemBase):
+    """Payload for updating an item."""
+
+    pass

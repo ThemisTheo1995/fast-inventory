@@ -15,6 +15,22 @@ from src.erp.database.base import get_db
 router = APIRouter()
 
 
+@router.get("/me")
+def me(request: Request) -> dict:
+    workspace_user = request.state.workspace_user
+    current_user = workspace_user.user
+
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "workspace_id": workspace_user.workspace_id,
+        "role": workspace_user.role,
+        "status": workspace_user.status,
+    }
+
+
 @router.get("/workspace_users", response_model=list[WorkspaceUserResponse])
 def get_workspace_users(workspace_id: UUID, db: Annotated[Session, Depends(get_db)]) -> list[WorkspaceUserResponse]:
 

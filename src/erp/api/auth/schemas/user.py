@@ -5,6 +5,23 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 from src.erp.api.pricing.enums import PlanName
 from src.erp.api.workspace.schemas import WorkspaceCreate
 
+
+class AuthUser(BaseModel):
+    id: uuid.UUID | None = None
+    role: str
+    status: str
+
+
+class AuthResult(BaseModel):
+    access_token: str
+    refresh_token: str
+    workspace_id: uuid.UUID
+
+
+class AuthResponse(BaseModel):
+    workspace_id: uuid.UUID
+
+
 # =======================================================
 # REGISTER NEW WORKSPACE USER
 # =======================================================
@@ -17,6 +34,18 @@ class UserCreate(BaseModel):
     last_name: str | None = None
 
 
+class OnboardResult(AuthResult):
+    pass
+
+
+class OnboardResponse(AuthResponse):
+    pass
+
+
+class RegisterResult(AuthResult):
+    pass
+
+
 class RegisterRequest(BaseModel):
     """Composite schema for onboarding."""
 
@@ -27,39 +56,18 @@ class RegisterRequest(BaseModel):
     plan: PlanName
 
 
+class RegisterResponse(AuthResponse):
+    pass
+
+
 # =======================================================
 # LOGIN WORKSPACE USER
 # =======================================================
 
 
-class TokenUser(BaseModel):
-    id: uuid.UUID | None = None
-    role: str
-    status: str
+class LoginResult(AuthResult):
+    pass
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+class LoginResponse(BaseModel):
     workspace_id: uuid.UUID
-    user: TokenUser
-
-
-class RefreshToken(BaseModel):
-    refresh_token: str
-
-
-class RefreshResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
-# ===================================
-# LOGOUT WORKSPACE USER
-# ===================================
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str

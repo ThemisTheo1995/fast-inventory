@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.erp.api.auth.models import User
+from src.erp.api.workspace_user.enums import InvitationStatusEnum
 from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.api.workspace_user.schemas import (
@@ -68,11 +69,13 @@ class WorkspaceUserService:
 
         guard_privilege_escalation(actor.role, role)
 
+        is_existing_user = True
         user = self.db.query(User).filter(User.email == email).first()
         if not user:
             user = User(email=email, hashed_password="", first_name="", last_name="", is_deleted=False)
             self.db.add(user)
             self.db.flush()
+            is_existing_user = False
 
         workspace_user = (
             self.db.query(WorkspaceUser)
@@ -80,23 +83,26 @@ class WorkspaceUserService:
             .first()
         )
 
+        workspace_user_status = InvitationStatusEnum.ACTIVE if is_existing_user else InvitationStatusEnum.PENDING
+
         if workspace_user:
             if not workspace_user.is_deleted:
                 raise WorkspaceUserAlreadyInWorkspaceError()
             workspace_user.is_deleted = False
             workspace_user.role = role
-            workspace_user.status = "pending"
+            workspace_user.status = workspace_user_status
             self.db.commit()
+
             return WorkspaceUserResponse(
                 id=str(workspace_user.id),
                 name=f"{user.first_name} {user.last_name}".strip() or None,
                 email=email,
                 role=role,
-                status="pending",
+                status=workspace_user_status,
             )
 
         new_workspace_user = WorkspaceUser(
-            workspace_id=actor.workspace_id, user_id=user.id, role=role, status="pending", is_deleted=False
+            workspace_id=actor.workspace_id, user_id=user.id, role=role, status=workspace_user_status, is_deleted=False
         )
         self.db.add(new_workspace_user)
         self.db.commit()
@@ -107,7 +113,7 @@ class WorkspaceUserService:
             name=None,
             email=email,
             role=role,
-            status="pending",
+            status=workspace_user_status,
         )
 
     def update_workspace_user(

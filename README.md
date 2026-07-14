@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/coverage-88%25-green?style=for-the-badge" alt="Coverage">
+  <img src="https://img.shields.io/badge/coverage-91%25-green?style=for-the-badge" alt="Coverage">
   <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?style=for-the-badge&logo=apache" alt="License">
 </p>
 
@@ -187,20 +187,28 @@ uv run ruff format
 
 ## 🛠 Optional Improvements
 
-* Add a `Makefile`:
+* Use the `Makefile`:
 
 ```makefile
+.PHONY: run lint format test test-cov migrate
+
 run:
-	uv run uvicorn erp.main:app --reload --app-dir src
+	uv run uvicorn erp.main:app --reload
 
 lint:
-	uv run ruff check
+	uv run ruff check .
 
 format:
-	uv run ruff format
+	uv run ruff format .
 
 test:
-	uv run pytest tests
+	uv run pytest
+
+test-cov:
+	uv run pytest src/tests/ \
+		--cov=src/erp \
+		--cov-report=term-missing \
+		--cov-fail-under=80 \
 
 migrate:
 	uv run alembic upgrade head

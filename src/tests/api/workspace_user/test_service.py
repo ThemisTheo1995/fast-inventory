@@ -381,8 +381,8 @@ def test_invite_workspace_user_exception_user_already_active(db_session):
         service.invite_workspace_user(data=data, actor=actor)
 
 
-def test_invite_workspace_user_resurrects_soft_deleted_link(db_session):
-    """Should restore and reset tracking metrics for soft-deleted links."""
+def test_invite_workspace_user_resurrects_soft_deleted_workspace_user(db_session):
+    """Should restore and reset tracking metrics for soft-deleted workspace_users."""
     service = WorkspaceUserService(db_session)
     workspace = Workspace(name="WS", email="w6@t.com")
     db_session.add(workspace)
@@ -424,13 +424,13 @@ def test_invite_workspace_user_resurrects_soft_deleted_link(db_session):
 
     response = service.invite_workspace_user(data=data, actor=actor)
 
-    assert response.status == "pending"
+    assert response.status == "active"
     assert response.role == "edit_only"
 
     db_session.refresh(target_link)
     assert target_link.is_deleted is False
     assert target_link.role == "edit_only"
-    assert target_link.status == "pending"
+    assert target_link.status == "active"
 
 
 # ============================================================================

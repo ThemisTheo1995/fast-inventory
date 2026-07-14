@@ -14,12 +14,10 @@ from src.erp.api.auth.exceptions import (
 )
 from src.erp.api.auth.models import User, UserSession
 from src.erp.api.auth.schemas.user import (
-    LogoutRequest,
-    RefreshResponse,
-    RefreshToken,
+    LoginResult,
+    OnboardResult,
     RegisterRequest,
-    TokenResponse,
-    TokenUser,
+    RegisterResult,
     UserCreate,
 )
 from src.erp.api.auth.utils import (
@@ -39,7 +37,7 @@ class AuthService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def register(self, data: RegisterRequest) -> WorkspaceUser:
+    def register(self, data: RegisterRequest) -> RegisterResult:
         """Service to register completely new customers."""
 
         # 1. Pre-checks
@@ -101,15 +99,13 @@ class AuthService:
             raise OnboardingFailedExceptionError() from e
 
         else:
-            return TokenResponse(
+            return RegisterResult(
+                workspace_id=workspace_user.workspace_id,
                 access_token=tokens["access_token"],
                 refresh_token=tokens["refresh_token"],
-                token_type="bearer",
-                workspace_id=workspace_user.workspace_id,
-                user=TokenUser(id=workspace_user.id, role=workspace_user.role, status=workspace_user.status),
             )
 
-    def onboard(self, data: UserCreate) -> TokenResponse:
+    def onboard(self, data: UserCreate) -> OnboardResult:
         """Service to fully onboard and activate an invited workspace user."""
 
         # 1. Locate the pre-seeded user record from invite_member step
@@ -151,19 +147,17 @@ class AuthService:
             self.db.commit()
 
             # 7. Construct the response schema
-            return TokenResponse(
+            return OnboardResult(
+                workspace_id=workspace_user.workspace_id,
                 access_token=tokens["access_token"],
                 refresh_token=tokens["refresh_token"],
-                token_type=tokens["token_type"],
-                workspace_id=workspace_user.workspace_id,
-                user=TokenUser(role=workspace_user.role, status=workspace_user.status),
             )
 
         except Exception as e:
             self.db.rollback()
             raise OnboardingFailedExceptionError() from e
 
-    def login(self, data: OAuth2PasswordRequestForm) -> TokenResponse:
+    def login(self, data: OAuth2PasswordRequestForm) -> LoginResult:
         """Service to login users via OAuth2 Form Data."""
 
         # 1. Find user by email
@@ -188,19 +182,17 @@ class AuthService:
 
         workspace_user = user.workspaces[0]
 
-        return TokenResponse(
+        return LoginResult(
+            workspace_id=workspace_user.workspace_id,
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
-            token_type="bearer",
-            workspace_id=workspace_user.workspace_id,
-            user=TokenUser(role=workspace_user.role, status=workspace_user.status),
         )
 
-    def logout(self, data: LogoutRequest) -> None:
+    def logout(self, refresh_token: str) -> None:
         """Service to logout user."""
         try:
             # 1. Decode the refresh token to extract the user (sub) and session ID (jti)
-            payload = decode_token(data.refresh_token)
+            payload = decode_token(refresh_token)
 
             user_id = payload.get("sub")
             session_id = payload.get("jti")
@@ -223,12 +215,11 @@ class AuthService:
             self.db.rollback()
             pass
 
-    def refresh_token(self, data: RefreshToken) -> RefreshResponse:
-        """
-        Validates a refresh token against the database session store
-        and issues a new short-lived access token.
-        """
-        payload = decode_token(data.refresh_token)
+    def refresh_token(self, refresh_token: str | None) -> str:
+        if not refresh_token:
+            raise TokenInvalidError()
+
+        payload = decode_token(refresh_token)
 
         if payload.get("type") != "refresh":
             raise TokenInvalidError()
@@ -241,17 +232,14 @@ class AuthService:
 
         active_session = (
             self.db.query(UserSession)
-            .filter(UserSession.user_id == user_id, UserSession.session_id == session_id)
+            .filter(
+                UserSession.user_id == user_id,
+                UserSession.session_id == session_id,
+            )
             .first()
         )
 
         if not active_session:
-            # The session was revoked or overwritten by a newer login
             raise TokenInvalidError()
 
-        # 3. Generate a new short-lived access token
-        new_access_token = create_access_token(subject=user_id)
-
-        # You can choose to return just the new access token,
-        # or pass back the same refresh token to keep the payload consistent.
-        return RefreshResponse(access_token=new_access_token, refresh_token=data.refresh_token, token_type="bearer")
+        return create_access_token(subject=user_id)

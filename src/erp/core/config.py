@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int
     AUTH_REFRESH_TOKEN_EXPIRE_DAYS: int
 
+    # Cookies
+    COOKIE_SECURE: int
+
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 

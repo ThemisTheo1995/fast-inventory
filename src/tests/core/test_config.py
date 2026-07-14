@@ -30,8 +30,9 @@ def _mock_env_vars(monkeypatch):
     monkeypatch.setenv("SHOPIFY_TEST_SECRET_API_KEY", "shppa_123456")
     monkeypatch.setenv("AUTH_SECRET_KEY", "super-secret-key-for-testing")
     monkeypatch.setenv("AUTH_ALGORITHM", "HS256")
-    monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+    monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
     monkeypatch.setenv("AUTH_REFRESH_TOKEN_EXPIRE_DAYS", "7")
+    monkeypatch.setenv("COOKIE_SECURE", "0")
 
 
 def test_settings_load_successfully(_mock_env_vars):
@@ -41,7 +42,7 @@ def test_settings_load_successfully(_mock_env_vars):
     assert settings.ENVIRONMENT in ("dev", "test")
     assert settings.DATABASE_URL.startswith("postgresql://")
     assert settings.TEST_DATABASE_URL.startswith("postgresql://")
-    assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 30
+    assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 5
     assert settings.AUTH_REFRESH_TOKEN_EXPIRE_DAYS == 7
 
 

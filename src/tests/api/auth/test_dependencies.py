@@ -68,9 +68,19 @@ def test_client(db_session):
 def create_jwt():
     """Helper tool to encode valid/invalid testing tokens."""
 
-    def _encode(user_id: str, token_type: str = "access", expires_delta: timedelta | None = None):
+    def _encode(
+        user_id: str,
+        token_type: str = "access",
+        expires_delta: timedelta | None = None,
+    ):
         expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=15))
-        payload = {"sub": str(user_id), "type": token_type, "exp": expire}
+
+        payload = {
+            "sub": str(user_id),
+            "type": token_type,
+            "exp": expire.timestamp(),
+        }
+
         return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     return _encode
@@ -98,15 +108,20 @@ def persisted_user(db_session):
 
 def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
     """
-    A valid access token belonging to an existing user must pass
-    authentication and return the user record.
+    A valid access token stored in the access_token cookie belonging to an existing
+    user must pass authentication and return the user record.
     """
     token = create_jwt(user_id=persisted_user.id)
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {token}"})
+    test_client.cookies.set("access_token", token)
+
+    response = test_client.get("/test-user")
 
     assert response.status_code == 200
-    assert response.json() == {"id": str(persisted_user.id), "email": persisted_user.email}
+    assert response.json() == {
+        "id": str(persisted_user.id),
+        "email": persisted_user.email,
+    }
 
 
 def test_get_current_user_invalid_signature(test_client):
@@ -120,7 +135,9 @@ def test_get_current_user_invalid_signature(test_client):
         algorithm=ALGORITHM,
     )
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {bad_token}"})
+    test_client.cookies.set("access_token", bad_token)
+
+    response = test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -132,7 +149,9 @@ def test_get_current_user_missing_sub_claim(test_client):
     payload = {"type": "access", "exp": datetime.now(UTC) + timedelta(minutes=15)}
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {token}"})
+    test_client.cookies.set("access_token", token)
+
+    response = test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -143,7 +162,9 @@ def test_get_current_user_wrong_token_type(test_client, create_jwt, persisted_us
     """
     refresh_token = create_jwt(user_id=persisted_user.id, token_type="refresh")
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {refresh_token}"})
+    test_client.cookies.set("access_token", refresh_token)
+
+    response = test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -153,7 +174,9 @@ def test_get_current_user_expired(test_client, create_jwt, persisted_user):
     """
     expired_token = create_jwt(user_id=persisted_user.id, expires_delta=timedelta(minutes=-30))
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {expired_token}"})
+    test_client.cookies.set("access_token", expired_token)
+
+    response = test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -164,7 +187,9 @@ def test_get_current_user_not_found_in_db(test_client, create_jwt):
     """
     token = create_jwt(user_id=str(uuid.uuid4()))
 
-    response = test_client.get("/test-user", headers={"Authorization": f"Bearer {token}"})
+    test_client.cookies.set("access_token", token)
+
+    response = test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -173,7 +198,10 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
     Verifies that the secondary dependency wrapper correctly fetches
     the active workspace tenancy link when valid credentials and parameters match.
     """
-    workspace = Workspace(name="Test Base WS", email="base_ws@test.com")
+    workspace = Workspace(
+        name="Test Base WS",
+        email="base_ws@test.com",
+    )
     db_session.add(workspace)
     db_session.flush()
 
@@ -189,9 +217,11 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
 
     token = create_jwt(user_id=persisted_user.id)
 
-    response = test_client.get(f"/test-active-user/{workspace.id}", headers={"Authorization": f"Bearer {token}"})
+    # Cookie-based authentication
+    test_client.cookies.set("access_token", token)
 
-    # 3. Assert
+    response = test_client.get(f"/test-active-user/{workspace.id}")
+
     assert response.status_code == 200
     assert response.json() == {
         "id": str(workspace_user_link.id),

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from src.erp.api.auth.dependencies import get_current_workspace_user
 from src.erp.api.auth.exceptions import InsufficientPermissionsError
-from src.erp.api.auth.models import User
 from src.erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
 from src.erp.api.pricing.models import PricingSubscription
 from src.erp.api.workspace_user.models import WorkspaceUser
@@ -31,7 +30,7 @@ def verify_workspace_access(
     request: Request,
     workspace_id: UUID,
     # CHECK 1: This sub-dependency guarantees an active, authenticated workspace user
-    workspace_user: Annotated[User, Depends(get_current_workspace_user)],
+    workspace_user: Annotated[WorkspaceUser, Depends(get_current_workspace_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> WorkspaceUser:
     """
