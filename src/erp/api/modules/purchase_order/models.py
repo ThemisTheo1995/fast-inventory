@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.erp.api.base.models import BaseModel
@@ -8,6 +8,13 @@ from src.erp.api.base.models import BaseModel
 
 class PurchaseOrder(BaseModel):
     __tablename__ = "purchase_orders"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "po_number",
+            name="uq_purchase_orders_workspace_po_number",
+        ),
+    )
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("suppliers.id"), index=True, nullable=True)
