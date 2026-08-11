@@ -122,6 +122,7 @@ def login(
         )
     except Exception as e:
         logger.exception(f"Error setting cookies during login: {e}")
+        print(f"Error setting cookies during login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while setting authentication cookies.",
