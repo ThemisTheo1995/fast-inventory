@@ -67,6 +67,7 @@ jobs:
           AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES }}
           AUTH_REFRESH_TOKEN_EXPIRE_DAYS: ${{ vars.AUTH_REFRESH_TOKEN_EXPIRE_DAYS }}
           SHOPIFY_TEST_API_DOMAIN: ${{ vars.SHOPIFY_TEST_API_DOMAIN }}
+          COOKIE_SECURE: ${{ vars.COOKIE_SECURE }}
 
           DATABASE_URL: postgresql://postgres:temp_password@localhost:5432/temp_db
           TEST_DATABASE_URL: postgresql://postgres:temp_password@localhost:5432/temp_db
