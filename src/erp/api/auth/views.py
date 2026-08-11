@@ -37,8 +37,7 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
         value=result.access_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="none",
-        partitioned=True,
+        samesite="none"
     )
 
     response.set_cookie(
@@ -46,8 +45,7 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
         value=result.refresh_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="none",
-        partitioned=True,
+        samesite="none"
     )
 
     return RegisterResponse(workspace_id=result.workspace_id)
@@ -70,8 +68,7 @@ def onboard(
         value=result.access_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="none",
-        partitioned=True,
+        samesite="none"
     )
 
     response.set_cookie(
@@ -79,8 +76,7 @@ def onboard(
         value=result.refresh_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="none",
-        partitioned=True,
+        samesite="none"
     )
 
     return OnboardResponse(
@@ -108,8 +104,7 @@ def login(
             value=result.access_token,
             httponly=True,
             secure=bool(settings.COOKIE_SECURE),
-            samesite="none",
-            partitioned=True,
+            samesite="none"
         )
 
         response.set_cookie(
@@ -117,8 +112,7 @@ def login(
             value=result.refresh_token,
             httponly=True,
             secure=bool(settings.COOKIE_SECURE),
-            samesite="none",
-            partitioned=True,
+            samesite="none"
         )
     except Exception as e:
         logger.exception(f"Error setting cookies during login: {e}")
@@ -170,8 +164,7 @@ def refresh_token(
         value=access_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="none",
-        partitioned=True,
+        samesite="none"
     )
 
     return {"detail": "Access token refreshed"}
