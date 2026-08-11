@@ -220,7 +220,7 @@ class PurchaseOrderLineService:
 
     def _ensure_po_is_editable(self, po: PurchaseOrder) -> None:
         if po.status in ["RECEIVED", "CANCELLED"]:
-            raise ValueError(f"Cannot modify lines on a {po.status} purchase order.")   # noqa
+            raise ValueError(f"Cannot modify lines on a {po.status} purchase order.")  # noqa
 
     def _get_parent_po(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
         """Validates that the PO exists and belongs to the workspace before modifying lines."""
