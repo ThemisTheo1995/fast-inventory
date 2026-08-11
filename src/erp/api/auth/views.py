@@ -33,6 +33,7 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     response.set_cookie(
@@ -41,6 +42,7 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     return RegisterResponse(workspace_id=result.workspace_id)
@@ -64,6 +66,7 @@ def onboard(
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     response.set_cookie(
@@ -72,6 +75,7 @@ def onboard(
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     return OnboardResponse(
@@ -96,6 +100,7 @@ def login(
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     response.set_cookie(
@@ -104,6 +109,7 @@ def login(
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
         samesite="none",
+        partitioned=True,
     )
 
     return LoginResponse(workspace_id=result.workspace_id)
@@ -137,7 +143,12 @@ def refresh_token(
     access_token = service.refresh_token(refresh_token)
 
     response.set_cookie(
-        key="access_token", value=access_token, httponly=True, secure=bool(settings.COOKIE_SECURE), samesite="none"
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=bool(settings.COOKIE_SECURE),
+        samesite="none",
+        partitioned=True,
     )
 
     return {"detail": "Access token refreshed"}
