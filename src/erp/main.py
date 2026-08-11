@@ -2,7 +2,12 @@
 #
 # Licensed under the Apache License, Version 2.0
 
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +21,29 @@ from src.erp.core.exception_handlers import (
 )
 from src.erp.core.exceptions import BaseAppError
 
-app = FastAPI(title="ERP API")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa
+    logger.info("Initializing FAST ERP API...")
+    logger.info("Running database migrations via Alembic...")
+
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations completed successfully.")
+
+    except Exception:
+        logger.exception("Error during Alembic migrations")
+        raise
+
+    yield
+
+    logger.info("Shutting down FAST ERP API...")
+
+
+app = FastAPI(title="FAST ERP API", lifespan=lifespan)
 
 
 # Register your custom app errors
@@ -35,6 +62,7 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://vue-inventory-six.vercel.app",
     # Add your production domain here later
 ]
 
