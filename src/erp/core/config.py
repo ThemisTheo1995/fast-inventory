@@ -9,7 +9,7 @@ ENV_FILE = ROOT_DIR / ".env"
 
 class Settings(BaseSettings):
     # Environment flag (default to dev if not specified)
-    ENVIRONMENT: str = "dev"  # expected: "dev", "prod", or "test"
+    ENVIRONMENT: str = "dev"  # expected: "dev", "production", or "test"
 
     # Database
     DATABASE_URL: str

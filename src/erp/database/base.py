@@ -12,7 +12,7 @@ engine_kwargs = {
     "pool_pre_ping": True,
 }
 
-if settings.ENVIRONMENT == "prod":
+if settings.ENVIRONMENT == "production":
     engine_kwargs.update(
         {
             "pool_size": 20,
