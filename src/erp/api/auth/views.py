@@ -1,4 +1,3 @@
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
@@ -17,7 +16,6 @@ from src.erp.core.config import get_settings
 from src.erp.database.base import get_db
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -29,15 +27,12 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
 
     result = service.register(data)
 
-    print(f"Register result: {result}")
-    logger.info(f"Register result: {result}")
-
     response.set_cookie(
         key="access_token",
         value=result.access_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="lax"
+        samesite="lax",
     )
 
     response.set_cookie(
@@ -45,7 +40,7 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
         value=result.refresh_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="lax"
+        samesite="lax",
     )
 
     return RegisterResponse(workspace_id=result.workspace_id)
@@ -68,7 +63,7 @@ def onboard(
         value=result.access_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="lax"
+        samesite="lax",
     )
 
     response.set_cookie(
@@ -76,7 +71,7 @@ def onboard(
         value=result.refresh_token,
         httponly=True,
         secure=bool(settings.COOKIE_SECURE),
-        samesite="lax"
+        samesite="lax",
     )
 
     return OnboardResponse(
@@ -95,32 +90,21 @@ def login(
 
     result = service.login(form_data)
 
-    print(f"Login result: {result}")
-    logger.info(f"Login result: {result}")
+    response.set_cookie(
+        key="access_token",
+        value=result.access_token,
+        httponly=True,
+        secure=bool(settings.COOKIE_SECURE),
+        samesite="lax",
+    )
 
-    try:
-        response.set_cookie(
-            key="access_token",
-            value=result.access_token,
-            httponly=True,
-            secure=bool(settings.COOKIE_SECURE),
-            samesite="lax"
-        )
-
-        response.set_cookie(
-            key="refresh_token",
-            value=result.refresh_token,
-            httponly=True,
-            secure=bool(settings.COOKIE_SECURE),
-            samesite="lax"
-        )
-    except Exception as e:
-        logger.exception(f"Error setting cookies during login: {e}")
-        print(f"Error setting cookies during login: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while setting authentication cookies.",
-        ) from e
+    response.set_cookie(
+        key="refresh_token",
+        value=result.refresh_token,
+        httponly=True,
+        secure=bool(settings.COOKIE_SECURE),
+        samesite="lax",
+    )
 
     return LoginResponse(workspace_id=result.workspace_id)
 
@@ -160,11 +144,7 @@ def refresh_token(
     access_token = service.refresh_token(refresh_token)
 
     response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=bool(settings.COOKIE_SECURE),
-        samesite="lax"
+        key="access_token", value=access_token, httponly=True, secure=bool(settings.COOKIE_SECURE), samesite="lax"
     )
 
     return {"detail": "Access token refreshed"}

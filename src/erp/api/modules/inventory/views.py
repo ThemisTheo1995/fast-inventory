@@ -17,9 +17,6 @@ from src.erp.database.base import get_db
 router = APIRouter()
 
 
-# --- Inventory Endpoints ---
-
-
 @router.get("/inventory", response_model=InventoryPaginatedResponse)
 def get_inventories(
     workspace_id: UUID,
