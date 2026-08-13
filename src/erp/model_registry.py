@@ -35,12 +35,6 @@ from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 # Supplier
 from src.erp.api.modules.supplier.models import Supplier
 
-# INTEGRATION
-from src.erp.integrations.models import Integration
-
-# EBAY
-from src.erp.integrations.ebay.items.models import EbayItem
-
 __all__ = [
     "Base",
     "User",
@@ -59,8 +53,6 @@ __all__ = [
     "SellOrder",
     "SellOrderLine",
     "Supplier",
-    "Integration",
-    "EbayItem",
 ]
 
 metadata = Base.metadata

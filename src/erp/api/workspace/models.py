@@ -30,8 +30,6 @@ class Workspace(BaseModel):
     sell_orders: Mapped[list["SellOrder"]] = relationship("SellOrder", back_populates="workspace")
     purchase_orders: Mapped[list["PurchaseOrder"]] = relationship("PurchaseOrder", back_populates="workspace")
 
-    integrations: Mapped[list["Integration"]] = relationship("Integration", back_populates="workspace")
-
     @validates("email")
     def validate_email(self, _key: str, email_address: str) -> str:
         """Basic email format validation using regex."""

@@ -15,10 +15,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TEST_DATABASE_URL: str | None = None
 
-    # Shopify
-    SHOPIFY_TEST_API_DOMAIN: str
-    SHOPIFY_TEST_SECRET_API_KEY: str
-
     # Auth
     AUTH_SECRET_KEY: str
     AUTH_ALGORITHM: str

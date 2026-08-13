@@ -319,6 +319,9 @@ class PurchaseOrderLineService:
         if po.status == "SENT" and line.item_id:
             self.inventory_service.adjust_quantity_on_order(workspace_id, line.item_id, -line.quantity)
 
+        if line in po.purchase_order_lines:
+            po.purchase_order_lines.remove(line)
+
         self.db.delete(line)
         self.db.flush()
 

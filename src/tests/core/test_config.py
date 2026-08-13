@@ -26,8 +26,6 @@ def _mock_env_vars(monkeypatch):
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db")
     monkeypatch.setenv("TEST_DATABASE_URL", "postgresql://user:pass@localhost:5432/test_db")
-    monkeypatch.setenv("SHOPIFY_TEST_API_DOMAIN", "test.myshopify.com")
-    monkeypatch.setenv("SHOPIFY_TEST_SECRET_API_KEY", "shppa_123456")
     monkeypatch.setenv("AUTH_SECRET_KEY", "super-secret-key-for-testing")
     monkeypatch.setenv("AUTH_ALGORITHM", "HS256")
     monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
@@ -54,7 +52,7 @@ def test_settings_override_environment(_mock_env_vars, monkeypatch):
     assert settings.ENVIRONMENT == "test"
 
 
-@pytest.mark.parametrize("missing_var", ["DATABASE_URL", "SHOPIFY_TEST_API_DOMAIN", "AUTH_SECRET_KEY"])
+@pytest.mark.parametrize("missing_var", ["DATABASE_URL", "AUTH_SECRET_KEY"])
 def test_missing_required_variables_raises_validation_error(_mock_env_vars, monkeypatch, missing_var):
     """Verifies that if any required field is missing, Pydantic raises a ValidationError."""
     monkeypatch.delenv(missing_var, raising=False)

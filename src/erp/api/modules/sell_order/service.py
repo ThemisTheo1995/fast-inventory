@@ -282,6 +282,9 @@ class SellOrderLineService:
         if so.status == "CONFIRMED" and line.item_id:
             self.inventory_service.adjust_quantity_allocated(workspace_id, line.item_id, -line.quantity)
 
+        if line in so.sell_order_lines:
+            so.sell_order_lines.remove(line)
+
         self.db.delete(line)
         self.db.flush()
 
