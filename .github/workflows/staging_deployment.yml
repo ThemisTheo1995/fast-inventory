@@ -37,7 +37,7 @@ jobs:
           uv pip install -r requirements.txt --target ./build_pkg
 
           cp -r src ./build_pkg/src
-          cp -r alembic ./build_pkg/alembic
+          cp -r migrations ./build_pkg/migrations
           cp alembic.ini ./build_pkg/alembic.ini
 
           cd build_pkg
