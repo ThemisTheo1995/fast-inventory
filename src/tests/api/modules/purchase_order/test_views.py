@@ -73,7 +73,9 @@ def test_router_get_purchase_orders_success(client: TestClient, seed_workspace, 
 
 
 def test_router_get_purchase_orders_with_pagination_and_search(
-    client: TestClient, seed_workspace, active_purchase_order   # noqa
+    client: TestClient,
+    seed_workspace,
+    active_purchase_order,  # noqa
 ):
     """Verifies pagination and search query parameters bind correctly to the endpoint."""
     response = client.get(f"/{seed_workspace}/purchase-orders?search=PO-FIXTURE&page=1&limit=5")
