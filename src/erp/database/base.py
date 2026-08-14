@@ -10,20 +10,16 @@ settings = get_settings()
 
 engine_kwargs = {
     "pool_pre_ping": True,
+    "echo": False
 }
 
-if settings.ENVIRONMENT == "production":
+if settings.ENVIRONMENT in ("production", "staging"):
     engine_kwargs.update(
         {
-            "pool_size": 20,
-            "max_overflow": 10,
-            "echo": False,
-        }
-    )
-else:
-    engine_kwargs.update(
-        {
-            "echo": False,
+            "pool_size": 1,
+            "max_overflow": 2,
+            "pool_recycle": 300,
+            "pool_timeout": 5,
         }
     )
 
