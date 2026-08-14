@@ -12,7 +12,7 @@ permissions:
 jobs:
   deploy-staging:
     name: Deploy to Staging Lambda
-    if: github.event.review.state == 'approved'
+    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'approved'
     runs-on: ubuntu-latest
 
     steps:
