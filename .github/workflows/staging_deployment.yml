@@ -1,0 +1,49 @@
+name: Staging-Deployment
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Lambda
+    if: github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{vars.AWS_STAGING_ROLE_ARN}}
+          aws-region: eu-west-1 
+
+      - name: Build Lambda Package
+        run: |
+          uv export --no-dev -o requirements.txt
+          uv pip install -r requirements.txt --target ./build_pkg
+
+          cp -r src ./build_pkg/src
+          cp -r alembic ./build_pkg/alembic
+          cp alembic.ini ./build_pkg/alembic.ini
+
+          cd build_pkg
+          zip -r9 ../deployment.zip .
+
+      - name: Deploy to AWS Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name aegis-staging \
+            --zip-file fileb://deployment.zip
