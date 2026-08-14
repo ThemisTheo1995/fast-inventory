@@ -11,6 +11,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 from src.erp import model_registry  # noqa: F401
 from src.erp.api.router import api_router
@@ -75,3 +76,6 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+
+
+handler = Mangum(app)
