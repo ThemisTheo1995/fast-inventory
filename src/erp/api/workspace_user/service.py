@@ -7,6 +7,7 @@ from src.erp.api.workspace_user.enums import InvitationStatusEnum
 from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.api.workspace_user.schemas import (
+    UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
@@ -33,7 +34,7 @@ class WorkspaceUserService:
             raise WorkspaceUserNotFoundError()
         return link
 
-    def get_workspace_users(self, workspace_id: str) -> list[dict]:
+    def get_workspace_users(self, workspace_id: UUID) -> list[WorkspaceUser]:
         """Fetch all non-deleted workspace users linked to a specific workspace."""
         results = (
             self.db.query(WorkspaceUser, User)
@@ -61,6 +62,34 @@ class WorkspaceUserService:
             )
 
         return workspace_users
+
+    def get_workspace_user(self, workspace_user_id: UUID) -> WorkspaceUserResponse:
+        """Fetch a single non-deleted workspace user."""
+        result = (
+            self.db.query(WorkspaceUser, User)
+            .join(User, WorkspaceUser.user_id == User.id)
+            .filter(
+                WorkspaceUser.id == workspace_user_id,
+                WorkspaceUser.is_deleted.is_(False),
+                User.is_deleted.is_(False),
+            )
+            .first()
+        )
+
+        if not result:
+            raise WorkspaceUserNotFoundError()
+
+        ws_user, user = result
+
+        return WorkspaceUserResponse(
+            id=str(ws_user.id),
+            workspace_id=str(ws_user.workspace_id),
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            role=ws_user.role,
+            status=ws_user.status,
+        )
 
     def invite_workspace_user(self, data: WorkspaceUserInviteRequest, actor: WorkspaceUser) -> dict:
         """Invite a workspace user while enforcing safeguards against privilege escalation."""
@@ -119,23 +148,17 @@ class WorkspaceUserService:
     def update_workspace_user(
         self, data: WorkspaceUserUpdateRequest, target_id: UUID, actor: WorkspaceUser
     ) -> WorkspaceUserResponse:
-
-        is_eviction = target_id == actor.id and data.is_deleted is True
-
-        # 1. Guard checks
-        guard_against_self_action(actor.id, target_id, is_eviction=is_eviction)
-
         target = self._get_active_workspace_user(actor.workspace_id, target_id)
 
         guard_rank_immunity(actor.role, target.role)
 
-        # 2. Extract ONLY the fields the client sent
         update_data = data.model_dump(exclude_unset=True)
 
         if "role" in update_data:
+            is_eviction = target_id == actor.id and data.is_deleted is True
+            guard_against_self_action(actor.id, target_id, is_eviction=is_eviction)
             guard_privilege_escalation(actor.role, update_data["role"])
 
-        # 3. Apply all changes
         for key, value in update_data.items():
             setattr(target, key, value)
 
@@ -150,3 +173,15 @@ class WorkspaceUserService:
             role=target.role,
             status=target.status,
         )
+
+    def update_user(self, user: User, data: UserUpdateRequest) -> User:
+        update_data = data.model_dump(exclude_unset=True)
+
+        for key, value in update_data.items():
+            setattr(user, key, value)
+
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+
+        return user

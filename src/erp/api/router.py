@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from src.erp.api.auth.router import router as auth_router
+from src.erp.api.dashboard.router import router as dashboard_router
 from src.erp.api.modules.customer.router import router as customer_router
 from src.erp.api.modules.inventory.router import router as inventory_router
 from src.erp.api.modules.item.router import router as item_router
@@ -15,6 +16,9 @@ api_router = APIRouter()
 
 # Auth
 api_router.include_router(auth_router)
+
+# Dashboard
+api_router.include_router(dashboard_router)
 
 # Modules.customer
 api_router.include_router(customer_router)

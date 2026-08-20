@@ -11,14 +11,7 @@ settings = get_settings()
 engine_kwargs = {"pool_pre_ping": True, "echo": False}
 
 if settings.ENVIRONMENT in ("production", "staging"):
-    engine_kwargs.update(
-        {
-            "pool_size": 1,
-            "max_overflow": 2,
-            "pool_recycle": 300,
-            "pool_timeout": 5,
-        }
-    )
+    engine_kwargs.update({"pool_size": 1, "max_overflow": 2, "pool_recycle": 300, "pool_timeout": 5, "echo": False})
 
 # Create the engine
 engine = create_engine(settings.DATABASE_URL, **engine_kwargs)

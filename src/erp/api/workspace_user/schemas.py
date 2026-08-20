@@ -26,3 +26,18 @@ class WorkspaceUserResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdateRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: str
+    first_name: str | None
+    last_name: str | None

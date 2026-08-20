@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from src.erp.api.workspace_user.schemas import (
+    UserResponse,
+    UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
@@ -22,6 +24,7 @@ def me(request: Request) -> dict:
 
     return {
         "id": current_user.id,
+        "workspace_user_id": workspace_user.id,
         "email": current_user.email,
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
@@ -31,7 +34,21 @@ def me(request: Request) -> dict:
     }
 
 
-@router.get("/workspace_users", response_model=list[WorkspaceUserResponse])
+@router.patch("/me", response_model=UserResponse)
+def update_me(request: Request, data: UserUpdateRequest, db: Annotated[Session, Depends(get_db)]) -> UserResponse:
+
+    workspace_user = request.state.workspace_user
+    current_user = workspace_user.user
+
+    return UserResponse.model_validate(
+        WorkspaceUserService(db).update_user(
+            current_user,
+            data,
+        )
+    )
+
+
+@router.get("/workspace-users", response_model=list[WorkspaceUserResponse])
 def get_workspace_users(workspace_id: UUID, db: Annotated[Session, Depends(get_db)]) -> list[WorkspaceUserResponse]:
 
     service = WorkspaceUserService(db)
@@ -39,7 +56,15 @@ def get_workspace_users(workspace_id: UUID, db: Annotated[Session, Depends(get_d
     return service.get_workspace_users(workspace_id)
 
 
-@router.post("/workspace_users/invite", response_model=WorkspaceUserResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/workspace-users/{workspace_user_id}", response_model=WorkspaceUserResponse)
+def get_workspace_user(workspace_user_id: UUID, db: Annotated[Session, Depends(get_db)]) -> WorkspaceUserResponse:
+
+    service = WorkspaceUserService(db)
+
+    return service.get_workspace_user(workspace_user_id)
+
+
+@router.post("/workspace-users/invite", response_model=WorkspaceUserResponse, status_code=status.HTTP_201_CREATED)
 def add_workspace_user(
     request: Request, data: WorkspaceUserInviteRequest, db: Annotated[Session, Depends(get_db)]
 ) -> WorkspaceUserResponse:
@@ -50,7 +75,7 @@ def add_workspace_user(
     return service.invite_workspace_user(data, actor=workspace_user)
 
 
-@router.patch("/workspace_users/{workspace_user_id}", status_code=status.HTTP_200_OK)
+@router.patch("/workspace-users/{workspace_user_id}", status_code=status.HTTP_200_OK)
 def update_workspace_user(
     request: Request, workspace_user_id: UUID, data: WorkspaceUserUpdateRequest, db: Annotated[Session, Depends(get_db)]
 ) -> WorkspaceUserResponse:
