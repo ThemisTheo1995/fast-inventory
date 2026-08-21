@@ -1,11 +1,10 @@
 from enum import StrEnum
 
 
-class POStatusEnum(StrEnum):
+class SOStatusEnum(StrEnum):
     DRAFT = "DRAFT"
-    SENT = "SENT"
-    IN_TRANSIT = "IN_TRANSIT"
-    RECEIVED = "RECEIVED"
+    CONFIRMED = "CONFIRMED"
+    FULLFILLED = "FULLFILLED"
     RETURNED = "RETURNED"
     CANCELLED = "CANCELLED"
     CLOSED = "CLOSED"

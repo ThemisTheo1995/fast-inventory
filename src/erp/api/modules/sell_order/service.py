@@ -6,10 +6,16 @@ from sqlalchemy.orm import Session, selectinload
 from src.erp.api.modules.inventory.enums import OrderType
 from src.erp.api.modules.inventory.schemas import StockMovementCreate
 from src.erp.api.modules.inventory.service import InventoryService
+from src.erp.api.modules.sell_order.enums import SOStatusEnum
 from src.erp.api.modules.sell_order.exceptions import (
+    SellOrderCannotDeleteError,
     SellOrderExistsError,
+    SellOrderLineItemChangeError,
     SellOrderLineNotFoundError,
+    SellOrderNotEditableError,
     SellOrderNotFoundError,
+    SellOrderStatusTerminalError,
+    SellOrderStatusTransitionError,
 )
 from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 from src.erp.api.modules.sell_order.schemas import (
@@ -56,23 +62,30 @@ class SellOrderService:
         if self.db.execute(stmt).scalar_one_or_none():
             raise SellOrderExistsError()
 
-    def _handle_status_transition(self, workspace_id: UUID, so: SellOrder, old_status: str, new_status: str) -> None:
-        if old_status in ["RECEIVED", "CANCELLED"]:
-            raise ValueError(f"Cannot change status from terminal state: {old_status}")  # noqa
+    def _handle_status_transition(
+        self, workspace_id: UUID, so: SellOrder, old_status: SOStatusEnum, new_status: SOStatusEnum
+    ) -> None:
+
+        if old_status in [SOStatusEnum.CANCELLED, SOStatusEnum.RETURNED]:
+            raise SellOrderStatusTerminalError(old_status)
+
+        if old_status == SOStatusEnum.FULLFILLED and new_status != SOStatusEnum.RETURNED:
+            raise SellOrderStatusTransitionError(old_status.label, new_status.label)
 
         for line in so.sell_order_lines:
             if not line.item_id:
                 continue
 
             match (old_status, new_status):
-                case ("DRAFT", "SENT"):
+                case (SOStatusEnum.DRAFT, SOStatusEnum.CONFIRMED):
                     self.inventory_service.adjust_quantity_allocated(
                         workspace_id,
                         line.item_id,
                         line.quantity,
                     )
 
-                case ("SENT", "RECEIVED"):
+                case (SOStatusEnum.CONFIRMED, SOStatusEnum.FULLFILLED):
+                    # Remove allocation and permanently deduct from physical stock
                     self.inventory_service.adjust_quantity_allocated(
                         workspace_id,
                         line.item_id,
@@ -88,13 +101,24 @@ class SellOrderService:
                         ),
                     )
 
-                case ("SENT", "CANCELLED"):
+                case (SOStatusEnum.CONFIRMED, SOStatusEnum.CANCELLED) | (SOStatusEnum.CONFIRMED, SOStatusEnum.RETURNED):
+                    # De-allocate the stock since sell order never fullfilled
                     self.inventory_service.adjust_quantity_allocated(
                         workspace_id,
                         line.item_id,
                         -line.quantity,
                     )
 
+                case (SOStatusEnum.FULLFILLED, SOStatusEnum.RETURNED):
+                    self.inventory_service.create_stock_movement(
+                        workspace_id,
+                        StockMovementCreate(
+                            item_id=line.item_id,
+                            quantity_change=line.quantity,
+                            reference_type=OrderType.SELL_ORDER,
+                            reference_id=so.id,
+                        ),
+                    )
                 case _:
                     pass
 
@@ -155,8 +179,8 @@ class SellOrderService:
         if "so_number" in update_data and update_data["so_number"] != sell_order.so_number:
             self._check_so_unique(workspace_id, update_data["so_number"], exclude_sell_order_id=sell_order_id)
 
-        old_status = sell_order.status
-        new_status = update_data.get("status", old_status)
+        old_status = SOStatusEnum(sell_order.status)
+        new_status = SOStatusEnum(update_data.get("status", old_status))
 
         if old_status != new_status:
             self._handle_status_transition(workspace_id, sell_order, old_status, new_status)
@@ -170,10 +194,11 @@ class SellOrderService:
         return sell_order
 
     def delete_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> None:
-        """
-        Soft-deletes a SO and cascades the soft-delete to its lines.
-        """
+        """Soft-deletes a SO and cascades the soft-delete to its lines."""
         sell_order = self._get_active_sell_order(workspace_id, sell_order_id)
+
+        if sell_order.status not in [SOStatusEnum.DRAFT, SOStatusEnum.CANCELLED]:
+            raise SellOrderCannotDeleteError(sell_order.status.label)
 
         for line in sell_order.sell_order_lines:
             line.soft_delete()
@@ -188,8 +213,8 @@ class SellOrderLineService:
         self.inventory_service = InventoryService(db)
 
     def _ensure_so_is_editable(self, so: SellOrder) -> None:
-        if so.status in ["RECEIVED", "CANCELLED"]:
-            raise ValueError(f"Cannot modify lines on a {so.status} sell order.")  # noqa
+        if so.status in [SOStatusEnum.FULLFILLED, SOStatusEnum.CANCELLED, SOStatusEnum.RETURNED]:
+            raise SellOrderNotEditableError(so.status.label)
 
     def _get_parent_so(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
         """Validates that the SO exists and belongs to the workspace before modifying lines."""
@@ -237,7 +262,7 @@ class SellOrderLineService:
         self.db.add(new_line)
         self.db.flush()
 
-        if so.status == "SENT" and new_line.item_id:
+        if so.status == SOStatusEnum.CONFIRMED and new_line.item_id:
             self.inventory_service.adjust_quantity_allocated(workspace_id, new_line.item_id, new_line.quantity)
 
         self._recalculate_so_total(sell_order_id)
@@ -255,7 +280,10 @@ class SellOrderLineService:
         line = self._get_line(sell_order_id, line_id)
         update_data = data.model_dump(exclude_unset=True)
 
-        if so.status == "SENT" and "quantity" in update_data and line.item_id:
+        if "item_id" in update_data and update_data["item_id"] != line.item_id:
+            raise SellOrderLineItemChangeError()
+
+        if so.status == SOStatusEnum.CONFIRMED and "quantity" in update_data and line.item_id:
             delta = update_data["quantity"] - line.quantity
             self.inventory_service.adjust_quantity_allocated(workspace_id, line.item_id, delta)
 
@@ -279,7 +307,7 @@ class SellOrderLineService:
 
         line = self._get_line(sell_order_id, line_id)
 
-        if so.status == "CONFIRMED" and line.item_id:
+        if so.status == SOStatusEnum.CONFIRMED and line.item_id:
             self.inventory_service.adjust_quantity_allocated(workspace_id, line.item_id, -line.quantity)
 
         if line in so.sell_order_lines:

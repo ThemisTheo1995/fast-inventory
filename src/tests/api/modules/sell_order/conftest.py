@@ -3,6 +3,11 @@ import uuid
 import pytest
 
 from src.erp.api.modules.customer.models import Customer
+from src.erp.api.modules.inventory.enums import OrderType
+from src.erp.api.modules.inventory.schemas import StockMovementCreate
+from src.erp.api.modules.inventory.service import InventoryService
+from src.erp.api.modules.item.models import Item
+from src.erp.api.modules.sell_order.enums import SOStatusEnum
 from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 # --- CUSTOMER FIXTURES ---
@@ -25,6 +30,43 @@ def active_customer(db_session, seed_workspace) -> Customer:
     return customer
 
 
+# --- ITEM & INVENTORY FIXTURES ---
+
+
+@pytest.fixture
+def active_item(db_session, seed_workspace) -> Item:
+    """Seeds a base item without stock."""
+    item = Item(
+        id=uuid.uuid4(),
+        workspace_id=seed_workspace,
+        sku=f"SKU-{uuid.uuid4().hex[:6]}",
+        title="Fixture Test Item",
+        base_price=100,
+        is_deleted=False,
+    )
+    db_session.add(item)
+    db_session.commit()
+    db_session.refresh(item)
+    return item
+
+
+@pytest.fixture
+def stocked_item(db_session, seed_workspace, active_item) -> Item:
+    """Seeds physical stock (100 units) so allocation checks pass in tests."""
+    inv_service = InventoryService(db_session)
+    inv_service.create_stock_movement(
+        seed_workspace,
+        StockMovementCreate(
+            item_id=active_item.id,
+            quantity_change=100,
+            reference_type=OrderType.PURCHASE_ORDER,
+            reference_id=uuid.uuid4(),
+        ),
+    )
+    db_session.flush()
+    return active_item
+
+
 # --- SELL ORDER FIXTURES ---
 
 
@@ -36,8 +78,8 @@ def active_sell_order(db_session, seed_workspace, active_customer) -> SellOrder:
         workspace_id=seed_workspace,
         customer_id=active_customer.id,
         so_number="SO-FIXTURE-001",
-        total_amount=1250,  # Arbitrary fixture amount
-        status="DRAFT",
+        total_amount=1250,
+        status=SOStatusEnum.DRAFT,
     )
     db_session.add(sell_order)
     db_session.commit()
@@ -46,12 +88,12 @@ def active_sell_order(db_session, seed_workspace, active_customer) -> SellOrder:
 
 
 @pytest.fixture
-def active_sell_order_line(db_session, active_sell_order) -> SellOrderLine:
-    """Seeds a single sell order line attached to the active_sell_order."""
+def active_sell_order_line(db_session, active_sell_order, stocked_item) -> SellOrderLine:
+    """Seeds a single sell order line attached to an active_sell_order and linked to a stocked_item."""
     sell_order_line = SellOrderLine(
         id=uuid.uuid4(),
         sell_order_id=active_sell_order.id,
-        item_id=None,
+        item_id=stocked_item.id,
         quantity=5,
         unit_cost=250,
     )

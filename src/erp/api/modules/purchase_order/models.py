@@ -1,9 +1,10 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.erp.api.base.models import BaseModel
+from src.erp.api.modules.purchase_order.enums import POStatusEnum
 
 
 class PurchaseOrder(BaseModel):
@@ -22,7 +23,14 @@ class PurchaseOrder(BaseModel):
     po_number: Mapped[str] = mapped_column(String(100), index=True)
 
     total_amount: Mapped[int] = mapped_column(Integer, default=0)
-    status: Mapped[str] = mapped_column(String(50), default="DRAFT")
+    status: Mapped[POStatusEnum] = mapped_column(
+        Enum(
+            POStatusEnum,
+            native_enum=False,
+            length=50,
+        ),
+        default=POStatusEnum.DRAFT,
+    )
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="purchase_orders")

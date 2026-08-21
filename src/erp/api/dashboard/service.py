@@ -27,7 +27,7 @@ class DashboardService:
         revenue_stmt = select(func.coalesce(func.sum(SellOrder.total_amount), 0)).where(
             SellOrder.workspace_id == workspace_id,
             SellOrder.is_deleted.is_(False),
-            SellOrder.status.in_(["SENT", "RECEIVED"]),
+            SellOrder.status.in_(["CONFIRMED", "FULLFILLED"]),
         )
         total_revenue = self.db.execute(revenue_stmt).scalar_one()
 

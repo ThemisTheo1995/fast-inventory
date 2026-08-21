@@ -46,7 +46,7 @@ def test_get_active_workspace_user_happy_path(db_session):
     link = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=False,
     )
@@ -85,7 +85,7 @@ def test_get_active_workspace_user_raises_not_found_if_soft_deleted(db_session):
     link = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=True,
     )
@@ -119,7 +119,7 @@ def test_get_workspace_users_happy_path_and_name_formatting(db_session):
     l1 = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(u1.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -242,7 +242,7 @@ def test_invite_workspace_user_happy_path_new_user(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -256,7 +256,7 @@ def test_invite_workspace_user_happy_path_new_user(db_session):
     )
 
     assert response.email == "stranger@test.com"
-    assert response.role == "edit_only"
+    assert response.role == WorkspaceRoleEnum.EDIT_ONLY
     assert response.status == "pending"
 
     created_user = db_session.query(User).filter_by(email="stranger@test.com").one()
@@ -291,7 +291,7 @@ def test_invite_workspace_user_happy_path_existing_user_without_link(db_session)
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -324,7 +324,7 @@ def test_invite_workspace_user_exception_privilege_escalation(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=False,
     )
@@ -361,7 +361,7 @@ def test_invite_workspace_user_exception_user_already_active(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -406,7 +406,7 @@ def test_invite_workspace_user_resurrects_soft_deleted_workspace_user(db_session
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -425,11 +425,11 @@ def test_invite_workspace_user_resurrects_soft_deleted_workspace_user(db_session
     response = service.invite_workspace_user(data=data, actor=actor)
 
     assert response.status == "active"
-    assert response.role == "edit_only"
+    assert response.role == WorkspaceRoleEnum.EDIT_ONLY
 
     db_session.refresh(target_link)
     assert target_link.is_deleted is False
-    assert target_link.role == "edit_only"
+    assert target_link.role == WorkspaceRoleEnum.EDIT_ONLY
     assert target_link.status == "active"
 
 
@@ -463,7 +463,7 @@ def test_update_workspace_user_happy_path(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(actor_user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -477,18 +477,33 @@ def test_update_workspace_user_happy_path(db_session):
     db_session.add_all([actor, target])
     db_session.flush()
 
-    update_data = WorkspaceUserUpdateRequest(role="edit_only")
+    update_data = WorkspaceUserUpdateRequest(role=WorkspaceRoleEnum.EDIT_ONLY)
     service.update_workspace_user(data=update_data, target_id=target.id, actor=actor)
 
     db_session.refresh(target)
-    assert target.role == "edit_only"
+    assert target.role == WorkspaceRoleEnum.EDIT_ONLY
 
 
 def test_update_workspace_user_exception_self_modification_blocked(db_session):
     """Should instantly block users attempting to adjust their own roles."""
     service = WorkspaceUserService(db_session)
-    actor = WorkspaceUser(id=uuid.uuid4(), workspace_id=uuid.uuid4(), user_id=uuid.uuid4(), role="edit_only")
-    update_data = WorkspaceUserUpdateRequest(role="full_admin")
+
+    # Persist parent models if foreign key constraints are enforced
+    workspace = Workspace(name="WS", email="ws@test.com")
+    user = User(id=uuid.uuid4(), email="actor@test.com", hashed_password="", is_deleted=False)
+    db_session.add_all([workspace, user])
+    db_session.flush()
+
+    actor = WorkspaceUser(
+        id=uuid.uuid4(),
+        workspace_id=workspace.id,
+        user_id=user.id,
+        role=WorkspaceRoleEnum.EDIT_ONLY,
+    )
+    db_session.add(actor)
+    db_session.flush()
+
+    update_data = WorkspaceUserUpdateRequest(role=WorkspaceRoleEnum.FULL_ADMIN)
 
     with pytest.raises(SelfModificationBlockedError):
         service.update_workspace_user(data=update_data, target_id=actor.id, actor=actor)
@@ -519,14 +534,14 @@ def test_update_workspace_user_exception_rank_immunity_violation(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(actor_user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=False,
     )
     target = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(target_user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -564,7 +579,7 @@ def test_update_workspace_user_exception_privilege_escalation_blocked(db_session
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(actor_user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=False,
     )
@@ -578,7 +593,7 @@ def test_update_workspace_user_exception_privilege_escalation_blocked(db_session
     db_session.add_all([actor, target])
     db_session.flush()
 
-    update_data = WorkspaceUserUpdateRequest(role="full_admin")
+    update_data = WorkspaceUserUpdateRequest(role=WorkspaceRoleEnum.FULL_ADMIN)
 
     with pytest.raises(PrivilegeEscalationBlockedError):
         service.update_workspace_user(data=update_data, target_id=target.id, actor=actor)
@@ -614,7 +629,7 @@ def test_remove_member_happy_path(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(actor_user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )
@@ -636,19 +651,29 @@ def test_remove_member_happy_path(db_session):
 
 
 def test_remove_member_exception_self_eviction_blocked(db_session):
-    """Should explicitly prevent users from deleting their own membership."""
+    """Should explicitly prevent users from deleting their own membership when changing role."""
     service = WorkspaceUserService(db_session)
-    workspace = Workspace(name="WS", email="ws1@t.com")
-    db_session.add(workspace)
-    db_session.flush()
 
-    actor = User(
+    workspace = Workspace(name="WS", email="ws1@t.com")
+    user = User(
         id=uuid.uuid4(),
         email="act_rem_i@test.com",
         is_deleted=False,
         hashed_password="",
     )
-    update_data = WorkspaceUserUpdateRequest(is_deleted=True)
+    db_session.add_all([workspace, user])
+    db_session.flush()
+
+    actor = WorkspaceUser(
+        id=uuid.uuid4(),
+        workspace_id=workspace.id,
+        user_id=user.id,
+        role=WorkspaceRoleEnum.FULL_ADMIN,
+    )
+    db_session.add(actor)
+    db_session.flush()
+
+    update_data = WorkspaceUserUpdateRequest(is_deleted=True, role=WorkspaceRoleEnum.FULL_ADMIN)
 
     with pytest.raises(SelfEvictionBlockedError):
         service.update_workspace_user(data=update_data, target_id=actor.id, actor=actor)
@@ -679,14 +704,14 @@ def test_remove_member_exception_rank_immunity_violation(db_session):
     actor = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(actor_user.id),
-        role="edit_only",
+        role=WorkspaceRoleEnum.EDIT_ONLY,
         status="active",
         is_deleted=False,
     )
     target = WorkspaceUser(
         workspace_id=str(workspace.id),
         user_id=str(target_user.id),
-        role="full_admin",
+        role=WorkspaceRoleEnum.FULL_ADMIN,
         status="active",
         is_deleted=False,
     )

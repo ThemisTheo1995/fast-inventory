@@ -1,9 +1,10 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.erp.api.base.models import BaseModel
+from src.erp.api.modules.sell_order.enums import SOStatusEnum
 
 
 class SellOrder(BaseModel):
@@ -22,7 +23,14 @@ class SellOrder(BaseModel):
     so_number: Mapped[str] = mapped_column(String(100), index=True)
 
     total_amount: Mapped[int] = mapped_column(Integer, default=0)
-    status: Mapped[str] = mapped_column(String(50))
+    status: Mapped[SOStatusEnum] = mapped_column(
+        Enum(
+            SOStatusEnum,
+            native_enum=False,
+            length=50,
+        ),
+        default=SOStatusEnum.DRAFT,
+    )
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="sell_orders")

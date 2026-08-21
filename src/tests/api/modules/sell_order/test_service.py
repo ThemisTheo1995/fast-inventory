@@ -5,10 +5,14 @@ import pytest
 from src.erp.api.modules.inventory.enums import OrderType
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.item.models import Item
+from src.erp.api.modules.sell_order.enums import SOStatusEnum
 from src.erp.api.modules.sell_order.exceptions import (
     SellOrderExistsError,
     SellOrderLineNotFoundError,
+    SellOrderNotEditableError,
     SellOrderNotFoundError,
+    SellOrderStatusTerminalError,
+    SellOrderStatusTransitionError,
 )
 from src.erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
@@ -28,7 +32,7 @@ def test_create_sell_order_success(db_session, seed_workspace, active_customer):
     payload = SellOrderCreate(
         so_number="SO-100",
         customer_id=active_customer.id,
-        status="DRAFT",
+        status=SOStatusEnum.DRAFT,
         sell_order_lines=[
             SellOrderLineCreate(quantity=2, unit_cost=500),
             SellOrderLineCreate(quantity=3, unit_cost=100),
@@ -45,7 +49,7 @@ def test_create_sell_order_success(db_session, seed_workspace, active_customer):
 
 def test_create_sell_order_duplicate_number_fails(db_session, seed_workspace):
     service = SellOrderService(db_session)
-    payload = SellOrderCreate(so_number="SO-DUP", status="DRAFT", sell_order_lines=[])
+    payload = SellOrderCreate(so_number="SO-DUP", status=SOStatusEnum.DRAFT, sell_order_lines=[])
 
     service.create_sell_order(seed_workspace, payload)
 
@@ -56,7 +60,7 @@ def test_create_sell_order_duplicate_number_fails(db_session, seed_workspace):
 def test_create_sell_order_cross_tenant_number_allowed(db_session, seed_workspace, alt_workspace):
     """Ensures two separate workspaces can use the same sell order number."""
     service = SellOrderService(db_session)
-    payload = SellOrderCreate(so_number="SO-SHARED", status="DRAFT", sell_order_lines=[])
+    payload = SellOrderCreate(so_number="SO-SHARED", status=SOStatusEnum.DRAFT, sell_order_lines=[])
 
     service.create_sell_order(seed_workspace, payload)
     cross_so = service.create_sell_order(alt_workspace, payload)
@@ -68,10 +72,14 @@ def test_create_sell_order_cross_tenant_number_allowed(db_session, seed_workspac
 def test_get_sell_orders_pagination_and_search(db_session, seed_workspace):
     service = SellOrderService(db_session)
 
-    service.create_sell_order(seed_workspace, SellOrderCreate(so_number="APPLE-1", status="DRAFT", sell_order_lines=[]))
-    service.create_sell_order(seed_workspace, SellOrderCreate(so_number="APPLE-2", status="DRAFT", sell_order_lines=[]))
     service.create_sell_order(
-        seed_workspace, SellOrderCreate(so_number="BANANA-1", status="DRAFT", sell_order_lines=[])
+        seed_workspace, SellOrderCreate(so_number="APPLE-1", status=SOStatusEnum.DRAFT, sell_order_lines=[])
+    )
+    service.create_sell_order(
+        seed_workspace, SellOrderCreate(so_number="APPLE-2", status=SOStatusEnum.DRAFT, sell_order_lines=[])
+    )
+    service.create_sell_order(
+        seed_workspace, SellOrderCreate(so_number="BANANA-1", status=SOStatusEnum.DRAFT, sell_order_lines=[])
     )
 
     res = service.get_sell_orders(seed_workspace, page=1, limit=2)
@@ -85,9 +93,11 @@ def test_get_sell_orders_pagination_and_search(db_session, seed_workspace):
 def test_update_sell_order_duplicate_number_fails(db_session, seed_workspace):
     service = SellOrderService(db_session)
     so1 = service.create_sell_order(
-        seed_workspace, SellOrderCreate(so_number="SO-ONE", status="DRAFT", sell_order_lines=[])
+        seed_workspace, SellOrderCreate(so_number="SO-ONE", status=SOStatusEnum.DRAFT, sell_order_lines=[])
     )
-    service.create_sell_order(seed_workspace, SellOrderCreate(so_number="SO-TWO", status="DRAFT", sell_order_lines=[]))
+    service.create_sell_order(
+        seed_workspace, SellOrderCreate(so_number="SO-TWO", status=SOStatusEnum.DRAFT, sell_order_lines=[])
+    )
 
     with pytest.raises(SellOrderExistsError):
         service.update_sell_order(seed_workspace, so1.id, SellOrderUpdate(so_number="SO-TWO"))
@@ -134,12 +144,12 @@ def test_status_transition_with_non_inventory_line(db_session, seed_workspace):
         seed_workspace,
         SellOrderCreate(
             so_number="SO-GAP-65",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[SellOrderLineCreate(item_id=None, quantity=2, unit_cost=50)],
         ),
     )
-    updated = service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="SENT"))
-    assert updated.status == "SENT"
+    updated = service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
+    assert updated.status == SOStatusEnum.CONFIRMED
 
 
 def test_status_transition_fallback_case(db_session, seed_workspace):
@@ -160,13 +170,13 @@ def test_status_transition_fallback_case(db_session, seed_workspace):
         seed_workspace,
         SellOrderCreate(
             so_number="SO-GAP-98",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=1, unit_cost=100)],
         ),
     )
 
-    updated = service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="CANCELLED"))
-    assert updated.status == "CANCELLED"
+    updated = service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CANCELLED))
+    assert updated.status == SOStatusEnum.CANCELLED
 
 
 def test_delete_sell_order_with_lines_cascades_soft_delete(db_session, seed_workspace):
@@ -175,7 +185,7 @@ def test_delete_sell_order_with_lines_cascades_soft_delete(db_session, seed_work
         seed_workspace,
         SellOrderCreate(
             so_number="SO-GAP-179",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[SellOrderLineCreate(quantity=1, unit_cost=100)],
         ),
     )
@@ -190,37 +200,26 @@ def test_delete_sell_order_with_lines_cascades_soft_delete(db_session, seed_work
 # ==============================================================================
 
 
-def test_status_transition_draft_to_sent_allocates_inventory(db_session, seed_workspace):
+def test_status_transition_draft_to_confirmed_allocates_inventory(db_session, seed_workspace, stocked_item):
     service = SellOrderService(db_session)
     inv_service = InventoryService(db_session)
-
-    item = Item(
-        id=uuid.uuid4(),
-        workspace_id=seed_workspace,
-        sku=f"SKU-{uuid.uuid4().hex[:6]}",
-        title="Test Item",
-        base_price=100,
-        is_deleted=False,
-    )
-    db_session.add(item)
-    db_session.flush()
 
     so = service.create_sell_order(
         seed_workspace,
         SellOrderCreate(
             so_number="SO-STATE-1",
-            status="DRAFT",
-            sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=10, unit_cost=50)],
+            status=SOStatusEnum.DRAFT,
+            sell_order_lines=[SellOrderLineCreate(item_id=stocked_item.id, quantity=10, unit_cost=50)],
         ),
     )
 
-    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="SENT"))
+    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
 
-    inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
+    inv = inv_service.get_inventory_by_item(seed_workspace, stocked_item.id)
     assert inv.quantity_allocated == 10
 
 
-def test_status_transition_sent_to_received_creates_stock_movement(db_session, seed_workspace):
+def test_status_transition_confirmed_to_fullfilled_creates_stock_movement(db_session, seed_workspace):
     service = SellOrderService(db_session)
     inv_service = InventoryService(db_session)
 
@@ -244,13 +243,13 @@ def test_status_transition_sent_to_received_creates_stock_movement(db_session, s
         seed_workspace,
         SellOrderCreate(
             so_number="SO-STATE-2",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=5, unit_cost=50)],
         ),
     )
 
-    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="SENT"))
-    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="RECEIVED"))
+    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
+    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="FULLFILLED"))
 
     inv_updated = inv_service.get_inventory_by_item(seed_workspace, item.id)
     assert inv_updated.quantity_allocated == 0
@@ -262,34 +261,23 @@ def test_status_transition_sent_to_received_creates_stock_movement(db_session, s
     assert movements.items[0].reference_type == OrderType.SELL_ORDER
 
 
-def test_status_transition_sent_to_cancelled_clears_allocation(db_session, seed_workspace):
+def test_status_transition_confirmed_to_cancelled_clears_allocation(db_session, seed_workspace, stocked_item):
     service = SellOrderService(db_session)
     inv_service = InventoryService(db_session)
-
-    item = Item(
-        id=uuid.uuid4(),
-        workspace_id=seed_workspace,
-        sku=f"SKU-{uuid.uuid4().hex[:6]}",
-        title="Test Item 3",
-        base_price=100,
-        is_deleted=False,
-    )
-    db_session.add(item)
-    db_session.flush()
 
     so = service.create_sell_order(
         seed_workspace,
         SellOrderCreate(
             so_number="SO-STATE-3",
-            status="DRAFT",
-            sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=7, unit_cost=100)],
+            status=SOStatusEnum.DRAFT,
+            sell_order_lines=[SellOrderLineCreate(item_id=stocked_item.id, quantity=7, unit_cost=100)],
         ),
     )
 
-    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="SENT"))
-    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status="CANCELLED"))
+    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
+    service.update_sell_order(seed_workspace, so.id, SellOrderUpdate(status=SOStatusEnum.CANCELLED))
 
-    inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
+    inv = inv_service.get_inventory_by_item(seed_workspace, stocked_item.id)
     assert inv.quantity_allocated == 0
 
 
@@ -297,17 +285,17 @@ def test_status_transition_from_terminal_states_fails(db_session, seed_workspace
     service = SellOrderService(db_session)
 
     so_rec = service.create_sell_order(
-        seed_workspace, SellOrderCreate(so_number="SO-T1", status="RECEIVED", sell_order_lines=[])
+        seed_workspace, SellOrderCreate(so_number="SO-T1", status="FULLFILLED", sell_order_lines=[])
     )
     so_can = service.create_sell_order(
-        seed_workspace, SellOrderCreate(so_number="SO-T2", status="CANCELLED", sell_order_lines=[])
+        seed_workspace, SellOrderCreate(so_number="SO-T2", status=SOStatusEnum.CANCELLED, sell_order_lines=[])
     )
 
-    with pytest.raises(ValueError):
-        service.update_sell_order(seed_workspace, so_rec.id, SellOrderUpdate(status="SENT"))
+    with pytest.raises(SellOrderStatusTransitionError):
+        service.update_sell_order(seed_workspace, so_rec.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
 
-    with pytest.raises(ValueError):
-        service.update_sell_order(seed_workspace, so_can.id, SellOrderUpdate(status="SENT"))
+    with pytest.raises(SellOrderStatusTerminalError):
+        service.update_sell_order(seed_workspace, so_can.id, SellOrderUpdate(status=SOStatusEnum.CONFIRMED))
 
 
 # ==============================================================================
@@ -321,7 +309,7 @@ def test_add_line_recalculates_total(db_session, seed_workspace):
 
     so = so_service.create_sell_order(
         seed_workspace,
-        SellOrderCreate(so_number="SO-LINE-1", status="DRAFT", sell_order_lines=[]),
+        SellOrderCreate(so_number="SO-LINE-1", status=SOStatusEnum.DRAFT, sell_order_lines=[]),
     )
 
     line_service.add_line(seed_workspace, so.id, SellOrderLineCreate(item_id=None, quantity=10, unit_cost=15))
@@ -330,58 +318,37 @@ def test_add_line_recalculates_total(db_session, seed_workspace):
     assert updated_so.total_amount == 150
 
 
-def test_add_line_to_sent_order_allocates_inventory(db_session, seed_workspace):
+def test_add_line_to_confirmed_order_allocates_inventory(db_session, seed_workspace, stocked_item):
     so_service = SellOrderService(db_session)
     line_service = SellOrderLineService(db_session)
     inv_service = InventoryService(db_session)
 
-    item = Item(
-        id=uuid.uuid4(),
-        workspace_id=seed_workspace,
-        sku=f"SKU-{uuid.uuid4().hex[:6]}",
-        title="Test Item Line",
-        base_price=100,
-        is_deleted=False,
-    )
-    db_session.add(item)
-    db_session.flush()
-
     so = so_service.create_sell_order(
-        seed_workspace, SellOrderCreate(so_number="SO-LINE-2", status="SENT", sell_order_lines=[])
+        seed_workspace, SellOrderCreate(so_number="SO-LINE-2", status=SOStatusEnum.CONFIRMED, sell_order_lines=[])
     )
 
-    line_service.add_line(seed_workspace, so.id, SellOrderLineCreate(item_id=item.id, quantity=4, unit_cost=10))
+    line_service.add_line(seed_workspace, so.id, SellOrderLineCreate(item_id=stocked_item.id, quantity=4, unit_cost=10))
 
-    inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
+    inv = inv_service.get_inventory_by_item(seed_workspace, stocked_item.id)
     assert inv.quantity_allocated == 4
 
 
-def test_update_line_recalculates_total_and_inventory(db_session, seed_workspace):
+def test_update_line_recalculates_total_and_inventory(db_session, seed_workspace, stocked_item):
     so_service = SellOrderService(db_session)
     line_service = SellOrderLineService(db_session)
     inv_service = InventoryService(db_session)
-
-    item = Item(
-        id=uuid.uuid4(),
-        workspace_id=seed_workspace,
-        sku=f"SKU-{uuid.uuid4().hex[:6]}",
-        title="Test Item Update",
-        base_price=100,
-        is_deleted=False,
-    )
-    db_session.add(item)
-    db_session.flush()
 
     so = so_service.create_sell_order(
         seed_workspace,
         SellOrderCreate(
             so_number="SO-LINE-3",
-            status="SENT",
-            sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=10, unit_cost=10)],
+            status=SOStatusEnum.CONFIRMED,
+            sell_order_lines=[SellOrderLineCreate(item_id=stocked_item.id, quantity=10, unit_cost=10)],
         ),
     )
     line_id = so.sell_order_lines[0].id
-    inv_service.adjust_quantity_allocated(seed_workspace, item.id, 10)
+
+    inv_service.adjust_quantity_allocated(seed_workspace, stocked_item.id, 10)
     db_session.flush()
 
     line_service.update_line(
@@ -394,7 +361,7 @@ def test_update_line_recalculates_total_and_inventory(db_session, seed_workspace
     updated_so = so_service.get_sell_order(seed_workspace, so.id)
     assert updated_so.total_amount == 300
 
-    inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
+    inv = inv_service.get_inventory_by_item(seed_workspace, stocked_item.id)
     assert inv.quantity_allocated == 15
 
 
@@ -406,7 +373,7 @@ def test_remove_line_recalculates_total(db_session, seed_workspace):
         seed_workspace,
         SellOrderCreate(
             so_number="SO-LINE-4",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[
                 SellOrderLineCreate(quantity=2, unit_cost=100),
                 SellOrderLineCreate(quantity=3, unit_cost=100),
@@ -423,37 +390,26 @@ def test_remove_line_recalculates_total(db_session, seed_workspace):
     assert len(updated_so.sell_order_lines) == 1
 
 
-def test_remove_line_from_confirmed_order_deallocates_inventory(db_session, seed_workspace):
+def test_remove_line_from_confirmed_order_deallocates_inventory(db_session, seed_workspace, stocked_item):
     so_service = SellOrderService(db_session)
     line_service = SellOrderLineService(db_session)
     inv_service = InventoryService(db_session)
-
-    item = Item(
-        id=uuid.uuid4(),
-        workspace_id=seed_workspace,
-        sku=f"SKU-{uuid.uuid4().hex[:6]}",
-        title="Test Item Confirmed",
-        base_price=100,
-        is_deleted=False,
-    )
-    db_session.add(item)
-    db_session.flush()
 
     so = so_service.create_sell_order(
         seed_workspace,
         SellOrderCreate(
             so_number="SO-LINE-5",
-            status="CONFIRMED",
-            sell_order_lines=[SellOrderLineCreate(item_id=item.id, quantity=8, unit_cost=10)],
+            status=SOStatusEnum.CONFIRMED,
+            sell_order_lines=[SellOrderLineCreate(item_id=stocked_item.id, quantity=8, unit_cost=10)],
         ),
     )
     line_id = so.sell_order_lines[0].id
-    inv_service.adjust_quantity_allocated(seed_workspace, item.id, 8)
+    inv_service.adjust_quantity_allocated(seed_workspace, stocked_item.id, 8)
     db_session.flush()
 
     line_service.remove_line(seed_workspace, so.id, line_id)
 
-    inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
+    inv = inv_service.get_inventory_by_item(seed_workspace, stocked_item.id)
     assert inv.quantity_allocated == 0
 
 
@@ -465,19 +421,19 @@ def test_modify_line_on_terminal_so_fails(db_session, seed_workspace):
         seed_workspace,
         SellOrderCreate(
             so_number="SO-LINE-6",
-            status="RECEIVED",
+            status="FULLFILLED",
             sell_order_lines=[SellOrderLineCreate(quantity=1, unit_cost=10)],
         ),
     )
     line_id = so.sell_order_lines[0].id
 
-    with pytest.raises(ValueError):
+    with pytest.raises(SellOrderNotEditableError):
         line_service.add_line(seed_workspace, so.id, SellOrderLineCreate(quantity=1, unit_cost=10))
 
-    with pytest.raises(ValueError):
-        line_service.update_line(seed_workspace, so.id, line_id, SellOrderLineUpdate(quantity=5))
+    with pytest.raises(SellOrderNotEditableError):
+        line_service.update_line(seed_workspace, so.id, line_id, SellOrderLineUpdate(quantity=5, unit_cost=10))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(SellOrderNotEditableError):
         line_service.remove_line(seed_workspace, so.id, line_id)
 
 
@@ -507,7 +463,7 @@ def test_update_line_on_draft_order_recalculates_total_only(db_session, seed_wor
         seed_workspace,
         SellOrderCreate(
             so_number="SO-DRAFT-LINE",
-            status="DRAFT",
+            status=SOStatusEnum.DRAFT,
             sell_order_lines=[SellOrderLineCreate(quantity=2, unit_cost=100)],
         ),
     )

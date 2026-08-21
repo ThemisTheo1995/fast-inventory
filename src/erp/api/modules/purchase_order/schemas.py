@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.erp.api.modules.item.schemas import ItemResponse
+from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.supplier.schemas import SupplierResponse
 
 # =======================================================
@@ -14,7 +15,6 @@ from src.erp.api.modules.supplier.schemas import SupplierResponse
 PoNumber = Annotated[str, Field(max_length=100)]
 Quantity = Annotated[int, Field(ge=1)]
 Price = Annotated[int, Field(ge=0)]
-Status = Annotated[str, Field(max_length=50)]
 
 # =======================================================
 # Purchase Order Lines
@@ -57,7 +57,7 @@ class PurchaseOrderLineResponse(PurchaseOrderLineBase):
 class PurchaseOrderBase(BaseModel):
     po_number: PoNumber
     supplier_id: UUID | None = None
-    status: Status = "DRAFT"
+    status: POStatusEnum = POStatusEnum.DRAFT
 
 
 class PurchaseOrderCreate(PurchaseOrderBase):
@@ -71,7 +71,7 @@ class PurchaseOrderUpdate(BaseModel):
 
     po_number: PoNumber | None = None
     supplier_id: UUID | None = None
-    status: Status | None = None
+    status: POStatusEnum | None = None
 
 
 class PurchaseOrderResponse(PurchaseOrderBase):

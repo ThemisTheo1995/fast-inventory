@@ -5,6 +5,7 @@ import pytest
 from src.erp.api.modules.inventory.enums import OrderType
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.item.models import Item
+from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderExistsError,
     PurchaseOrderLineNotFoundError,
@@ -50,7 +51,7 @@ def active_purchase_order(db_session, seed_workspace, active_supplier) -> Purcha
         supplier_id=active_supplier.id,
         po_number="PO-FIXTURE-001",
         total_amount=1250,
-        status="DRAFT",
+        status=POStatusEnum.DRAFT,
     )
     db_session.add(purchase_order)
     db_session.commit()
@@ -84,7 +85,7 @@ def test_create_purchase_order_success(db_session, seed_workspace, active_suppli
     payload = PurchaseOrderCreate(
         po_number="PO-100",
         supplier_id=active_supplier.id,
-        status="DRAFT",
+        status=POStatusEnum.DRAFT,
         purchase_order_lines=[
             PurchaseOrderLineCreate(quantity=2, unit_cost=500),
             PurchaseOrderLineCreate(quantity=3, unit_cost=100),
@@ -101,7 +102,7 @@ def test_create_purchase_order_success(db_session, seed_workspace, active_suppli
 
 def test_create_purchase_order_duplicate_number_fails(db_session, seed_workspace):
     service = PurchaseOrderService(db_session)
-    payload = PurchaseOrderCreate(po_number="PO-DUP", status="DRAFT", purchase_order_lines=[])
+    payload = PurchaseOrderCreate(po_number="PO-DUP", status=POStatusEnum.DRAFT, purchase_order_lines=[])
 
     service.create_purchase_order(seed_workspace, payload)
 
@@ -112,7 +113,7 @@ def test_create_purchase_order_duplicate_number_fails(db_session, seed_workspace
 def test_create_purchase_order_cross_tenant_number_allowed(db_session, seed_workspace, alt_workspace):
     """Ensures two separate workspaces can use the same purchase order number."""
     service = PurchaseOrderService(db_session)
-    payload = PurchaseOrderCreate(po_number="PO-SHARED", status="DRAFT", purchase_order_lines=[])
+    payload = PurchaseOrderCreate(po_number="PO-SHARED", status=POStatusEnum.DRAFT, purchase_order_lines=[])
 
     service.create_purchase_order(seed_workspace, payload)
     cross_po = service.create_purchase_order(alt_workspace, payload)
@@ -125,13 +126,13 @@ def test_get_purchase_orders_pagination_and_search(db_session, seed_workspace):
     service = PurchaseOrderService(db_session)
 
     service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="APPLE-1", status="DRAFT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="APPLE-1", status=POStatusEnum.DRAFT, purchase_order_lines=[])
     )
     service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="APPLE-2", status="DRAFT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="APPLE-2", status=POStatusEnum.DRAFT, purchase_order_lines=[])
     )
     service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="BANANA-1", status="DRAFT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="BANANA-1", status=POStatusEnum.DRAFT, purchase_order_lines=[])
     )
 
     res = service.get_purchase_orders(seed_workspace, page=1, limit=2)
@@ -145,10 +146,10 @@ def test_get_purchase_orders_pagination_and_search(db_session, seed_workspace):
 def test_update_purchase_order_duplicate_number_fails(db_session, seed_workspace):
     service = PurchaseOrderService(db_session)
     po1 = service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="PO-ONE", status="DRAFT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="PO-ONE", status=POStatusEnum.DRAFT, purchase_order_lines=[])
     )
     service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="PO-TWO", status="DRAFT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="PO-TWO", status=POStatusEnum.DRAFT, purchase_order_lines=[])
     )
 
     with pytest.raises(PurchaseOrderExistsError):
@@ -196,12 +197,12 @@ def test_status_transition_with_non_inventory_line(db_session, seed_workspace):
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-GAP-65",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=None, quantity=2, unit_cost=50)],
         ),
     )
-    updated = service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="SENT"))
-    assert updated.status == "SENT"
+    updated = service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
+    assert updated.status == POStatusEnum.SENT
 
 
 def test_status_transition_fallback_case(db_session, seed_workspace):
@@ -222,13 +223,13 @@ def test_status_transition_fallback_case(db_session, seed_workspace):
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-GAP-98",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=1, unit_cost=100)],
         ),
     )
 
-    updated = service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="CANCELLED"))
-    assert updated.status == "CANCELLED"
+    updated = service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.CANCELLED))
+    assert updated.status == POStatusEnum.CANCELLED
 
 
 def test_delete_purchase_order_with_lines_cascades_soft_delete(db_session, seed_workspace):
@@ -237,7 +238,7 @@ def test_delete_purchase_order_with_lines_cascades_soft_delete(db_session, seed_
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-GAP-179",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(quantity=1, unit_cost=100)],
         ),
     )
@@ -271,12 +272,12 @@ def test_status_transition_draft_to_sent_adds_on_order(db_session, seed_workspac
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-STATE-1",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=10, unit_cost=50)],
         ),
     )
 
-    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="SENT"))
+    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
 
     inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
     assert inv.quantity_on_order == 10
@@ -301,13 +302,13 @@ def test_status_transition_sent_to_received_creates_stock_movement(db_session, s
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-STATE-2",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=5, unit_cost=50)],
         ),
     )
 
-    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="SENT"))
-    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="RECEIVED"))
+    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
+    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.RECEIVED))
 
     inv_updated = inv_service.get_inventory_by_item(seed_workspace, item.id)
     assert inv_updated.quantity_on_order == 0
@@ -337,13 +338,13 @@ def test_status_transition_sent_to_cancelled_clears_on_order(db_session, seed_wo
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-STATE-3",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=7, unit_cost=100)],
         ),
     )
 
-    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="SENT"))
-    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status="CANCELLED"))
+    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
+    service.update_purchase_order(seed_workspace, po.id, PurchaseOrderUpdate(status=POStatusEnum.CANCELLED))
 
     inv = inv_service.get_inventory_by_item(seed_workspace, item.id)
     assert inv.quantity_on_order == 0
@@ -353,17 +354,17 @@ def test_status_transition_from_terminal_states_fails(db_session, seed_workspace
     service = PurchaseOrderService(db_session)
 
     po_rec = service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="PO-T1", status="RECEIVED", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="PO-T1", status=POStatusEnum.RECEIVED, purchase_order_lines=[])
     )
     po_can = service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="PO-T2", status="CANCELLED", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="PO-T2", status=POStatusEnum.CANCELLED, purchase_order_lines=[])
     )
 
     with pytest.raises(ValueError):
-        service.update_purchase_order(seed_workspace, po_rec.id, PurchaseOrderUpdate(status="SENT"))
+        service.update_purchase_order(seed_workspace, po_rec.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
 
     with pytest.raises(ValueError):
-        service.update_purchase_order(seed_workspace, po_can.id, PurchaseOrderUpdate(status="SENT"))
+        service.update_purchase_order(seed_workspace, po_can.id, PurchaseOrderUpdate(status=POStatusEnum.SENT))
 
 
 # ==============================================================================
@@ -377,7 +378,7 @@ def test_add_line_recalculates_total(db_session, seed_workspace):
 
     po = po_service.create_purchase_order(
         seed_workspace,
-        PurchaseOrderCreate(po_number="PO-LINE-1", status="DRAFT", purchase_order_lines=[]),
+        PurchaseOrderCreate(po_number="PO-LINE-1", status=POStatusEnum.DRAFT, purchase_order_lines=[]),
     )
 
     line_service.add_line(seed_workspace, po.id, PurchaseOrderLineCreate(item_id=None, quantity=10, unit_cost=15))
@@ -403,7 +404,7 @@ def test_add_line_to_sent_order_adds_on_order_inventory(db_session, seed_workspa
     db_session.flush()
 
     po = po_service.create_purchase_order(
-        seed_workspace, PurchaseOrderCreate(po_number="PO-LINE-2", status="SENT", purchase_order_lines=[])
+        seed_workspace, PurchaseOrderCreate(po_number="PO-LINE-2", status=POStatusEnum.SENT, purchase_order_lines=[])
     )
 
     line_service.add_line(seed_workspace, po.id, PurchaseOrderLineCreate(item_id=item.id, quantity=4, unit_cost=10))
@@ -432,7 +433,7 @@ def test_update_line_recalculates_total_and_inventory(db_session, seed_workspace
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-LINE-3",
-            status="SENT",
+            status=POStatusEnum.SENT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=10, unit_cost=10)],
         ),
     )
@@ -462,7 +463,7 @@ def test_remove_line_recalculates_total(db_session, seed_workspace):
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-LINE-4",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[
                 PurchaseOrderLineCreate(quantity=2, unit_cost=100),
                 PurchaseOrderLineCreate(quantity=3, unit_cost=100),
@@ -499,7 +500,7 @@ def test_remove_line_from_sent_order_removes_on_order_inventory(db_session, seed
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-LINE-5",
-            status="SENT",
+            status=POStatusEnum.SENT,
             purchase_order_lines=[PurchaseOrderLineCreate(item_id=item.id, quantity=8, unit_cost=10)],
         ),
     )
@@ -521,7 +522,7 @@ def test_modify_line_on_terminal_po_fails(db_session, seed_workspace):
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-LINE-6",
-            status="RECEIVED",
+            status=POStatusEnum.RECEIVED,
             purchase_order_lines=[PurchaseOrderLineCreate(quantity=1, unit_cost=10)],
         ),
     )
@@ -563,7 +564,7 @@ def test_update_line_on_draft_order_recalculates_total_only(db_session, seed_wor
         seed_workspace,
         PurchaseOrderCreate(
             po_number="PO-DRAFT-LINE",
-            status="DRAFT",
+            status=POStatusEnum.DRAFT,
             purchase_order_lines=[PurchaseOrderLineCreate(quantity=2, unit_cost=100)],
         ),
     )

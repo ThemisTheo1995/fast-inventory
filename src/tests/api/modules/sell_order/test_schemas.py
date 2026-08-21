@@ -296,13 +296,13 @@ def test_sell_order_create_success():
     payload = {
         "so_number": "SO-2026-001",
         "customer_id": uuid.uuid4(),
-        "status": "APPROVED",
+        "status": "DRAFT",
         "sell_order_lines": [line1, line2],
     }
 
     schema = SellOrderCreate(**payload)
     assert schema.so_number == "SO-2026-001"
-    assert schema.status == "APPROVED"
+    assert schema.status == "DRAFT"
     assert len(schema.sell_order_lines) == 2
     assert isinstance(schema.sell_order_lines[0], SellOrderLineCreate)
     assert schema.sell_order_lines[0].quantity == 2
@@ -341,12 +341,13 @@ def test_sell_order_create_so_number_length_boundary(so_number, is_valid):
     "status,is_valid",
     [
         ("DRAFT", True),
-        ("S" * 50, True),  # Boundary: Exactly 50 chars
-        ("S" * 51, False),  # Boundary: Exceeds max_length=50
+        ("CONFIRMED", True),
+        ("INVALID_STATUS", False),
+        ("S" * 51, False),
     ],
 )
 def test_sell_order_create_status_length_boundary(status, is_valid):
-    """Verifies status constraint of max_length=50."""
+    """Verifies status only accepts valid SOStatusEnum values."""
     payload = {"so_number": "SO-001", "status": status, "sell_order_lines": []}
 
     if is_valid:
@@ -355,7 +356,7 @@ def test_sell_order_create_status_length_boundary(status, is_valid):
     else:
         with pytest.raises(ValidationError) as exc_info:
             SellOrderCreate(**payload)
-        assert "String should have at most 50 characters" in str(exc_info.value)
+        assert "Input should be 'DRAFT'" in str(exc_info.value)
 
 
 def test_sell_order_create_missing_required_fields():
@@ -413,7 +414,7 @@ def test_sell_order_update_explicit_none_dump():
     "field,value,error_msg",
     [
         ("so_number", "X" * 101, "String should have at most 100 characters"),
-        ("status", "S" * 51, "String should have at most 50 characters"),
+        ("status", "INVALID_STATUS", "Input should be 'DRAFT'"),
         ("customer_id", "not-a-valid-uuid", "Input should be a valid UUID"),
     ],
 )
@@ -461,7 +462,7 @@ def test_sell_order_response_full_dictionary():
         "workspace_id": ws_id,
         "so_number": "SO-FULL-01",
         "customer_id": cust_id,
-        "status": "COMPLETED",
+        "status": "FULLFILLED",
         "total_amount": 1000,
         "created_at": now,
         "updated_at": now,

@@ -1,8 +1,13 @@
+import logging
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from src.erp.core.exceptions import BaseAppError
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
 
 async def custom_app_error_handler(_request: Request, exc: BaseAppError) -> JSONResponse:
@@ -15,6 +20,9 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
 
     sanitized_errors = []
     for error in exc.errors():
+        logger.exception(error, exc_info=exc)
+        print(exc)
+
         field_name = error["loc"][-1] if error["loc"] else "unknown_field"
         sanitized_errors.append({"field": str(field_name), "message": "Invalid format or missing required data."})
 
@@ -28,8 +36,10 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
     )
 
 
-async def unhandled_exception_handler(_request: Request, _exc: Exception) -> JSONResponse:
+async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for 500 errors so Python stack traces never leak."""
+    logger.exception("Unhandled exception", exc_info=exc)
+    print(exc)
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

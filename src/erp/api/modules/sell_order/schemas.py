@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.erp.api.modules.customer.schemas import CustomerResponse
 from src.erp.api.modules.item.schemas import ItemResponse
+from src.erp.api.modules.sell_order.enums import SOStatusEnum
 
 # =======================================================
 # Common Types
@@ -14,7 +15,6 @@ from src.erp.api.modules.item.schemas import ItemResponse
 SoNumber = Annotated[str, Field(max_length=100)]
 Quantity = Annotated[int, Field(ge=1)]
 Price = Annotated[int, Field(ge=0)]
-Status = Annotated[str, Field(max_length=50)]
 
 # =======================================================
 # Sell Order Lines
@@ -57,7 +57,7 @@ class SellOrderLineResponse(SellOrderLineBase):
 class SellOrderBase(BaseModel):
     so_number: SoNumber
     customer_id: UUID | None = None
-    status: Status = "DRAFT"
+    status: SOStatusEnum = SOStatusEnum.DRAFT
 
 
 class SellOrderCreate(SellOrderBase):
@@ -71,7 +71,7 @@ class SellOrderUpdate(BaseModel):
 
     so_number: SoNumber | None = None
     customer_id: UUID | None = None
-    status: Status | None = None
+    status: SOStatusEnum | None = None
 
 
 class SellOrderResponse(SellOrderBase):

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from src.erp.api.modules.inventory.enums import OrderType
 from src.erp.api.modules.inventory.schemas import StockMovementCreate
 from src.erp.api.modules.inventory.service import InventoryService
+from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderExistsError,
     PurchaseOrderLineNotFoundError,
@@ -84,7 +85,7 @@ class PurchaseOrderService:
     def _handle_status_transition(
         self, workspace_id: UUID, po: PurchaseOrder, old_status: str, new_status: str
     ) -> None:
-        if old_status in ["RECEIVED", "CANCELLED"]:
+        if old_status in [POStatusEnum.RECEIVED, POStatusEnum.CANCELLED]:
             raise ValueError(f"Cannot change status from terminal state: {old_status}")  # noqa
 
         for line in po.purchase_order_lines:
@@ -92,14 +93,14 @@ class PurchaseOrderService:
                 continue
 
             match (old_status, new_status):
-                case ("DRAFT", "SENT"):
+                case (POStatusEnum.DRAFT, POStatusEnum.SENT):
                     self.inventory_service.adjust_quantity_on_order(
                         workspace_id,
                         line.item_id,
                         line.quantity,
                     )
 
-                case ("SENT", "RECEIVED"):
+                case (POStatusEnum.SENT, POStatusEnum.RECEIVED):
                     self.inventory_service.adjust_quantity_on_order(
                         workspace_id,
                         line.item_id,
@@ -115,11 +116,22 @@ class PurchaseOrderService:
                         ),
                     )
 
-                case ("SENT", "CANCELLED"):
+                case (POStatusEnum.SENT, POStatusEnum.CANCELLED):
                     self.inventory_service.adjust_quantity_on_order(
                         workspace_id,
                         line.item_id,
                         -line.quantity,
+                    )
+
+                case (POStatusEnum.RECEIVED, POStatusEnum.RETURNED):
+                    self.inventory_service.create_stock_movement(
+                        workspace_id,
+                        StockMovementCreate(
+                            item_id=line.item_id,
+                            quantity_change=-line.quantity,
+                            reference_type=OrderType.PURCHASE_ORDER,
+                            reference_id=po.id,
+                        ),
                     )
 
                 case _:
@@ -201,10 +213,11 @@ class PurchaseOrderService:
         return purchase_order
 
     def delete_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> None:
-        """
-        Soft-deletes a PO and cascades the soft-delete to its lines.
-        """
+        """Soft-deletes a PO and cascades the soft-delete to its lines."""
         purchase_order = self._get_active_purchase_order(workspace_id, purchase_order_id)
+
+        if purchase_order.status not in [POStatusEnum.DRAFT, POStatusEnum.CANCELLED]:
+            raise PurchaseOrderCannotDeleteError(purchase_order.status.label)
 
         for line in purchase_order.purchase_order_lines:
             line.soft_delete()
@@ -219,7 +232,7 @@ class PurchaseOrderLineService:
         self.inventory_service = InventoryService(db)
 
     def _ensure_po_is_editable(self, po: PurchaseOrder) -> None:
-        if po.status in ["RECEIVED", "CANCELLED"]:
+        if po.status in [POStatusEnum.RECEIVED, POStatusEnum.CANCELLED]:
             raise ValueError(f"Cannot modify lines on a {po.status} purchase order.")  # noqa
 
     def _get_parent_po(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
@@ -275,7 +288,7 @@ class PurchaseOrderLineService:
         self.db.add(new_line)
         self.db.flush()
 
-        if po.status == "SENT" and new_line.item_id:
+        if po.status == POStatusEnum.SENT and new_line.item_id:
             self.inventory_service.adjust_quantity_on_order(workspace_id, new_line.item_id, new_line.quantity)
 
         self._recalculate_po_total(po)
@@ -293,7 +306,7 @@ class PurchaseOrderLineService:
         line = self._get_line(purchase_order_id, line_id)
         update_data = data.model_dump(exclude_unset=True)
 
-        if po.status == "SENT" and "quantity" in update_data and line.item_id:
+        if po.status == POStatusEnum.SENT and "quantity" in update_data and line.item_id:
             delta = update_data["quantity"] - line.quantity
             self.inventory_service.adjust_quantity_on_order(workspace_id, line.item_id, delta)
 
@@ -316,7 +329,7 @@ class PurchaseOrderLineService:
 
         line = self._get_line(purchase_order_id, line_id)
 
-        if po.status == "SENT" and line.item_id:
+        if po.status == POStatusEnum.SENT and line.item_id:
             self.inventory_service.adjust_quantity_on_order(workspace_id, line.item_id, -line.quantity)
 
         if line in po.purchase_order_lines:

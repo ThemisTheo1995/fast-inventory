@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
@@ -16,29 +17,33 @@ class InventoryService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def _get_or_create_inventory(self, workspace_id: UUID, item_id: UUID) -> Inventory:
+    def _get_or_create_inventory(self, workspace_id: UUID, item_id: UUID, lock_for_update: bool = False) -> Inventory:
         """
         Helper method to securely fetch an item's inventory.
         If it doesn't exist, it initialises it at 0.
+        Only locks the row with FOR UPDATE if lock_for_update is True.
         """
-        stmt = (
-            select(Inventory)
-            .where(Inventory.workspace_id == workspace_id, Inventory.item_id == item_id)
-            .with_for_update()
-        )
+        base_stmt = select(Inventory).where(Inventory.workspace_id == workspace_id, Inventory.item_id == item_id)
+
+        stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
 
         inventory = self.db.execute(stmt).scalar_one_or_none()
 
         if not inventory:
-            inventory = Inventory(
-                workspace_id=workspace_id,
-                item_id=item_id,
-                quantity_on_hand=0,
-                quantity_allocated=0,
-                quantity_on_order=0,
-            )
-            self.db.add(inventory)
-            self.db.flush()
+            try:
+                with self.db.begin_nested():
+                    inventory = Inventory(
+                        workspace_id=workspace_id,
+                        item_id=item_id,
+                        quantity_on_hand=0,
+                        quantity_allocated=0,
+                        quantity_on_order=0,
+                    )
+                    self.db.add(inventory)
+                    self.db.flush()
+            except IntegrityError:
+                retry_stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
+                inventory = self.db.execute(retry_stmt).scalar_one()
 
         return inventory
 
@@ -59,15 +64,15 @@ class InventoryService:
         return InventoryPaginatedResponse(items=items, total=total)
 
     def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:
-        """Fetches a single inventory balance by item_id."""
-        return self._get_or_create_inventory(workspace_id, item_id)
+        """Fetches a single inventory balance by item_id (no lock)."""
+        return self._get_or_create_inventory(workspace_id, item_id, lock_for_update=False)
 
     def create_stock_movement(self, workspace_id: UUID, data: StockMovementCreate) -> StockMovement:
         """
         Creates a stock movement and automatically updates the ON-HAND inventory.
-        This ensures atomic ledger updates for physical stock.
+        Locks the inventory row during update and commits the transaction.
         """
-        inventory = self._get_or_create_inventory(workspace_id, data.item_id)
+        inventory = self._get_or_create_inventory(workspace_id, data.item_id, lock_for_update=True)
 
         if inventory.quantity_on_hand + data.quantity_change < 0:
             raise InsufficientInventoryError()
@@ -82,7 +87,7 @@ class InventoryService:
         self.db.add(movement)
         self.db.add(inventory)
 
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(movement)
 
         return movement
@@ -112,19 +117,32 @@ class InventoryService:
         return StockMovementPaginatedResponse(items=items, total=total)
 
     def adjust_quantity_on_order(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
-        """Adjusts the pending incoming stock. Does NOT create a stock movement."""
         if delta == 0:
             return
-        inventory = self._get_or_create_inventory(workspace_id, item_id)
+
+        inventory = self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+
+        if inventory.quantity_on_order + delta < 0:
+            raise InsufficientInventoryError()
+
         inventory.quantity_on_order += delta
         self.db.add(inventory)
 
     def adjust_quantity_allocated(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
-        """Adjusts the pending outgoing stock. Does NOT create a stock movement."""
         if delta == 0:
             return
-        inventory = self._get_or_create_inventory(workspace_id, item_id)
+
+        inventory = self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+
+        # 1. Prevent negative allocation when decreasing (delta < 0)
+        if inventory.quantity_allocated + delta < 0:
+            raise InsufficientInventoryError()
+
+        # 2. Prevent over-allocation when increasing (delta > 0)
+        if delta > 0:
+            available_stock = inventory.quantity_on_hand - inventory.quantity_allocated
+            if available_stock < delta:
+                raise InsufficientInventoryError()
+
         inventory.quantity_allocated += delta
-        # Optional: Add a check here to raise InsufficientInventoryError if you
-        # don't allow backorders (quantity_allocated > quantity_on_hand).
         self.db.add(inventory)
