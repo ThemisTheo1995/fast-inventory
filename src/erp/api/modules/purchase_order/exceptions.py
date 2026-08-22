@@ -28,3 +28,11 @@ class PurchaseOrderLineNotFoundError(BaseAppError):
 class PurchaseOrderCannotDeleteError(ValueError):
     def __init__(self, status_label: str) -> None:
         super().__init__(f"Cannot delete purchase order in status: {status_label}. Cancel the order first.")
+
+
+class PurchaseOrderLineItemChangeError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=409,
+            detail="Remove the line and add a new one.",
+        )

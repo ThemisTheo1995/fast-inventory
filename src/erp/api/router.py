@@ -11,6 +11,7 @@ from src.erp.api.modules.supplier.router import router as supplier_router
 from src.erp.api.pricing.router import router as pricing_router
 from src.erp.api.workspace.router import router as workspace_router
 from src.erp.api.workspace_user.router import router as workspace_user_router
+from src.erp.api.workspace_user_note.router import router as workspace_user_note_router
 
 api_router = APIRouter()
 
@@ -41,3 +42,6 @@ api_router.include_router(workspace_router)
 
 # Workspace User
 api_router.include_router(workspace_user_router)
+
+# Workspace User Note
+api_router.include_router(workspace_user_note_router)

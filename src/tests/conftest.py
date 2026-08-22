@@ -16,7 +16,9 @@ if not hasattr(settings, "TEST_DATABASE_URL") or not settings.TEST_DATABASE_URL:
     msg = "CRITICAL: TEST_DATABASE_URL is missing from your environment configuration!"
     raise ValueError(msg)
 
-engine = create_engine(settings.TEST_DATABASE_URL)
+
+engine = create_engine(settings.TEST_DATABASE_URL, connect_args={"options": "-c timezone=utc"})
+
 TestingSessionLocal = sessionmaker(bind=engine)
 
 

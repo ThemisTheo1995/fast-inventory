@@ -33,3 +33,4 @@ class WorkspaceUser(BaseModel):
 
     user: Mapped["User"] = relationship("User", back_populates="workspaces")
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="workspace_users")
+    notes: Mapped[list["WorkspaceUserNote"]] = relationship("WorkspaceUserNote", back_populates="workspace_user")

@@ -9,6 +9,7 @@ from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderExistsError,
+    PurchaseOrderLineItemChangeError,
     PurchaseOrderLineNotFoundError,
     PurchaseOrderNotFoundError,
 )
@@ -305,6 +306,9 @@ class PurchaseOrderLineService:
 
         line = self._get_line(purchase_order_id, line_id)
         update_data = data.model_dump(exclude_unset=True)
+
+        if "item_id" in update_data and update_data["item_id"] != line.item_id:
+            raise PurchaseOrderLineItemChangeError()
 
         if po.status == POStatusEnum.SENT and "quantity" in update_data and line.item_id:
             delta = update_data["quantity"] - line.quantity
