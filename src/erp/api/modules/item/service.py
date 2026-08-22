@@ -81,7 +81,14 @@ class ItemService:
         total = self.db.execute(count_query).scalar_one()
 
         skip = (page - 1) * limit
-        items_query = base_query.offset(skip).limit(limit)
+        items_query = (
+            base_query.order_by(
+                Item.created_at.desc(),
+                Item.id.desc(),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
         items = list(self.db.execute(items_query).scalars().all())
 
         return ItemPaginatedResponse(items=items, total=total)

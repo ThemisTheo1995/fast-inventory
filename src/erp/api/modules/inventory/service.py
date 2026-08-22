@@ -4,18 +4,21 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.erp.api.base.service import BaseService
 from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
 from src.erp.api.modules.inventory.models import Inventory, StockMovement
-from src.erp.api.modules.inventory.schemas import (
+from src.erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
+)
+from src.erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
 )
 
 
-class InventoryService:
+class InventoryService(BaseService[Inventory]):
     def __init__(self, db: Session) -> None:
-        self.db = db
+        super().__init__(db, Inventory)
 
     def _get_or_create_inventory(self, workspace_id: UUID, item_id: UUID, lock_for_update: bool = False) -> Inventory:
         """
@@ -47,8 +50,15 @@ class InventoryService:
 
         return inventory
 
-    def get_inventories(self, workspace_id: UUID, page: int = 1, limit: int = 20) -> InventoryPaginatedResponse:
+    def get_inventories(
+        self,
+        workspace_id: UUID,
+        page: int = 1,
+        limit: int = 20,
+        expand: list[str] | None = None,
+    ) -> InventoryPaginatedResponse:
         """Fetches paginated inventory balances and the total count."""
+
         base_query = select(Inventory).where(
             Inventory.workspace_id == workspace_id,
             Inventory.is_deleted.is_(False),
@@ -57,11 +67,21 @@ class InventoryService:
         count_query = select(func.count()).select_from(base_query.subquery())
         total = self.db.execute(count_query).scalar_one()
 
-        skip = (page - 1) * limit
-        items_query = base_query.offset(skip).limit(limit)
-        items = list(self.db.execute(items_query).scalars().all())
+        loader_options = self.build_loader_options(expand)
 
-        return InventoryPaginatedResponse(items=items, total=total)
+        items_query = (
+            base_query.options(*loader_options)
+            .order_by(Inventory.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+
+        items = list(self.db.execute(items_query).scalars().unique().all())
+
+        return InventoryPaginatedResponse(
+            items=items,
+            total=total,
+        )
 
     def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:
         """Fetches a single inventory balance by item_id (no lock)."""

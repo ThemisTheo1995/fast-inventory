@@ -20,4 +20,4 @@ class Item(BaseModel):
     inventory: Mapped["Inventory"] = relationship(
         "Inventory", back_populates="item", uselist=False, cascade="all, delete-orphan"
     )
-    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="item")
+    stock_movements: Mapped[list["StockMovement"]] = relationship("StockMovement", back_populates="item", lazy="noload")

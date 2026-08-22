@@ -4,9 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from src.erp.api.modules.inventory.schemas import (
+from src.erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
     InventoryResponse,
+)
+from src.erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
     StockMovementResponse,
@@ -16,18 +18,23 @@ from src.erp.database.base import get_db
 
 router = APIRouter()
 
+Page = Annotated[int, Query(ge=1)]
+Limit = Annotated[int, Query(ge=1, le=100)]
+Expand = Annotated[list[str] | None, Query()]
+
 
 @router.get("/inventory", response_model=InventoryPaginatedResponse)
 def get_inventories(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    page: Page = 1,
+    limit: Limit = 20,
+    expand: Expand = None,
 ) -> InventoryPaginatedResponse:
 
     service = InventoryService(db)
 
-    return service.get_inventories(workspace_id, page, limit)
+    return service.get_inventories(workspace_id, page, limit, expand=expand)
 
 
 @router.get("/inventory/items/{item_id}", response_model=InventoryResponse)
@@ -62,8 +69,8 @@ def get_stock_movements(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
     item_id: UUID | None = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    page: Page = 1,
+    limit: Limit = 20,
 ) -> StockMovementPaginatedResponse:
 
     service = InventoryService(db)

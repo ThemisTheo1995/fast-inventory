@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.schemas import StockMovementCreate
+from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.exceptions import (
@@ -181,7 +181,10 @@ class PurchaseOrderService:
         # Pagination & Eager Loading
         skip = (page - 1) * limit
         purchase_orders_query = (
-            base_query.options(selectinload(PurchaseOrder.purchase_order_lines)).offset(skip).limit(limit)
+            base_query.options(selectinload(PurchaseOrder.purchase_order_lines))
+            .order_by(PurchaseOrder.created_at.desc(), PurchaseOrder.id.desc())
+            .offset(skip)
+            .limit(limit)
         )
         purchase_orders = list(self.db.execute(purchase_orders_query).scalars().all())
 

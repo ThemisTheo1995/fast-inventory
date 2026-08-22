@@ -24,7 +24,7 @@ class Inventory(BaseModel):
     quantity_on_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     # Relationships
-    item: Mapped["Item"] = relationship("Item", back_populates="inventory")
+    item: Mapped["Item"] = relationship("Item", back_populates="inventory", lazy="noload")
 
     @hybrid_property
     def quantity_available(self) -> int:

@@ -4,7 +4,7 @@ import pytest
 
 from src.erp.api.modules.customer.models import Customer
 from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.schemas import StockMovementCreate
+from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.item.models import Item
 from src.erp.api.modules.sell_order.enums import SOStatusEnum

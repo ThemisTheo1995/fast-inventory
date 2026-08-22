@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
+
 Title = Annotated[str | None, Field(default=None, max_length=255)]
 Sku = Annotated[str | None, Field(default=None, max_length=100)]
 BasePrice = Annotated[int | None, Field(default=None, ge=0)]
@@ -50,6 +52,7 @@ class ItemResponse(BaseModel):
     base_price: int | None
     created_at: datetime
     updated_at: datetime
+    stock_movements: list[StockMovementResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

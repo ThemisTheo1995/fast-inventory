@@ -83,8 +83,8 @@ class DashboardService:
         results = self.db.execute(stmt).all()
         return [RevenueChartDataPoint(date=row.date, revenue=row.revenue) for row in results]
 
-    def get_recent_sell_orders(self, workspace_id: UUID, limit: int = 5) -> list[RecentSellOrderSummary]:
-        """Fetches the most recently created sell orders."""
+    def get_recent_sell_orders(self, workspace_id: UUID, limit: int = 50) -> list[RecentSellOrderSummary]:
+        """Fetches the most recently created sell orders, sliced via SQL .limit()"""
         stmt = (
             select(SellOrder)
             .where(
@@ -98,8 +98,8 @@ class DashboardService:
         orders = self.db.execute(stmt).scalars().all()
         return [RecentSellOrderSummary.model_validate(order) for order in orders]
 
-    def get_incoming_purchase_orders(self, workspace_id: UUID, limit: int = 5) -> list[IncomingPurchaseOrderSummary]:
-        """Fetches recent purchase orders that are awaiting delivery (SENT status)."""
+    def get_incoming_purchase_orders(self, workspace_id: UUID, limit: int = 50) -> list[IncomingPurchaseOrderSummary]:
+        """Fetches recent purchase orders that are awaiting delivery, sliced via SQL .limit()"""
         stmt = (
             select(PurchaseOrder)
             .where(
@@ -114,8 +114,8 @@ class DashboardService:
         orders = self.db.execute(stmt).scalars().all()
         return [IncomingPurchaseOrderSummary.model_validate(order) for order in orders]
 
-    def get_low_stock_alerts(self, workspace_id: UUID, threshold: int = 10, limit: int = 5) -> list[LowStockAlert]:
-        """Fetches inventory items whose actual available stock is running low."""
+    def get_low_stock_alerts(self, workspace_id: UUID, threshold: int = 10, limit: int = 50) -> list[LowStockAlert]:
+        """Fetches inventory items whose actual available stock is running low, sliced via SQL .limit()"""
         stmt = (
             select(Inventory)
             .options(selectinload(Inventory.item))
@@ -149,13 +149,13 @@ class DashboardService:
         return alerts
 
     def get_full_dashboard(
-        self, workspace_id: UUID, chart_days: int = 30, low_stock_threshold: int = 10
+        self, workspace_id: UUID, chart_days: int = 30, low_stock_threshold: int = 10, list_limit: int = 50
     ) -> DashboardResponse:
         """Orchestrates all queries to return the complete dashboard payload."""
         return DashboardResponse(
             kpis=self.get_kpis(workspace_id, low_stock_threshold),
             revenue_chart=self.get_revenue_chart_data(workspace_id, chart_days),
-            recent_sell_orders=self.get_recent_sell_orders(workspace_id, limit=5),
-            incoming_purchase_orders=self.get_incoming_purchase_orders(workspace_id, limit=5),
-            low_stock_alerts=self.get_low_stock_alerts(workspace_id, low_stock_threshold, limit=5),
+            recent_sell_orders=self.get_recent_sell_orders(workspace_id, limit=list_limit),
+            incoming_purchase_orders=self.get_incoming_purchase_orders(workspace_id, limit=list_limit),
+            low_stock_alerts=self.get_low_stock_alerts(workspace_id, low_stock_threshold, limit=list_limit),
         )

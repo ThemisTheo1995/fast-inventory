@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.schemas import StockMovementCreate
+from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.sell_order.enums import SOStatusEnum
 from src.erp.api.modules.sell_order.exceptions import (
@@ -163,7 +163,15 @@ class SellOrderService:
 
         # Pagination & Eager Loading
         skip = (page - 1) * limit
-        sell_orders_query = base_query.options(selectinload(SellOrder.sell_order_lines)).offset(skip).limit(limit)
+        sell_orders_query = (
+            base_query.options(selectinload(SellOrder.sell_order_lines))
+            .order_by(
+                SellOrder.created_at.desc(),
+                SellOrder.id.desc(),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
         sell_orders = list(self.db.execute(sell_orders_query).scalars().all())
 
         return SellOrderPaginatedResponse(items=sell_orders, total=total)
