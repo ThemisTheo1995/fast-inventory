@@ -66,15 +66,11 @@ def test_supplier_create_missing_required_name():
     assert "name" in str(exc_info.value)
 
 
-def test_supplier_update_requires_name_by_inheritance():
-    """
-    Verifies that SupplierUpdate currently expects a name because it inherits
-    directly from SupplierBase without modifications.
-    """
-    with pytest.raises(ValidationError) as exc_info:
-        SupplierUpdate(email="patch-test@test.com")
+def test_supplier_partial_update():
+    payload = {"email": "SupporT@ACME-corp.com"}
+    schema = SupplierUpdate(**payload)
 
-    assert "Field required" in str(exc_info.value)
+    assert schema.email == "support@acme-corp.com"
 
 
 # --- 4. RESPONSE & ORM MAPPING TESTS ---

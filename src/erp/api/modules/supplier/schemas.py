@@ -27,9 +27,8 @@ class SupplierCreate(SupplierBase):
 
 
 class SupplierUpdate(SupplierBase):
-    """Payload for patching a supplier."""
-
-    pass
+    name: SupplierName | None = None
+    email: SupplierEmail = None
 
 
 class SupplierResponse(SupplierBase):

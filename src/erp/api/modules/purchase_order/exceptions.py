@@ -36,3 +36,23 @@ class PurchaseOrderLineItemChangeError(BaseAppError):
             status_code=409,
             detail="Remove the line and add a new one.",
         )
+
+
+class PurchaseOrderNotEditableError(BaseAppError):
+    def __init__(self, status: str) -> None:
+        super().__init__(
+            status_code=409,
+            detail=f"Cannot modify lines on a {status} purchase order.",
+        )
+
+
+class PurchaseOrderStatusTransitionError(BaseAppError):
+    def __init__(
+        self,
+        old_status: str,
+        new_status: str,
+    ) -> None:
+        super().__init__(
+            status_code=409,
+            detail=(f"Invalid status transition: {old_status} -> {new_status}"),
+        )

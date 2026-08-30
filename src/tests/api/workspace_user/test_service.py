@@ -97,7 +97,7 @@ def test_get_active_workspace_user_raises_not_found_if_soft_deleted(db_session):
 
 
 # ============================================================================
-# FETCH MEMBERS TESTS (`get_workspace_users`)
+# FETCH WORKSPACE USERS TESTS (`get_workspace_users`)
 # ============================================================================
 
 
@@ -216,6 +216,19 @@ def test_get_workspace_users_excludes_soft_deleted_records(db_session):
     workspace_users = service.get_workspace_users(str(workspace.id))
     assert len(workspace_users) == 1
     assert workspace_users[0].id == l_active.id
+
+
+# ============================================================================
+# FETCH WORKSPACE USER SERVICE TESTS (`get_workspace_user`)
+# ============================================================================
+
+
+def test_service_get_workspace_user_not_found(db_session):
+    """Verifies WorkspaceUserService.get_workspace_user raises 404 when ID doesn't exist."""
+    service = WorkspaceUserService(db_session)
+
+    with pytest.raises(WorkspaceUserNotFoundError):
+        service.get_workspace_user(uuid.uuid4())
 
 
 # ============================================================================

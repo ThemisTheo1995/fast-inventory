@@ -30,6 +30,33 @@ def test_router_get_supplier_details(client, seed_workspace, active_supplier):
     assert data["name"] == active_supplier.name
 
 
+def test_router_get_suppliers_list(client, seed_workspace, active_supplier):
+    """Verifies fetching a paginated list of suppliers for a workspace."""
+    response = client.get(f"/{seed_workspace}/suppliers")
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert "items" in data
+    assert "total" in data
+    assert data["total"] >= 1
+
+    item_ids = [item["id"] for item in data["items"]]
+    assert str(active_supplier.id) in item_ids
+
+
+def test_router_get_suppliers_search_and_pagination(client, seed_workspace, active_supplier):
+    """Verifies that the search, page, and limit query parameters are parsed correctly."""
+    search_term = active_supplier.name[:4]
+
+    response = client.get(f"/{seed_workspace}/suppliers", params={"search": search_term, "page": 1, "limit": 5})
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert data["total"] >= 1
+    assert len(data["items"]) <= 5
+    assert data["items"][0]["id"] == str(active_supplier.id)
+
+
 def test_router_patch_supplier(client, seed_workspace, active_supplier):
     """Verifies atomic fields on a supplier record can be partially updated."""
     response = client.patch(
