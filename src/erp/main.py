@@ -15,6 +15,7 @@ from mangum import Mangum
 
 from src.erp import model_registry  # noqa: F401
 from src.erp.api.router import api_router
+from src.erp.core.bootstrap import setup_application_events
 from src.erp.core.exception_handlers import (
     custom_app_error_handler,
     unhandled_exception_handler,
@@ -27,16 +28,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa
-    logger.info("Initializing FAST ERP API...")
-    logger.info("Running database migrations via Alembic...")
-
+    logger.info("Initialising FAST ERP API...")
     try:
+        # Database Migrations
+        logger.info("Running database migrations via Alembic...")
         alembic_cfg = Config("alembic.ini")
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations completed successfully.")
 
+        # Wire Up Events
+        setup_application_events()
+        logger.info("Application events initialized successfully.")
+
     except Exception:
-        logger.exception("Error during Alembic migrations")
+        logger.exception("Fatal error during API startup initialization")
         raise
 
     yield

@@ -25,6 +25,7 @@ pytest.xml
 
 # Coverage
 .coverage
+coverage.json
 htmlcov/
 coverage.xml
 

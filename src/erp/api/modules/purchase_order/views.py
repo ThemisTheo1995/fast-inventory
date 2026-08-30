@@ -13,7 +13,9 @@ from src.erp.api.modules.purchase_order.schemas import (
     PurchaseOrderResponse,
     PurchaseOrderUpdate,
 )
-from src.erp.api.modules.purchase_order.service import PurchaseOrderLineService, PurchaseOrderService
+from src.erp.api.modules.purchase_order.service import PurchaseOrderService
+from src.erp.core.dependencies import get_event_bus
+from src.erp.core.event_bus import EventBus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -28,9 +30,9 @@ def create_purchase_order(
     workspace_id: UUID,
     data: PurchaseOrderCreate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
-
-    service = PurchaseOrderService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.create_purchase_order(workspace_id, data)
 
 
@@ -38,12 +40,12 @@ def create_purchase_order(
 def get_purchase_orders(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> PurchaseOrderPaginatedResponse:
-
-    service = PurchaseOrderService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.get_purchase_orders(workspace_id, search, page, limit)
 
 
@@ -52,9 +54,9 @@ def get_purchase_order(
     workspace_id: UUID,
     purchase_order_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
-
-    service = PurchaseOrderService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.get_purchase_order(workspace_id, purchase_order_id)
 
 
@@ -64,9 +66,9 @@ def update_purchase_order(
     purchase_order_id: UUID,
     data: PurchaseOrderUpdate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
-
-    service = PurchaseOrderService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.update_purchase_order(workspace_id, purchase_order_id, data)
 
 
@@ -75,14 +77,14 @@ def delete_purchase_order(
     workspace_id: UUID,
     purchase_order_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
-
-    service = PurchaseOrderService(db)
+    service = PurchaseOrderService(db, event_bus)
     service.delete_purchase_order(workspace_id, purchase_order_id)
 
 
 # =======================================================
-# Purchase Order Lines
+# Purchase Order Lines (via PurchaseOrderService)
 # =======================================================
 
 
@@ -96,9 +98,9 @@ def add_purchase_order_line(
     purchase_order_id: UUID,
     data: PurchaseOrderLineCreate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderLineResponse:
-
-    service = PurchaseOrderLineService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.add_line(workspace_id, purchase_order_id, data)
 
 
@@ -109,9 +111,9 @@ def update_purchase_order_line(
     line_id: UUID,
     data: PurchaseOrderLineUpdate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderLineResponse:
-
-    service = PurchaseOrderLineService(db)
+    service = PurchaseOrderService(db, event_bus)
     return service.update_line(workspace_id, purchase_order_id, line_id, data)
 
 
@@ -121,7 +123,7 @@ def remove_purchase_order_line(
     purchase_order_id: UUID,
     line_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
-
-    service = PurchaseOrderLineService(db)
+    service = PurchaseOrderService(db, event_bus)
     service.remove_line(workspace_id, purchase_order_id, line_id)
