@@ -23,7 +23,7 @@ def sanitize_email_logic(v: str) -> str:
 
 
 FirstName = Annotated[str, Field(min_length=2, max_length=50), BeforeValidator(validate_and_format_name)]
-LastName = Annotated[str | None, Field(default=None, max_length=50), BeforeValidator(validate_and_format_name)]
+LastName = Annotated[str, Field(max_length=50), BeforeValidator(validate_and_format_name)]
 Email = Annotated[str, BeforeValidator(sanitize_email_logic)]
 
 
@@ -34,15 +34,17 @@ class CustomerBase(BaseModel):
 
 
 class CustomerCreate(CustomerBase):
-    """Payload for creating a new customer."""
+    """Payload for creating a new customer. All fields are mandatory."""
 
     pass
 
 
-class CustomerUpdate(CustomerBase):
-    """Payload for patching a customer"""
+class CustomerUpdate(BaseModel):
+    """Payload for patching a customer. All fields are optional."""
 
-    pass
+    first_name: FirstName | None = None
+    last_name: LastName | None = None
+    email: Email | None = None
 
 
 class CustomerResponse(CustomerBase):

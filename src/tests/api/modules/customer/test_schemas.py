@@ -10,6 +10,7 @@ from src.erp.api.modules.customer.schemas import (
     CustomerPaginatedResponse,
     CustomerResponse,
     CustomerUpdate,
+    validate_and_format_name,
 )
 
 # --- 1. CUSTOM NAME VALIDATION & FORMATTING TESTS ---
@@ -39,14 +40,18 @@ def test_name_containing_numbers_raises_domain_error():
         CustomerCreate(**payload)
 
 
-def test_last_name_handles_none_safely():
-    """Verifies that last_name can be cleanly omitted or passed as None."""
-    payload = {"first_name": "Jane", "last_name": None, "email": "jane@example.com"}
-    schema = CustomerCreate(**payload)
-    assert schema.last_name is None
-
-
 # --- 2. FIELD BOUNDARY & CONSTRAINT TESTS ---
+
+
+def test_customer_create_requires_all_fields():
+    """Verifies that first_name, last_name, and email are mandatory for creation."""
+    with pytest.raises(ValidationError) as exc_info:
+        CustomerCreate(first_name="Jane")
+
+    error_msg = str(exc_info.value)
+    assert "last_name" in error_msg
+    assert "email" in error_msg
+    assert "Field required" in error_msg
 
 
 def test_first_name_too_short():
@@ -167,17 +172,21 @@ def test_customer_update_success():
     assert schema.email == "clark@dailyplanet.com"
 
 
-def test_customer_update_requires_fields_by_inheritance():
-    """
-    Verifies that CustomerUpdate currently expects all base fields (like email)
-    because it inherits directly from CustomerBase without modifications.
-    """
-    payload = {"first_name": "Bruce", "last_name": "Wayne"}
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerUpdate(**payload)
+def test_customer_update_allows_partial_payloads():
+    """Verifies that CustomerUpdate correctly accepts partial data."""
+    payload = {"first_name": "Bruce"}
+    schema = CustomerUpdate(**payload)
 
-    assert "Field required" in str(exc_info.value)
-    assert "email" in str(exc_info.value)
+    assert schema.first_name == "Bruce"
+    assert schema.last_name is None
+    assert schema.email is None
+
+
+def test_customer_update_handles_none_safely():
+    """Verifies that fields can be cleanly omitted or explicitly passed as None in an update."""
+    payload = {"first_name": "Jane", "last_name": None, "email": "jane@example.com"}
+    schema = CustomerUpdate(**payload)
+    assert schema.last_name is None
 
 
 def test_customer_update_validation_rules_apply():
@@ -185,3 +194,11 @@ def test_customer_update_validation_rules_apply():
     payload = {"first_name": "Tony44", "last_name": "Stark", "email": "tony@stark.com"}
     with pytest.raises(CustomerNameMustNotContainNumbersError):
         CustomerUpdate(**payload)
+
+
+def test_validate_and_format_name_returns_none():
+    """
+    Directly tests the validator to ensure it safely handles explicit None values.
+    (Pydantic V2 often intercepts None before it reaches BeforeValidators).
+    """
+    assert validate_and_format_name(None) is None

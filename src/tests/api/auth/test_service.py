@@ -5,8 +5,11 @@ import pytest
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.erp.api.auth.exceptions import (
+    AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
+    InvitationNotFoundExceptionError,
     OnboardingFailedExceptionError,
+    PricingPlanDoesNotExistError,
     TokenInvalidError,
     UserExistsExceptionError,
 )
@@ -15,6 +18,7 @@ from src.erp.api.auth.schemas.user import RegisterRequest, UserCreate
 from src.erp.api.auth.service import AuthService
 from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
 from src.erp.api.pricing.enums import PlanName
+from src.erp.api.pricing.models import PricingPlan
 from src.erp.api.workspace.models import Workspace
 from src.erp.api.workspace.schemas import WorkspaceCreate
 from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
@@ -25,7 +29,7 @@ from src.erp.api.workspace_user.models import WorkspaceUser
 # ============================================================================
 
 
-def test_onboard_happy_path(db_session):
+def test_register_happy_path(db_session):
     """
     Valid complete request should step cleanly through creating a Workspace,
     User, binding WorkspaceUser link, generating tokens, tracking session state,
@@ -60,7 +64,7 @@ def test_onboard_happy_path(db_session):
     assert session.expires_at > datetime.now(UTC)
 
 
-def test_onboard_exception_user_already_exists(db_session):
+def test_register_exception_user_already_exists(db_session):
     """
     If a user email already exists in the system, pre-check must raise
     UserExistsExceptionError immediately before running any downstream database flushes.
@@ -82,7 +86,7 @@ def test_onboard_exception_user_already_exists(db_session):
         auth_service.register(request_data)
 
 
-def test_onboard_exception_database_failure_triggers_rollback(db_session):
+def test_register_exception_database_failure_triggers_rollback(db_session):
     """
     EXCEPTION PATH & EDGE CASE:
     If any uncaught database/internal error occurs mid-transaction (e.g. JWT token generation failure),
@@ -105,6 +109,26 @@ def test_onboard_exception_database_failure_triggers_rollback(db_session):
     db_session.expire_all()
     assert db_session.query(User).filter_by(email="rollback@example.com").first() is None
     assert db_session.query(Workspace).filter_by(name="Rollback Inc").first() is None
+
+
+def test_register_exception_pricing_plan_does_not_exist(db_session):
+    """
+    Verifies that registering with an unknown or unavailable pricing plan
+    immediately halts the process and raises PricingPlanDoesNotExistError.
+    """
+    db_session.query(PricingPlan).delete()
+    db_session.commit()
+
+    auth_service = AuthService(db_session)
+
+    request_data = RegisterRequest(
+        user=UserCreate(email="noplan@example.com", password="SecurePassword123!"),
+        workspace=WorkspaceCreate(name="No Plan LLC", email="noplan@corp.com"),
+        plan=PlanName.PRO,
+    )
+
+    with pytest.raises(PricingPlanDoesNotExistError):
+        auth_service.register(request_data)
 
 
 #  ============================================================================
@@ -419,3 +443,144 @@ def test_refresh_token_exception_session_revoked_or_overwritten(db_session):
 
     with pytest.raises(TokenInvalidError):
         auth_service.refresh_token(tokens["refresh_token"])
+
+
+# ============================================================================
+# ONBOARD SERVICE TESTS (`onboard`)
+# ============================================================================
+
+
+def test_onboard_happy_path(db_session):
+    """
+    Verifies that a successfully invited user (PENDING status, no password)
+    can complete onboarding, set their details, and receive valid auth tokens.
+    """
+    auth_service = AuthService(db_session)
+
+    # 1. Seed a pending invited user
+    user = User(email="invitee@test.com", first_name=None, last_name=None, hashed_password=None)
+    workspace = Workspace(name="Invite Workspace", email="ws@test.com")
+    db_session.add_all([user, workspace])
+    db_session.flush()
+
+    link = WorkspaceUser(
+        user_id=user.id,
+        workspace_id=workspace.id,
+        role=WorkspaceRoleEnum.EDIT_ONLY,
+        status=InvitationStatusEnum.PENDING.value,
+        is_deleted=False,
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    # 2. Execute Onboard
+    data = UserCreate(email="invitee@test.com", password="NewPassword123", first_name="Jane", last_name="Doe")
+    result = auth_service.onboard(data)
+
+    # 3. Assertions
+    assert result.access_token is not None
+    assert result.workspace_id == workspace.id
+
+    db_session.refresh(user)
+    db_session.refresh(link)
+
+    assert user.first_name == "Jane"
+    assert user.hashed_password is not None
+    assert link.status == InvitationStatusEnum.ACTIVE.value
+
+
+def test_onboard_exception_user_not_found(db_session):
+    """
+    If the email provided during onboarding doesn't match any pre-seeded user,
+    it must raise an InvitationNotFoundExceptionError.
+    """
+    auth_service = AuthService(db_session)
+    data = UserCreate(email="ghost@test.com", password="pw", first_name="Ghost", last_name="User")
+
+    with pytest.raises(InvitationNotFoundExceptionError):
+        auth_service.onboard(data)
+
+
+def test_onboard_exception_workspace_link_not_found(db_session):
+    """
+    If the user exists but has no active/pending WorkspaceUser link
+    (or it was deleted), it must raise an InvitationNotFoundExceptionError.
+    """
+    auth_service = AuthService(db_session)
+    user = User(email="nolink@test.com", first_name=None)
+    db_session.add(user)
+    db_session.commit()
+
+    data = UserCreate(email="nolink@test.com", password="pw", first_name="No", last_name="Link")
+
+    with pytest.raises(InvitationNotFoundExceptionError):
+        auth_service.onboard(data)
+
+
+def test_onboard_exception_already_onboarded(db_session):
+    """
+    If a user is already ACTIVE and already has a password set,
+    attempting to onboard again must raise AccountAlreadyOnboardedExceptionError.
+    """
+    auth_service = AuthService(db_session)
+
+    user = User(email="active@test.com", hashed_password="existing_hash")
+    workspace = Workspace(name="Active WS", email="activews@test.com")
+    db_session.add_all([user, workspace])
+    db_session.flush()
+
+    link = WorkspaceUser(
+        user_id=user.id,
+        workspace_id=workspace.id,
+        status=InvitationStatusEnum.ACTIVE.value,
+        is_deleted=False,
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    data = UserCreate(email="active@test.com", password="pw", first_name="A", last_name="B")
+
+    with pytest.raises(AccountAlreadyOnboardedExceptionError):
+        auth_service.onboard(data)
+
+
+def test_onboard_exception_database_failure_triggers_rollback(db_session):
+    """
+    If token generation or any other internal process fails during onboarding,
+    it must rollback the transaction so the user remains PENDING.
+    """
+    auth_service = AuthService(db_session)
+
+    user = User(email="fail@test.com", first_name=None, hashed_password=None)
+    workspace = Workspace(name="Fail WS", email="faledws@test.com")
+    db_session.add_all([user, workspace])
+    db_session.flush()
+
+    link = WorkspaceUser(
+        user_id=user.id,
+        workspace_id=workspace.id,
+        status=InvitationStatusEnum.PENDING.value,
+        is_deleted=False,
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    data = UserCreate(email="fail@test.com", password="pw", first_name="Should", last_name="Fail")
+
+    with (
+        patch(
+            "src.erp.api.auth.service.generate_token_pair",
+            side_effect=Exception("Crypto Error"),
+        ),
+        pytest.raises(OnboardingFailedExceptionError),
+    ):
+        auth_service.onboard(data)
+
+    # Verify Rollback
+    db_session.expire_all()
+    db_session.refresh(user)
+    db_session.refresh(link)
+
+    assert user.first_name is None
+    assert user.hashed_password is None
+    assert link.status == InvitationStatusEnum.PENDING.value

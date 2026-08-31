@@ -102,8 +102,16 @@ def persisted_user(db_session):
 
 
 # ============================================================================
-# DEPENDENCY TEST CASES
+# DEPENDENCY TEST CASES (Current User Layer)
 # ============================================================================
+
+
+def test_get_current_user_no_token(test_client):
+    """
+    If no access_token cookie is provided, the dependency must reject the request.
+    """
+    response = test_client.get("/test-user")
+    assert response.status_code == 401
 
 
 def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
@@ -193,6 +201,11 @@ def test_get_current_user_not_found_in_db(test_client, create_jwt):
     assert response.status_code == 401
 
 
+# ============================================================================
+# DEPENDENCY TEST CASES (Workspace User Layer)
+# ============================================================================
+
+
 def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, persisted_user):
     """
     Verifies that the secondary dependency wrapper correctly fetches
@@ -216,8 +229,6 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
     db_session.flush()
 
     token = create_jwt(user_id=persisted_user.id)
-
-    # Cookie-based authentication
     test_client.cookies.set("access_token", token)
 
     response = test_client.get(f"/test-active-user/{workspace.id}")
@@ -230,3 +241,69 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
         "role": "read_only",
         "status": InvitationStatusEnum.ACTIVE.value,
     }
+
+
+def test_get_current_workspace_user_not_found(test_client, create_jwt, persisted_user):
+    """
+    Verifies that if the user has no link to the provided workspace ID, access is denied.
+    """
+    token = create_jwt(user_id=persisted_user.id)
+    test_client.cookies.set("access_token", token)
+
+    random_workspace_id = uuid.uuid4()
+    response = test_client.get(f"/test-active-user/{random_workspace_id}")
+
+    assert response.status_code in (403, 404)
+
+
+def test_get_current_workspace_user_not_active(test_client, create_jwt, db_session, persisted_user):
+    """
+    Verifies that users with 'PENDING' (or non-ACTIVE) status are denied access to the workspace.
+    """
+    workspace = Workspace(name="Pending WS", email="pending@test.com")
+    db_session.add(workspace)
+    db_session.flush()
+
+    # Create link but leave it pending
+    workspace_user_link = WorkspaceUser(
+        workspace_id=workspace.id,
+        user_id=persisted_user.id,
+        role="read_only",
+        status=InvitationStatusEnum.PENDING.value,
+        is_deleted=False,
+    )
+    db_session.add(workspace_user_link)
+    db_session.flush()
+
+    token = create_jwt(user_id=persisted_user.id)
+    test_client.cookies.set("access_token", token)
+
+    response = test_client.get(f"/test-active-user/{workspace.id}")
+
+    assert response.status_code in (403, 404)
+
+
+def test_get_current_workspace_user_deleted(test_client, create_jwt, db_session, persisted_user):
+    """
+    Verifies that users whose link has been soft-deleted are denied access.
+    """
+    workspace = Workspace(name="Deleted Link WS", email="deleted@test.com")
+    db_session.add(workspace)
+    db_session.flush()
+
+    workspace_user_link = WorkspaceUser(
+        workspace_id=workspace.id,
+        user_id=persisted_user.id,
+        role="read_only",
+        status=InvitationStatusEnum.ACTIVE.value,
+        is_deleted=True,
+    )
+    db_session.add(workspace_user_link)
+    db_session.flush()
+
+    token = create_jwt(user_id=persisted_user.id)
+    test_client.cookies.set("access_token", token)
+
+    response = test_client.get(f"/test-active-user/{workspace.id}")
+
+    assert response.status_code in (403, 404)
