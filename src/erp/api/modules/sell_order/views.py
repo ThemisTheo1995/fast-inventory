@@ -13,7 +13,9 @@ from src.erp.api.modules.sell_order.schemas import (
     SellOrderResponse,
     SellOrderUpdate,
 )
-from src.erp.api.modules.sell_order.service import SellOrderLineService, SellOrderService
+from src.erp.api.modules.sell_order.service import SellOrderService
+from src.erp.core.dependencies import get_event_bus
+from src.erp.core.event_bus import EventBus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -28,9 +30,10 @@ def create_sell_order(
     workspace_id: UUID,
     data: SellOrderCreate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db)
+    service = SellOrderService(db, event_bus)
     return service.create_sell_order(workspace_id, data)
 
 
@@ -38,12 +41,13 @@ def create_sell_order(
 def get_sell_orders(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> SellOrderPaginatedResponse:
 
-    service = SellOrderService(db)
+    service = SellOrderService(db, event_bus)
     return service.get_sell_orders(workspace_id, search, page, limit)
 
 
@@ -52,9 +56,10 @@ def get_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db)
+    service = SellOrderService(db, event_bus)
     return service.get_sell_order(workspace_id, sell_order_id)
 
 
@@ -64,9 +69,10 @@ def update_sell_order(
     sell_order_id: UUID,
     data: SellOrderUpdate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db)
+    service = SellOrderService(db, event_bus)
     return service.update_sell_order(workspace_id, sell_order_id, data)
 
 
@@ -75,9 +81,10 @@ def delete_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
 
-    service = SellOrderService(db)
+    service = SellOrderService(db, event_bus)
     service.delete_sell_order(workspace_id, sell_order_id)
 
 
@@ -96,9 +103,10 @@ def add_sell_order_line(
     sell_order_id: UUID,
     data: SellOrderLineCreate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderLineResponse:
 
-    service = SellOrderLineService(db)
+    service = SellOrderService(db, event_bus)
     return service.add_line(workspace_id, sell_order_id, data)
 
 
@@ -109,9 +117,10 @@ def update_sell_order_line(
     line_id: UUID,
     data: SellOrderLineUpdate,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderLineResponse:
 
-    service = SellOrderLineService(db)
+    service = SellOrderService(db, event_bus)
     return service.update_line(workspace_id, sell_order_id, line_id, data)
 
 
@@ -121,7 +130,8 @@ def remove_sell_order_line(
     sell_order_id: UUID,
     line_id: UUID,
     db: Annotated[Session, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
 
-    service = SellOrderLineService(db)
+    service = SellOrderService(db, event_bus)
     service.remove_line(workspace_id, sell_order_id, line_id)

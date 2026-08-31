@@ -5,7 +5,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from src.erp.api.modules.inventory.handlers import register_inventory_handlers
 from src.erp.core.config import get_settings
+from src.erp.core.event_bus import EventBus
 from src.erp.database.base import get_db
 from src.erp.main import app
 from src.erp.model_registry import metadata as target_metadata
@@ -62,3 +64,11 @@ def client(db_session):
     app.dependency_overrides[get_db] = lambda: db_session
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def event_bus() -> EventBus:
+    """Provides a fresh EventBus instance with inventory listeners wired up."""
+    bus = EventBus()
+    register_inventory_handlers(bus)
+    return bus
