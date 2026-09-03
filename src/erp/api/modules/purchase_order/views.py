@@ -4,7 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from src.erp.api.modules.purchase_order.schemas import (
+from src.erp.api.modules.purchase_order.schemas.filter import PurchaseOrderFilter
+from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineResponse,
@@ -41,12 +42,19 @@ def get_purchase_orders(
     workspace_id: UUID,
     db: Annotated[Session, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    filters: Annotated[PurchaseOrderFilter, Depends()],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> PurchaseOrderPaginatedResponse:
     service = PurchaseOrderService(db, event_bus)
-    return service.get_purchase_orders(workspace_id, search, page, limit)
+    return service.get_purchase_orders(
+        workspace_id=workspace_id,
+        filters=filters,
+        search=search,
+        page=page,
+        limit=limit,
+    )
 
 
 @router.get("/purchase-orders/{purchase_order_id}", response_model=PurchaseOrderResponse)

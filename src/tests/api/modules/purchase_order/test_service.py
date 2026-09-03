@@ -16,7 +16,7 @@ from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderNotFoundError,
     PurchaseOrderStatusTransitionError,
 )
-from src.erp.api.modules.purchase_order.schemas import (
+from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineUpdate,

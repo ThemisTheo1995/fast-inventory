@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.erp.api.modules.item.schemas import ItemResponse
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.supplier.schemas import SupplierResponse
+from src.erp.core.filter import TableFilter
 
 # =======================================================
 # Common Types
@@ -15,6 +16,7 @@ from src.erp.api.modules.supplier.schemas import SupplierResponse
 PoNumber = Annotated[str, Field(max_length=100)]
 Quantity = Annotated[int, Field(ge=1)]
 Price = Annotated[int, Field(ge=0)]
+
 
 # =======================================================
 # Purchase Order Lines
@@ -95,3 +97,4 @@ class PurchaseOrderPaginatedResponse(BaseModel):
 
     items: list[PurchaseOrderResponse]
     total: int
+    filters: list[TableFilter] = Field(default_factory=list)

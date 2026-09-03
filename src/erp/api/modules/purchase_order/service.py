@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
@@ -23,13 +23,15 @@ from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderStatusTransitionError,
 )
 from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
-from src.erp.api.modules.purchase_order.schemas import (
+from src.erp.api.modules.purchase_order.schemas.filter import PurchaseOrderFilter
+from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineUpdate,
     PurchaseOrderPaginatedResponse,
     PurchaseOrderUpdate,
 )
+from src.erp.api.modules.supplier.models import Supplier
 from src.erp.core.event_bus import EventBus
 
 TRANSITION_EVENTS: dict[tuple[str, str], type] = {
@@ -124,15 +126,31 @@ class PurchaseOrderService:
         return purchase_order
 
     def get_purchase_orders(
-        self, workspace_id: UUID, search: str | None = None, page: int = 1, limit: int = 20
+        self,
+        workspace_id: UUID,
+        filters: PurchaseOrderFilter | None = None,
+        search: str | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> PurchaseOrderPaginatedResponse:
+        filters = filters or PurchaseOrderFilter()
+
         base_query = select(PurchaseOrder).where(
             PurchaseOrder.workspace_id == workspace_id,
             PurchaseOrder.is_deleted.is_(False),
         )
 
         if search:
-            base_query = base_query.where(PurchaseOrder.po_number.ilike(f"%{search}%"))
+            search_term = f"%{search}%"
+            base_query = base_query.outerjoin(PurchaseOrder.supplier).where(
+                or_(
+                    PurchaseOrder.po_number.ilike(search_term),
+                    Supplier.name.ilike(search_term),
+                    Supplier.email.ilike(search_term),
+                )
+            )
+
+        base_query = filters.apply(base_query, PurchaseOrder)
 
         count_query = select(func.count()).select_from(base_query.subquery())
         total = self.db.execute(count_query).scalar_one()
@@ -146,7 +164,9 @@ class PurchaseOrderService:
         )
         purchase_orders = list(self.db.execute(purchase_orders_query).scalars().all())
 
-        return PurchaseOrderPaginatedResponse(items=purchase_orders, total=total)
+        table_filters = filters.build_ui_filters(self.db, workspace_id)
+
+        return PurchaseOrderPaginatedResponse(items=purchase_orders, total=total, filters=table_filters)
 
     def get_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
         return self._get_active_purchase_order(workspace_id, purchase_order_id)
