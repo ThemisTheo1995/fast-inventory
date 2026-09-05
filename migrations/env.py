@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from alembic import context
 from sqlalchemy import pool, URL
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.erp.core.config import get_settings
@@ -15,16 +16,12 @@ settings = get_settings()
 current_url = config.get_main_option("sqlalchemy.url")
 
 if not current_url or current_url.startswith("driver://"):
-    parsed = urlparse(str(settings.DATABASE_URL))
-    db_url = URL.create(
-        drivername="postgresql+asyncpg",
-        username=parsed.username,
-        password=parsed.password,
-        host=parsed.hostname,
-        port=parsed.port or 5432,
-        database=parsed.path.lstrip("/"),
-    )
-    safe_url = str(db_url).replace("%", "%25")
+    db_url = make_url(str(settings.DATABASE_URL))
+
+    updated_url = db_url.set(drivername="postgresql+asyncpg")
+
+    safe_url = updated_url.render_as_string(hide_password=False)
+
     config.set_main_option("sqlalchemy.url", safe_url)
 
 if config.config_file_name is not None:
