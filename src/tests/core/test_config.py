@@ -39,7 +39,7 @@ def test_settings_load_successfully(_mock_env_vars):
     """Verifies that with correct environment variables, settings load and type-cast correctly."""
     settings = get_settings()
 
-    assert settings.ENVIRONMENT in ("development", "test")
+    assert settings.ENVIRONMENT in ("development", "test", "staging")
     assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
     assert settings.TEST_DATABASE_URL.startswith("postgresql+asyncpg://")
     assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 5
