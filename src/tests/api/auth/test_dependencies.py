@@ -58,6 +58,7 @@ def mock_active_user_endpoint(workspace_user: Annotated[WorkspaceUser, Depends(g
 @pytest_asyncio.fixture
 async def test_client(db_session):
     """Creates an AsyncClient and overrides the global 'get_db' dependency."""
+
     async def override_get_db():
         yield db_session
 
@@ -73,6 +74,7 @@ async def test_client(db_session):
 @pytest.fixture
 def create_jwt():
     """Helper tool to encode valid/invalid testing tokens."""
+
     def _encode(
         user_id: str | uuid.UUID,
         token_type: str = "access",

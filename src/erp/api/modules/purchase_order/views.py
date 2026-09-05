@@ -28,9 +28,7 @@ router = APIRouter()
 
 @router.post("/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_purchase_order(
-    workspace_id: UUID,
-    data: PurchaseOrderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID, data: PurchaseOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> PurchaseOrderResponse:
 
     service = PurchaseOrderService(db)
@@ -87,9 +85,7 @@ async def update_purchase_order(
 
 @router.delete("/purchase-orders/{purchase_order_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_purchase_order(
-    workspace_id: UUID,
-    purchase_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID, purchase_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
 
     service = PurchaseOrderService(db)

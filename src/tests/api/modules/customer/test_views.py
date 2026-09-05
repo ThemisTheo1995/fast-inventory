@@ -8,8 +8,7 @@ from fastapi import status
 async def test_router_create_customer(client, seed_workspace):
     """Verifies customer creation and background task registration."""
     response = await client.post(
-        f"/{seed_workspace}/customers",
-        json={"first_name": "Route", "last_name": "Test", "email": "router@test.com"}
+        f"/{seed_workspace}/customers", json={"first_name": "Route", "last_name": "Test", "email": "router@test.com"}
     )
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
@@ -54,8 +53,7 @@ async def test_router_get_customers_list(client, seed_workspace, active_customer
 async def test_router_get_customers_search_and_pagination(client, seed_workspace, active_customer):
     """Verifies that the search, page, and limit query parameters are parsed correctly."""
     response = await client.get(
-        f"/{seed_workspace}/customers",
-        params={"search": active_customer.first_name[:3], "page": 1, "limit": 5}
+        f"/{seed_workspace}/customers", params={"search": active_customer.first_name[:3], "page": 1, "limit": 5}
     )
     assert response.status_code == status.HTTP_200_OK
 

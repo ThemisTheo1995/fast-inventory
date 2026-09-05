@@ -27,9 +27,7 @@ router = APIRouter()
 
 @router.post("/sell-orders", response_model=SellOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_sell_order(
-    workspace_id: UUID,
-    data: SellOrderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID, data: SellOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
     service = SellOrderService(db)
@@ -53,9 +51,7 @@ async def get_sell_orders(
 
 @router.get("/sell-orders/{sell_order_id}", response_model=SellOrderResponse)
 async def get_sell_order(
-    workspace_id: UUID,
-    sell_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID, sell_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
     service = SellOrderService(db)
@@ -78,9 +74,7 @@ async def update_sell_order(
 
 @router.delete("/sell-orders/{sell_order_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_sell_order(
-    workspace_id: UUID,
-    sell_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID, sell_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
 
     service = SellOrderService(db)
