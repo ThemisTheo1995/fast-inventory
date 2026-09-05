@@ -1,28 +1,107 @@
-name: Staging-Deployment
+name: Staging-Pipeline
 
 on:
   pull_request_review:
     types: [submitted]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   id-token: write
 
 jobs:
+  lint-and-test:
+    name: Lint & Test (RDS Staging)
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_review' && 
+       github.event.review.state == 'approved' && 
+       github.event.pull_request.base.ref == 'master')
+    runs-on: ubuntu-latest
+
+    env:
+      ENVIRONMENT: ${{ vars.STAGING_ENVIRONMENT }}
+      BASE_RDS_URL: ${{ secrets.STAGING_DB_URL }}
+      TEST_DB_NAME: "test_db_${{ github.run_id }}_${{ github.run_attempt }}"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Ruff Check
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Create Temporary Test DB on RDS
+        run: |
+          uv run python -c "
+          import psycopg
+          conn = psycopg.connect('${{ env.BASE_RDS_URL }}', autocommit=True)
+          with conn.cursor() as cur:
+              cur.execute('CREATE DATABASE ${{ env.TEST_DB_NAME }};')
+          conn.close()
+          print('Successfully created database ${{ env.TEST_DB_NAME }} on RDS')
+          "
+
+      - name: Run Alembic migrations on RDS Test DB
+        run: |
+          TEST_URL=$(python -c "
+          from urllib.parse import urlparse, urlunparse
+          u = urlparse('${{ env.BASE_RDS_URL }}')
+          print(urlunparse(u._replace(path='/${{ env.TEST_DB_NAME }}')))
+          ")
+          DATABASE_URL="$TEST_URL" uv run alembic upgrade head
+
+      - name: Run tests with Pytest
+        run: |
+          TEST_URL=$(python -c "
+          from urllib.parse import urlparse, urlunparse
+          u = urlparse('${{ env.BASE_RDS_URL }}')
+          print(urlunparse(u._replace(path='/${{ env.TEST_DB_NAME }}')))
+          ")
+          DATABASE_URL="$TEST_URL" TEST_DATABASE_URL="$TEST_URL" uv run pytest src/tests/ \
+            --cov=src/erp \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            --junitxml=pytest.xml
+
+      - name: Cleanup Temporary RDS Test DB
+        if: always()
+        run: |
+          uv run python -c "
+          import psycopg
+          try:
+              conn = psycopg.connect('${{ env.BASE_RDS_URL }}', autocommit=True)
+              with conn.cursor() as cur:
+                  cur.execute('DROP DATABASE IF EXISTS ${{ env.TEST_DB_NAME }} WITH (FORCE);')
+              conn.close()
+              print('Successfully dropped database ${{ env.TEST_DB_NAME }} from RDS')
+          except Exception as e:
+              print('Failed to drop test DB:', e)
+          "
+
   deploy-staging:
     name: Deploy to Staging Lambda
-    if: github.event_name == 'workflow_dispatch' || github.event.review.state == 'approved'
+    needs: lint-and-test
     runs-on: ubuntu-latest
 
     env:
       DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
-      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-      AUTH_ALGORITHM: ${{ vars.AUTH_ALGORITHM }}
-      AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES }}
-      AUTH_REFRESH_TOKEN_EXPIRE_DAYS: ${{ vars.AUTH_REFRESH_TOKEN_EXPIRE_DAYS }}
-      COOKIE_SECURE: ${{ vars.COOKIE_SECURE }}
-      AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
+      ENVIRONMENT: ${{ vars.STAGING_ENVIRONMENT }}
 
     steps:
       - name: Checkout repository
@@ -38,12 +117,12 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_STAGING_ROLE_ARN }}
-          aws-region: eu-west-1 
+          aws-region: eu-west-1
 
       - name: Install dependencies
         run: uv sync --no-dev
 
-      - name: Run Alembic Migrations
+      - name: Run Alembic Migrations (Staging RDS)
         run: |
           uv run alembic upgrade head
 
