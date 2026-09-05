@@ -2,6 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from urllib.parse import urlparse, quote_plus, urlunparse
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -14,7 +15,26 @@ settings = get_settings()
 current_url = config.get_main_option("sqlalchemy.url")
 
 if not current_url or current_url.startswith("driver://"):
-    config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
+    db_url_str = str(settings.DATABASE_URL)
+
+    try:
+        parsed = urlparse(db_url_str)
+        if parsed.username or parsed.password:
+            username = quote_plus(parsed.username) if parsed.username else ""
+            password = quote_plus(parsed.password) if parsed.password else ""
+
+            netloc = f"{username}:{password}@" if password else f"{username}@"
+            netloc += parsed.hostname or ""
+            if parsed.port:
+                netloc += f":{parsed.port}"
+
+            parsed = parsed._replace(netloc=netloc)
+            db_url_str = urlunparse(parsed)
+    except Exception:
+        pass
+
+    safe_url = db_url_str.replace("%", "%%")
+    config.set_main_option("sqlalchemy.url", safe_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
