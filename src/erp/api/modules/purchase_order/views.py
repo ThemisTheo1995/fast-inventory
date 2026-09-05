@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.purchase_order.schemas.filter import PurchaseOrderFilter
+from src.erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
 from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
@@ -30,10 +30,11 @@ router = APIRouter()
 async def create_purchase_order(
     workspace_id: UUID,
     data: PurchaseOrderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ) -> PurchaseOrderResponse:
-    service = PurchaseOrderService(db, event_bus)
+
+    service = PurchaseOrderService(db)
+
     return await service.create_purchase_order(workspace_id, data)
 
 
@@ -41,13 +42,14 @@ async def create_purchase_order(
 async def get_purchase_orders(
     workspace_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
     filters: Annotated[PurchaseOrderFilter, Depends()],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> PurchaseOrderPaginatedResponse:
-    service = PurchaseOrderService(db, event_bus)
+
+    service = PurchaseOrderService(db)
+
     return await service.get_purchase_orders(
         workspace_id=workspace_id,
         filters=filters,
@@ -62,9 +64,10 @@ async def get_purchase_order(
     workspace_id: UUID,
     purchase_order_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
-    service = PurchaseOrderService(db, event_bus)
+
+    service = PurchaseOrderService(db)
+
     return await service.get_purchase_order(workspace_id, purchase_order_id)
 
 
@@ -76,7 +79,9 @@ async def update_purchase_order(
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
+
     service = PurchaseOrderService(db, event_bus)
+
     return await service.update_purchase_order(workspace_id, purchase_order_id, data)
 
 
@@ -84,10 +89,11 @@ async def update_purchase_order(
 async def delete_purchase_order(
     workspace_id: UUID,
     purchase_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
-    service = PurchaseOrderService(db, event_bus)
+
+    service = PurchaseOrderService(db)
+
     await service.delete_purchase_order(workspace_id, purchase_order_id)
 
 
@@ -108,7 +114,9 @@ async def add_purchase_order_line(
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderLineResponse:
+
     service = PurchaseOrderService(db, event_bus)
+
     return await service.add_line(workspace_id, purchase_order_id, data)
 
 
@@ -121,7 +129,9 @@ async def update_purchase_order_line(
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderLineResponse:
+
     service = PurchaseOrderService(db, event_bus)
+
     return await service.update_line(workspace_id, purchase_order_id, line_id, data)
 
 
@@ -133,5 +143,7 @@ async def remove_purchase_order_line(
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
+
     service = PurchaseOrderService(db, event_bus)
+
     await service.remove_line(workspace_id, purchase_order_id, line_id)

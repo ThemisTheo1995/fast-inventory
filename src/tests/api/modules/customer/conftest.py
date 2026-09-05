@@ -39,7 +39,6 @@ def silence_event_bus(monkeypatch):
     """
     from src.erp.core.event_bus import global_event_bus
 
-    # Replace the publish method with a dummy AsyncMock
     mock_publish = AsyncMock()
     monkeypatch.setattr(global_event_bus, "publish", mock_publish)
     return mock_publish

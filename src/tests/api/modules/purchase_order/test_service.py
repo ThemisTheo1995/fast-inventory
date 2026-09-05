@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-from pydantic import ValidationError
 
 from src.erp.api.modules.inventory.enums import OrderType
 from src.erp.api.modules.inventory.service import InventoryService
@@ -567,9 +566,9 @@ async def test_line_service_line_not_found(db_session, seed_workspace, active_pu
     po_service = PurchaseOrderService(db_session, event_bus)
     fake_line_id = uuid.uuid4()
 
-    with pytest.raises((PurchaseOrderLineNotFoundError, ValidationError)):
+    with pytest.raises(PurchaseOrderLineNotFoundError):
         await po_service.update_line(
-            seed_workspace, active_purchase_order.id, fake_line_id, PurchaseOrderLineUpdate(quantity=2)
+            seed_workspace, active_purchase_order.id, fake_line_id, PurchaseOrderLineUpdate(unit_cost=100, quantity=2)
         )
 
     with pytest.raises(PurchaseOrderLineNotFoundError):

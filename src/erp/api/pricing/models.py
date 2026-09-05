@@ -10,7 +10,14 @@ from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
 class PricingPlan(BaseModel):
     __tablename__ = "pricing_plans"
 
-    name: Mapped[PlanName] = mapped_column(SQLAlchemyEnum(PlanName), nullable=False)
+    name: Mapped[PlanName] = mapped_column(
+        SQLAlchemyEnum(
+            PlanName,
+            native_enum=False,
+            length=50,
+        ),
+        default=PlanName.GROWTH,
+    )
     listings_limit: Mapped[int] = mapped_column(Integer, nullable=False)
     api_limit: Mapped[int] = mapped_column(Integer, nullable=False)
     price_monthly: Mapped[int] = mapped_column(Integer, nullable=False)

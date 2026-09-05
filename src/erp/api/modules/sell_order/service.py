@@ -44,7 +44,7 @@ TRANSITION_EVENTS: dict[tuple[str, str], type] = {
 
 
 class SellOrderService:
-    def __init__(self, db: AsyncSession, event_bus: EventBus) -> None:
+    def __init__(self, db: AsyncSession, event_bus: EventBus | None = None) -> None:
         self.db = db
         self.event_bus = event_bus
 

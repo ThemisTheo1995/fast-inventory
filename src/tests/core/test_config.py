@@ -24,8 +24,8 @@ def _mock_env_vars(monkeypatch):
     """
     monkeypatch.setitem(Settings.model_config, "env_file", None)
 
-    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db")
-    monkeypatch.setenv("TEST_DATABASE_URL", "postgresql://user:pass@localhost:5432/test_db")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/db")
+    monkeypatch.setenv("TEST_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/test_db")
     monkeypatch.setenv("AUTH_SECRET_KEY", "super-secret-key-for-testing")
     monkeypatch.setenv("AUTH_ALGORITHM", "HS256")
     monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
@@ -40,8 +40,8 @@ def test_settings_load_successfully(_mock_env_vars):
     settings = get_settings()
 
     assert settings.ENVIRONMENT in ("development", "test")
-    assert settings.DATABASE_URL.startswith("postgresql://")
-    assert settings.TEST_DATABASE_URL.startswith("postgresql://")
+    assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
+    assert settings.TEST_DATABASE_URL.startswith("postgresql+asyncpg://")
     assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 5
     assert settings.AUTH_REFRESH_TOKEN_EXPIRE_DAYS == 7
 

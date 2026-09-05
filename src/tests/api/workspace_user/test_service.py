@@ -16,6 +16,7 @@ from src.erp.api.workspace_user.exceptions import (
 )
 from src.erp.api.workspace_user.models import WorkspaceUser
 from src.erp.api.workspace_user.schemas import (
+    UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
@@ -230,6 +231,43 @@ async def test_service_get_workspace_user_not_found(db_session):
 
     with pytest.raises(WorkspaceUserNotFoundError):
         await service.get_workspace_user(uuid.uuid4())
+
+
+async def test_service_get_workspace_user_happy_path(db_session):
+    """Verifies successful retrieval and mapping of a specific workspace user."""
+    service = WorkspaceUserService(db_session)
+    workspace = Workspace(name="WS_SINGLE", email="single_ws@t.com")
+    db_session.add(workspace)
+    await db_session.flush()
+
+    user = User(
+        id=uuid.uuid4(),
+        email="single_target@test.com",
+        first_name="Jane",
+        last_name="Doe",
+        is_deleted=False,
+        hashed_password="",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    ws_user = WorkspaceUser(
+        workspace_id=str(workspace.id),
+        user_id=str(user.id),
+        role=WorkspaceRoleEnum.EDIT_ONLY,
+        status="active",
+        is_deleted=False,
+    )
+    db_session.add(ws_user)
+    await db_session.flush()
+
+    result = await service.get_workspace_user(ws_user.id)
+
+    assert result.id == ws_user.id
+    assert result.name == "Jane Doe"
+    assert result.email == "single_target@test.com"
+    assert result.role == WorkspaceRoleEnum.EDIT_ONLY
+    assert result.status == "active"
 
 
 # ============================================================================
@@ -746,3 +784,37 @@ async def test_remove_member_exception_rank_immunity_violation(db_session):
 
     with pytest.raises(RankImmunityViolationError):
         await service.update_workspace_user(data=update_data, target_id=target.id, actor=actor)
+
+
+# ============================================================================
+# BASE USER UPDATE SERVICE TESTS (`update_user`)
+# ============================================================================
+
+
+async def test_update_user_happy_path(db_session):
+    """Verifies that base user profile attributes are correctly updated and persisted."""
+    service = WorkspaceUserService(db_session)
+
+    user = User(
+        id=uuid.uuid4(),
+        email="update_profile@test.com",
+        first_name="OldFirst",
+        last_name="OldLast",
+        is_deleted=False,
+        hashed_password="",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    update_data = UserUpdateRequest(first_name="NewFirst", last_name="NewLast")
+
+    updated_user = await service.update_user(user, update_data)
+
+    # Check returned entity
+    assert updated_user.first_name == "NewFirst"
+    assert updated_user.last_name == "NewLast"
+
+    # Check DB persistence
+    await db_session.refresh(user)
+    assert user.first_name == "NewFirst"
+    assert user.last_name == "NewLast"

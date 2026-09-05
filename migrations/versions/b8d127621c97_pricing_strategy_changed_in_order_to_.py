@@ -91,15 +91,17 @@ def upgrade() -> None:
     # ### end Alembic commands ###
     # 2. Define seed data
 
+    planname_enum = sa.Enum("GROWTH", "PRO", "ENTERPRISE", "CUSTOM", name="planname", create_type=False)
+
     pricing_plans_table = sa.table(
         "pricing_plans",
         sa.column("id", sa.Uuid()),
-        sa.column("name", sa.String()),
+        sa.column("name", planname_enum),
         sa.column("listings_limit", sa.Integer()),
         sa.column("api_limit", sa.Integer()),
         sa.column("price_monthly", sa.Integer()),
-        sa.column("created_at", sa.DateTime()),
-        sa.column("updated_at", sa.DateTime()),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.column("is_deleted", sa.Boolean()),
     )
 

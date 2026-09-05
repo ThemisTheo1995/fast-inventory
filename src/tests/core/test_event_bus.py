@@ -80,3 +80,17 @@ async def test_event_bus_event_isolation():
 def test_global_event_bus_is_instantiated():
     """Verifies the global_event_bus singleton is properly instantiated."""
     assert isinstance(global_event_bus, EventBus)
+
+
+@pytest.mark.asyncio
+async def test_event_bus_publish_sync_handler():
+    """Verifies that publishing an event invokes synchronous handlers."""
+    bus = EventBus()
+    sync_handler = MagicMock()
+
+    bus.subscribe(DummyEventA, sync_handler)
+
+    event_instance = DummyEventA()
+    await bus.publish(event_instance)
+
+    sync_handler.assert_called_once_with(event_instance)

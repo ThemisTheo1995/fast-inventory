@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/coverage-93%25-green" alt="Coverage">
+  <img src="https://img.shields.io/badge/coverage-94%25-green" alt="Coverage">
   <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?logo=apache" alt="License">
 </p>
 
@@ -69,7 +69,7 @@ uv pip sync uv.lock
 Create a `.env` file:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/erp_db
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/erp_db
 ```
 
 ---

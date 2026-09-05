@@ -471,6 +471,14 @@ async def test_modify_line_on_uneditable_so_fails(db_session, seed_workspace, ev
         await service.remove_line(seed_workspace, so.id, line_id)
 
 
+async def test_get_active_line_not_found(db_session, event_bus):
+    """Verifies that _get_active_line raises an error when the line does not exist."""
+    service = SellOrderService(db_session, event_bus)
+
+    with pytest.raises(SellOrderLineNotFoundError):
+        await service._get_active_line(sell_order_id=uuid.uuid4(), line_id=uuid.uuid4())
+
+
 @pytest.mark.asyncio
 async def test_sell_order_line_not_found_errors(db_session, seed_workspace, active_sell_order, event_bus):
     service = SellOrderService(db_session, event_bus)

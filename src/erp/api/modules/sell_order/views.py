@@ -29,11 +29,11 @@ router = APIRouter()
 async def create_sell_order(
     workspace_id: UUID,
     data: SellOrderCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db, event_bus)
+    service = SellOrderService(db)
+
     return await service.create_sell_order(workspace_id, data)
 
 
@@ -41,13 +41,13 @@ async def create_sell_order(
 async def get_sell_orders(
     workspace_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> SellOrderPaginatedResponse:
 
-    service = SellOrderService(db, event_bus)
+    service = SellOrderService(db)
+
     return await service.get_sell_orders(workspace_id, search, page, limit)
 
 
@@ -55,11 +55,11 @@ async def get_sell_orders(
 async def get_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db, event_bus)
+    service = SellOrderService(db)
+
     return await service.get_sell_order(workspace_id, sell_order_id)
 
 
@@ -80,11 +80,10 @@ async def update_sell_order(
 async def delete_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
 
-    service = SellOrderService(db, event_bus)
+    service = SellOrderService(db)
     await service.delete_sell_order(workspace_id, sell_order_id)
 
 

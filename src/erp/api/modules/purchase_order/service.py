@@ -23,8 +23,8 @@ from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderNotFoundError,
     PurchaseOrderStatusTransitionError,
 )
+from src.erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
 from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
-from src.erp.api.modules.purchase_order.schemas.filter import PurchaseOrderFilter
 from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
@@ -44,7 +44,7 @@ TRANSITION_EVENTS: dict[tuple[str, str], type] = {
 
 
 class PurchaseOrderService:
-    def __init__(self, db: AsyncSession, event_bus: EventBus) -> None:
+    def __init__(self, db: AsyncSession, event_bus: EventBus | None = None) -> None:
         self.db = db
         self.event_bus = event_bus
 

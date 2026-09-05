@@ -1,8 +1,53 @@
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import status
 
 from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
+from src.erp.api.workspace_user.schemas import UserUpdateRequest
+from src.erp.api.workspace_user.views import update_me
+
+# ==============================================================================
+# DIRECT UNIT TESTS
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_me_direct_unit():
+    """Directly tests update_me view function to ensure model validation line executes."""
+    user_id = uuid.uuid4()
+    mock_user = MagicMock()
+    mock_user.id = user_id
+    mock_user.email = "test@example.com"
+    mock_user.first_name = "UpdatedFirst"
+    mock_user.last_name = "UpdatedLast"
+
+    mock_workspace_user = MagicMock()
+    mock_workspace_user.user = mock_user
+
+    mock_request = MagicMock()
+    mock_request.state.workspace_user = mock_workspace_user
+
+    mock_db = AsyncMock()
+    data = UserUpdateRequest(first_name="UpdatedFirst", last_name="UpdatedLast")
+
+    with patch("src.erp.api.workspace_user.views.WorkspaceUserService") as mock_service_cls:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.update_user.return_value = mock_user
+        mock_service_cls.return_value = mock_service_instance
+
+        response = await update_me(request=mock_request, data=data, db=mock_db)
+
+        mock_service_instance.update_user.assert_called_once_with(mock_user, data)
+        assert response.id == user_id
+        assert response.first_name == "UpdatedFirst"
+        assert response.last_name == "UpdatedLast"
+
+
+# ==============================================================================
+# INTEGRATION TESTS
+# ==============================================================================
 
 
 async def test_router_get_workspace_users(client, seed_workspace, active_workspace_user):

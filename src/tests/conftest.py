@@ -1,3 +1,4 @@
+# conftest.py
 from collections.abc import AsyncGenerator, Generator
 
 import pytest
@@ -22,35 +23,27 @@ from src.erp.main import app
 from src.erp.model_registry import metadata as target_metadata
 
 settings = get_settings()
-
 TEST_DATABASE_URL = settings.TEST_DATABASE_URL
 
 if not TEST_DATABASE_URL:
     msg = "CRITICAL: TEST_DATABASE_URL is missing from your environment configuration!"
     raise ValueError(msg)
 
-# ---------------------------------------------------------------------------
-# Core Pytest Fixtures
-# ---------------------------------------------------------------------------
-
 
 @pytest.fixture(scope="session", autouse=True)
 def initialize_test_db() -> Generator[None]:
-    """
-    Applies Alembic migrations before tests run and drops tables afterward.
-    This uses a synchronous engine, so it is immune to async loop mismatches.
-    """
-    sync_database_url = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-
+    """Applies Alembic migrations before tests run and drops tables afterward."""
     alembic_cfg = Config("alembic.ini")
-    alembic_cfg.set_main_option("sqlalchemy.url", sync_database_url)
 
-    # 1. Migrate up
+    alembic_cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+
+    # Migrate up
     command.upgrade(alembic_cfg, "head")
 
     yield
 
-    # 2. Teardown down
+    # Teardown down
+    sync_database_url = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
     sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=utc"})
     with sync_engine.begin() as connection:
         target_metadata.drop_all(bind=connection)
@@ -61,11 +54,6 @@ def initialize_test_db() -> Generator[None]:
 
 @pytest_asyncio.fixture
 async def db_engine() -> AsyncGenerator[AsyncEngine]:
-    """
-    Function-scoped AsyncEngine.
-    This guarantees the engine and asyncpg connections are bound strictly to the
-    exact same event loop as the test that is currently running.
-    """
     engine = create_async_engine(
         TEST_DATABASE_URL,
         connect_args={"server_settings": {"timezone": "UTC"}},
@@ -77,10 +65,6 @@ async def db_engine() -> AsyncGenerator[AsyncEngine]:
 
 @pytest_asyncio.fixture
 async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
-    """
-    Provides an isolated, transaction-bound AsyncSession.
-    App-level db.commit() calls will create savepoints, allowing rollback after the test.
-    """
     async with db_engine.connect() as connection:
         transaction = await connection.begin()
 
@@ -99,11 +83,6 @@ async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
 
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
-    """
-    HTTP client for testing FastAPI router endpoints.
-    Overrides the get_db dependency to use the isolated test transaction.
-    """
-
     async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
@@ -118,7 +97,6 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 def event_bus() -> EventBus:
-    """Provides a fresh EventBus."""
     bus = EventBus()
     register_inventory_handlers(bus)
     return bus
@@ -126,8 +104,6 @@ def event_bus() -> EventBus:
 
 @pytest.fixture(autouse=True)
 def mock_generate_embedding(monkeypatch):
-    """Returns a dummy vector array instead of making a network request."""
-
     def fake_embed(text: str) -> list[float]:  # noqa
         return [0.123] * 768
 

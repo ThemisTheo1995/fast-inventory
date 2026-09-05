@@ -87,11 +87,11 @@ class WorkspaceUserService:
 
         ws_user, user = row
 
+        full_name = f"{user.first_name} {user.last_name}".strip() if user.first_name else None
+
         return WorkspaceUserResponse(
             id=str(ws_user.id),
-            workspace_id=str(ws_user.workspace_id),
-            first_name=user.first_name,
-            last_name=user.last_name,
+            name=full_name,
             email=user.email,
             role=ws_user.role,
             status=ws_user.status,
