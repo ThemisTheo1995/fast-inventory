@@ -54,7 +54,12 @@ def test_settings_override_environment(_mock_env_vars, monkeypatch):
     assert settings.ENVIRONMENT == "test"
 
 
-@pytest.mark.parametrize("missing_var", ["DATABASE_URL",])
+@pytest.mark.parametrize(
+    "missing_var",
+    [
+        "DATABASE_URL",
+    ],
+)
 def test_missing_required_variables_raises_validation_error(_mock_env_vars, monkeypatch, missing_var):
     """Verifies that if any required field is missing, Pydantic raises a ValidationError."""
     monkeypatch.delenv(missing_var, raising=False)
