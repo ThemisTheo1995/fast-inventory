@@ -21,7 +21,7 @@ if not current_url or current_url.startswith("driver://"):
 
     safe_url = updated_url.render_as_string(hide_password=False)
 
-    config.set_main_option("sqlalchemy.url", safe_url)
+    config.set_main_option("sqlalchemy.url", safe_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
