@@ -1,9 +1,9 @@
 import asyncio
 from logging.config import fileConfig
+from urllib.parse import urlparse
 
 from alembic import context
-from urllib.parse import urlparse, quote_plus, urlunparse
-from sqlalchemy import pool
+from sqlalchemy import pool, URL
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.erp.core.config import get_settings
@@ -15,25 +15,16 @@ settings = get_settings()
 current_url = config.get_main_option("sqlalchemy.url")
 
 if not current_url or current_url.startswith("driver://"):
-    db_url_str = str(settings.DATABASE_URL)
-
-    try:
-        parsed = urlparse(db_url_str)
-        if parsed.username or parsed.password:
-            username = quote_plus(parsed.username) if parsed.username else ""
-            password = quote_plus(parsed.password) if parsed.password else ""
-
-            netloc = f"{username}:{password}@" if password else f"{username}@"
-            netloc += parsed.hostname or ""
-            if parsed.port:
-                netloc += f":{parsed.port}"
-
-            parsed = parsed._replace(netloc=netloc)
-            db_url_str = urlunparse(parsed)
-    except Exception:
-        pass
-
-    safe_url = db_url_str.replace("%", "%%")
+    parsed = urlparse(str(settings.DATABASE_URL))
+    db_url = URL.create(
+        drivername="postgresql+asyncpg",
+        username=parsed.username,
+        password=parsed.password,
+        host=parsed.hostname,
+        port=parsed.port or 5432,
+        database=parsed.path.lstrip("/"),
+    )
+    safe_url = str(db_url).replace("%", "%25")
     config.set_main_option("sqlalchemy.url", safe_url)
 
 if config.config_file_name is not None:
