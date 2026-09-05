@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Cookies
     COOKIE_SECURE: int
 
+    # AI
+    GEMINI_API_KEY: str
+
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 

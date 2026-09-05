@@ -1,7 +1,8 @@
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.events import (
@@ -43,7 +44,7 @@ TRANSITION_EVENTS: dict[tuple[str, str], type] = {
 
 
 class PurchaseOrderService:
-    def __init__(self, db: Session, event_bus: EventBus) -> None:
+    def __init__(self, db: AsyncSession, event_bus: EventBus) -> None:
         self.db = db
         self.event_bus = event_bus
 
@@ -51,7 +52,7 @@ class PurchaseOrderService:
     # INTERNAL HELPERS
     # ==============================================================================
 
-    def _get_active_purchase_order(
+    async def _get_active_purchase_order(
         self, workspace_id: UUID, purchase_order_id: UUID, lock: bool = False
     ) -> PurchaseOrder:
         """Securely fetch a PO, enforcing workspace isolation and eagerly loading lines."""
@@ -71,7 +72,8 @@ class PurchaseOrderService:
         if lock:
             stmt = stmt.with_for_update()
 
-        purchase_order = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        purchase_order = result.scalar_one_or_none()
 
         if not purchase_order:
             raise PurchaseOrderNotFoundError()
@@ -81,7 +83,7 @@ class PurchaseOrderService:
         if po.status in [POStatusEnum.RECEIVED, POStatusEnum.CANCELLED, POStatusEnum.RETURNED]:
             raise PurchaseOrderNotEditableError(po.status)
 
-    def _check_po_unique(
+    async def _check_po_unique(
         self, workspace_id: UUID, po_number: str, exclude_purchase_order_id: UUID | None = None
     ) -> None:
         stmt = select(PurchaseOrder).where(
@@ -90,7 +92,8 @@ class PurchaseOrderService:
         if exclude_purchase_order_id:
             stmt = stmt.where(PurchaseOrder.id != exclude_purchase_order_id)
 
-        if self.db.execute(stmt).scalar_one_or_none():
+        result = await self.db.execute(stmt)
+        if result.scalar_one_or_none():
             raise PurchaseOrderExistsError()
 
     def _recalculate_po_total(self, po: PurchaseOrder) -> None:
@@ -105,8 +108,8 @@ class PurchaseOrderService:
     # HEADER OPERATIONS
     # ==============================================================================
 
-    def create_purchase_order(self, workspace_id: UUID, data: PurchaseOrderCreate) -> PurchaseOrder:
-        self._check_po_unique(workspace_id, data.po_number)
+    async def create_purchase_order(self, workspace_id: UUID, data: PurchaseOrderCreate) -> PurchaseOrder:
+        await self._check_po_unique(workspace_id, data.po_number)
 
         po_data = data.model_dump(exclude={"purchase_order_lines"})
         lines_data = data.purchase_order_lines
@@ -120,12 +123,11 @@ class PurchaseOrderService:
         self._recalculate_po_total(purchase_order)
 
         self.db.add(purchase_order)
-        self.db.commit()
-        self.db.refresh(purchase_order)
+        await self.db.commit()
 
-        return purchase_order
+        return await self._get_active_purchase_order(workspace_id, purchase_order.id)
 
-    def get_purchase_orders(
+    async def get_purchase_orders(
         self,
         workspace_id: UUID,
         filters: PurchaseOrderFilter | None = None,
@@ -153,37 +155,43 @@ class PurchaseOrderService:
         base_query = filters.apply(base_query, PurchaseOrder)
 
         count_query = select(func.count()).select_from(base_query.subquery())
-        total = self.db.execute(count_query).scalar_one()
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar_one()
 
         skip = (page - 1) * limit
         purchase_orders_query = (
-            base_query.options(selectinload(PurchaseOrder.purchase_order_lines))
+            base_query.options(
+                selectinload(PurchaseOrder.supplier),
+                selectinload(PurchaseOrder.purchase_order_lines).selectinload(PurchaseOrderLine.item),
+            )
             .order_by(PurchaseOrder.created_at.desc(), PurchaseOrder.id.desc())
             .offset(skip)
             .limit(limit)
         )
-        purchase_orders = list(self.db.execute(purchase_orders_query).scalars().all())
+        purchase_orders_result = await self.db.execute(purchase_orders_query)
+        purchase_orders = list(purchase_orders_result.scalars().all())
 
-        table_filters = filters.build_ui_filters(self.db, workspace_id)
+        table_filters = await filters.build_ui_filters(self.db, workspace_id)
 
         return PurchaseOrderPaginatedResponse(items=purchase_orders, total=total, filters=table_filters)
 
-    def get_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
-        return self._get_active_purchase_order(workspace_id, purchase_order_id)
+    async def get_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
+        return await self._get_active_purchase_order(workspace_id, purchase_order_id)
 
-    def update_purchase_order(
+    async def update_purchase_order(
         self, workspace_id: UUID, purchase_order_id: UUID, data: PurchaseOrderUpdate
     ) -> PurchaseOrder:
-        po = self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
+        po = await self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
         update_data = data.model_dump(exclude_unset=True)
 
         if "po_number" in update_data and update_data["po_number"] != po.po_number:
-            self._check_po_unique(workspace_id, update_data["po_number"], exclude_purchase_order_id=purchase_order_id)
+            await self._check_po_unique(
+                workspace_id, update_data["po_number"], exclude_purchase_order_id=purchase_order_id
+            )
 
         old_status = po.status
         new_status = update_data.get("status", old_status)
 
-        event_to_publish = None
         event_to_publish = None
         if old_status != new_status:
             transition_key = (old_status, new_status)
@@ -199,14 +207,14 @@ class PurchaseOrderService:
         self.db.add(po)
 
         if event_to_publish:
-            self.event_bus.publish(event_to_publish)
+            await self.event_bus.publish(event_to_publish)
 
-        self.db.commit()
-        self.db.refresh(po)
-        return po
+        await self.db.commit()
 
-    def delete_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> None:
-        po = self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
+        return await self._get_active_purchase_order(workspace_id, purchase_order_id)
+
+    async def delete_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> None:
+        po = await self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
 
         if po.status not in [POStatusEnum.DRAFT, POStatusEnum.CANCELLED]:
             raise PurchaseOrderCannotDeleteError(po.status.label)
@@ -215,14 +223,16 @@ class PurchaseOrderService:
             line.soft_delete()
 
         po.soft_delete()
-        self.db.commit()
+        await self.db.commit()
 
     # ==============================================================================
     # LINE OPERATIONS (Handled via the PO Aggregate)
     # ==============================================================================
 
-    def add_line(self, workspace_id: UUID, purchase_order_id: UUID, data: PurchaseOrderLineCreate) -> PurchaseOrderLine:
-        po = self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
+    async def add_line(
+        self, workspace_id: UUID, purchase_order_id: UUID, data: PurchaseOrderLineCreate
+    ) -> PurchaseOrderLine:
+        po = await self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
         self._ensure_po_is_editable(po)
 
         new_line = PurchaseOrderLine(purchase_order_id=purchase_order_id, **data.model_dump())
@@ -233,16 +243,22 @@ class PurchaseOrderService:
 
         if po.status == POStatusEnum.SENT and new_line.item_id:
             event = PurchaseOrderLineAddedEvent(db=self.db, workspace_id=workspace_id, purchase_order=po, line=new_line)
-            self.event_bus.publish(event)
+            await self.event_bus.publish(event)
 
-        self.db.commit()
-        self.db.refresh(new_line)
-        return new_line
+        await self.db.commit()
 
-    def update_line(
+        stmt = (
+            select(PurchaseOrderLine)
+            .options(selectinload(PurchaseOrderLine.item))
+            .where(PurchaseOrderLine.id == new_line.id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def update_line(
         self, workspace_id: UUID, purchase_order_id: UUID, line_id: UUID, data: PurchaseOrderLineUpdate
     ) -> PurchaseOrderLine:
-        po = self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
+        po = await self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
         self._ensure_po_is_editable(po)
 
         line = next(
@@ -277,14 +293,20 @@ class PurchaseOrderService:
             event = PurchaseOrderLineUpdatedEvent(
                 db=self.db, workspace_id=workspace_id, purchase_order=po, line=line, quantity_delta=delta
             )
-            self.event_bus.publish(event)
+            await self.event_bus.publish(event)
 
-        self.db.commit()
-        self.db.refresh(line)
-        return line
+        await self.db.commit()
 
-    def remove_line(self, workspace_id: UUID, purchase_order_id: UUID, line_id: UUID) -> None:
-        po = self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
+        stmt = (
+            select(PurchaseOrderLine)
+            .options(selectinload(PurchaseOrderLine.item))
+            .where(PurchaseOrderLine.id == line.id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def remove_line(self, workspace_id: UUID, purchase_order_id: UUID, line_id: UUID) -> None:
+        po = await self._get_active_purchase_order(workspace_id, purchase_order_id, lock=True)
         self._ensure_po_is_editable(po)
 
         line = next(
@@ -300,12 +322,12 @@ class PurchaseOrderService:
             raise PurchaseOrderLineNotFoundError()
 
         po.purchase_order_lines.remove(line)
-        self.db.delete(line)
+        await self.db.delete(line)
 
         self._recalculate_po_total(po)
 
         if po.status == POStatusEnum.SENT and line.item_id:
             event = PurchaseOrderLineRemovedEvent(db=self.db, workspace_id=workspace_id, purchase_order=po, line=line)
-            self.event_bus.publish(event)
+            await self.event_bus.publish(event)
 
-        self.db.commit()
+        await self.db.commit()

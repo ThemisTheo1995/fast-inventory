@@ -5,26 +5,48 @@ from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
-from src.erp.api.modules.customer.exceptions import CustomerNameMustNotContainNumbersError
+from src.erp.api.modules.customer.exceptions import (
+    CustomerNameMustNotContainNumbersError,
+)
 
 
-def validate_and_format_name(v: str | None) -> str | None:
-    if v is None:
+def validate_and_format_name(value: str | None) -> str | None:
+    if value is None:
         return None
 
-    if any(char.isdigit() for char in v):
+    value = value.strip()
+
+    if any(char.isdigit() for char in value):
         raise CustomerNameMustNotContainNumbersError()
 
-    return re.sub(r"(^|[\s-])\S", lambda m: m.group(0).upper(), v.strip().lower())
+    return re.sub(
+        r"(^|[\s-])\S",
+        lambda match: match.group(0).upper(),
+        value.lower(),
+    )
 
 
-def sanitize_email_logic(v: str) -> str:
-    return v.lower().strip()
+def sanitize_email(value: str) -> str:
+    return value.strip().lower()
 
 
-FirstName = Annotated[str, Field(min_length=2, max_length=50), BeforeValidator(validate_and_format_name)]
-LastName = Annotated[str, Field(max_length=50), BeforeValidator(validate_and_format_name)]
-Email = Annotated[str, BeforeValidator(sanitize_email_logic)]
+FirstName = Annotated[
+    str,
+    Field(min_length=2, max_length=50),
+    BeforeValidator(validate_and_format_name),
+]
+
+LastName = Annotated[
+    str | None,
+    Field(max_length=50),
+    BeforeValidator(validate_and_format_name),
+]
+
+Email = Annotated[
+    str,
+    Field(min_length=3, max_length=255),
+    BeforeValidator(sanitize_email),
+]
 
 
 class CustomerBase(BaseModel):
@@ -34,13 +56,11 @@ class CustomerBase(BaseModel):
 
 
 class CustomerCreate(CustomerBase):
-    """Payload for creating a new customer. All fields are mandatory."""
-
-    pass
+    """Payload for creating a new customer."""
 
 
 class CustomerUpdate(BaseModel):
-    """Payload for patching a customer. All fields are optional."""
+    """Payload for partially updating a customer."""
 
     first_name: FirstName | None = None
     last_name: LastName | None = None

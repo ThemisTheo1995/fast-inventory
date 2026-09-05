@@ -1,8 +1,12 @@
 import uuid
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.customer.exceptions import CustomerEmailExistsError, CustomerNotFoundError
+from src.erp.api.modules.customer.exceptions import (
+    CustomerEmailExistsError,
+    CustomerNotFoundError,
+)
 from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerUpdate
 from src.erp.api.modules.customer.service import CustomerService
 
@@ -11,12 +15,24 @@ from src.erp.api.modules.customer.service import CustomerService
 # ==============================================================================
 
 
-def test_create_customer_success(db_session, seed_workspace):
+async def test_create_customer_success(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
     """Verifies a brand new customer is created successfully."""
-    service = CustomerService(db_session)
-    data = CustomerCreate(first_name="John", last_name="Doe", email="john.doe@test.com")
 
-    customer = service.create_customer(seed_workspace, data)
+    service = CustomerService(db_session)
+
+    data = CustomerCreate(
+        first_name="John",
+        last_name="Doe",
+        email="john.doe@test.com",
+    )
+
+    customer = await service.create_customer(
+        seed_workspace,
+        data,
+    )
 
     assert customer.id is not None
     assert customer.workspace_id == seed_workspace
@@ -24,37 +40,80 @@ def test_create_customer_success(db_session, seed_workspace):
     assert customer.email == "john.doe@test.com"
 
 
-def test_create_customer_existing_email_fails(db_session, seed_workspace):
-    """Verifies creating a customer with an email that is already active throws an error."""
+async def test_create_customer_existing_email_fails(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
+    """Verifies creating a customer with an active duplicate email fails."""
+
     service = CustomerService(db_session)
-    data = CustomerCreate(first_name="Jane", last_name="Doe", email="jane.doe@test.com")
 
-    service.create_customer(seed_workspace, data)
+    data = CustomerCreate(
+        first_name="Jane",
+        last_name="Doe",
+        email="jane.doe@test.com",
+    )
 
-    # Attempting to create a second active user with the same email
+    await service.create_customer(
+        seed_workspace,
+        data,
+    )
+
     with pytest.raises(CustomerEmailExistsError):
-        service.create_customer(seed_workspace, data)
+        await service.create_customer(
+            seed_workspace,
+            data,
+        )
 
 
-def test_create_customer_restores_soft_deleted(db_session, seed_workspace):
-    """Verifies that creating a customer with an email belonging to a soft-deleted customer restores the record."""
+async def test_create_customer_restores_soft_deleted(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
+    """Verifies a soft-deleted customer can be restored."""
+
     service = CustomerService(db_session)
 
-    # 1. Create and delete a customer
-    data = CustomerCreate(first_name="Old", last_name="Name", email="restore.me@test.com")
-    customer = service.create_customer(seed_workspace, data)
+    # Create customer.
+    data = CustomerCreate(
+        first_name="Old",
+        last_name="Name",
+        email="restore.me@test.com",
+    )
+
+    customer = await service.create_customer(
+        seed_workspace,
+        data,
+    )
+
     original_id = customer.id
-    service.delete_customer(seed_workspace, original_id)
 
-    # Verify it is actually deleted
+    # Soft delete customer.
+    await service.delete_customer(
+        seed_workspace,
+        original_id,
+    )
+
+    # Verify it is no longer accessible.
     with pytest.raises(CustomerNotFoundError):
-        service.get_customer(seed_workspace, original_id)
+        await service.get_customer(
+            seed_workspace,
+            original_id,
+        )
 
-    # 2. Re-create using the same email but new name
-    new_data = CustomerCreate(first_name="New", last_name="Identity", email="restore.me@test.com")
-    restored_customer = service.create_customer(seed_workspace, new_data)
+    # Re-create using the same email with a new identity.
+    new_data = CustomerCreate(
+        first_name="New",
+        last_name="Identity",
+        email="restore.me@test.com",
+    )
 
-    # 3. Assert the original record was recycled and updated
+    restored_customer = await service.create_customer(
+        seed_workspace,
+        new_data,
+    )
+
+    # Verify the original record was restored.
     assert restored_customer.id == original_id
     assert restored_customer.is_deleted is False
     assert restored_customer.first_name == "New"
@@ -62,59 +121,124 @@ def test_create_customer_restores_soft_deleted(db_session, seed_workspace):
 
 
 # ==============================================================================
-# 2. GET CUSTOMER (READ & TENANT ISOLATION)
+# 2. GET CUSTOMER & TENANT ISOLATION
 # ==============================================================================
 
 
-def test_get_customer_success_and_not_found(db_session, seed_workspace, alt_workspace):
-    """Verifies retrieving a customer, including tenant isolation checks."""
-    service = CustomerService(db_session)
-    data = CustomerCreate(first_name="Alice", last_name="Smith", email="alice@test.com")
-    customer = service.create_customer(seed_workspace, data)
+async def test_get_customer_success_and_not_found(
+    db_session: AsyncSession,
+    seed_workspace,
+    alt_workspace,
+) -> None:
+    """Verifies retrieval and tenant isolation."""
 
-    # Success
-    found = service.get_customer(seed_workspace, customer.id)
+    service = CustomerService(db_session)
+
+    data = CustomerCreate(
+        first_name="Alice",
+        last_name="Smith",
+        email="alice@test.com",
+    )
+
+    customer = await service.create_customer(
+        seed_workspace,
+        data,
+    )
+
+    # Successful retrieval.
+    found = await service.get_customer(
+        seed_workspace,
+        customer.id,
+    )
+
     assert found.id == customer.id
 
-    # Not found (random ID)
+    # Random ID should not exist.
     with pytest.raises(CustomerNotFoundError):
-        service.get_customer(seed_workspace, uuid.uuid4())
+        await service.get_customer(
+            seed_workspace,
+            uuid.uuid4(),
+        )
 
-    # Not found (Tenant Isolation - Attempting to read seed_workspace customer from alt_workspace)
+    # Customer from another workspace must not be accessible.
     with pytest.raises(CustomerNotFoundError):
-        service.get_customer(alt_workspace, customer.id)
+        await service.get_customer(
+            alt_workspace,
+            customer.id,
+        )
 
 
-def test_get_customers_pagination_and_search(db_session, seed_workspace):
-    """Verifies fetching list of customers with pagination and wildcard search terms."""
+async def test_get_customers_pagination_and_search(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
+    """Verifies customer pagination and search."""
+
     service = CustomerService(db_session)
-    service.create_customer(seed_workspace, CustomerCreate(first_name="Apple", last_name="Inc", email="apple@test.com"))
-    service.create_customer(
-        seed_workspace, CustomerCreate(first_name="Banana", last_name="Corp", email="banana@test.com")
+
+    await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Apple",
+            last_name="Inc",
+            email="apple@test.com",
+        ),
     )
-    service.create_customer(
-        seed_workspace, CustomerCreate(first_name="Cherry", last_name="LLC", email="cherry@test.com")
+
+    await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Banana",
+            last_name="Corp",
+            email="banana@test.com",
+        ),
     )
 
-    # Pagination
-    res = service.get_customers(seed_workspace, page=1, limit=2)
-    assert res.total == 3
-    assert len(res.items) == 2
+    await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Cherry",
+            last_name="LLC",
+            email="cherry@test.com",
+        ),
+    )
 
-    # Search matches first_name
-    res_first = service.get_customers(seed_workspace, search="Apple")
-    assert res_first.total == 1
-    assert res_first.items[0].first_name == "Apple"
+    # Pagination.
+    result = await service.get_customers(
+        seed_workspace,
+        page=1,
+        limit=2,
+    )
 
-    # Search matches last_name
-    res_last = service.get_customers(seed_workspace, search="Corp")
-    assert res_last.total == 1
-    assert res_last.items[0].first_name == "Banana"
+    assert result.total == 3
+    assert len(result.items) == 2
 
-    # Search matches email
-    res_email = service.get_customers(seed_workspace, search="cherry@")
-    assert res_email.total == 1
-    assert res_email.items[0].first_name == "Cherry"
+    # Search first name.
+    result = await service.get_customers(
+        seed_workspace,
+        search="Apple",
+    )
+
+    assert result.total == 1
+    assert result.items[0].first_name == "Apple"
+
+    # Search last name.
+    result = await service.get_customers(
+        seed_workspace,
+        search="Corp",
+    )
+
+    assert result.total == 1
+    assert result.items[0].first_name == "Banana"
+
+    # Search email.
+    result = await service.get_customers(
+        seed_workspace,
+        search="cherry@",
+    )
+
+    assert result.total == 1
+    assert result.items[0].first_name == "Cherry"
 
 
 # ==============================================================================
@@ -122,31 +246,66 @@ def test_get_customers_pagination_and_search(db_session, seed_workspace):
 # ==============================================================================
 
 
-def test_update_customer_success_and_email_uniqueness(db_session, seed_workspace):
-    """Verifies partial updates and email constraint validation during updates."""
+async def test_update_customer_success_and_email_uniqueness(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
+    """Verifies partial updates and email uniqueness."""
+
     service = CustomerService(db_session)
-    c1 = service.create_customer(
-        seed_workspace, CustomerCreate(first_name="Tony", last_name="Stark", email="tony@test.com")
+
+    customer_one = await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Tony",
+            last_name="Stark",
+            email="tony@test.com",
+        ),
     )
-    c2 = service.create_customer(
-        seed_workspace, CustomerCreate(first_name="Bruce", last_name="Wayne", email="bruce@test.com")
+
+    customer_two = await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Bruce",
+            last_name="Wayne",
+            email="bruce@test.com",
+        ),
     )
 
-    # 1. Successful partial update (name only)
-    updated_c1 = service.update_customer(seed_workspace, c1.id, CustomerUpdate(first_name="Anthony"))
-    assert updated_c1.first_name == "Anthony"
-    assert updated_c1.email == "tony@test.com"  # Email remains unchanged
+    # Successful partial update.
+    updated_customer = await service.update_customer(
+        seed_workspace,
+        customer_one.id,
+        CustomerUpdate(first_name="Anthony"),
+    )
 
-    # 2. Successful email update
-    updated_c1 = service.update_customer(seed_workspace, c1.id, CustomerUpdate(email="anthony.stark@test.com"))
-    assert updated_c1.email == "anthony.stark@test.com"
+    assert updated_customer.first_name == "Anthony"
+    assert updated_customer.email == "tony@test.com"
 
-    # 3. Prevent updating to an email owned by another active customer
+    # Successful email update.
+    updated_customer = await service.update_customer(
+        seed_workspace,
+        customer_one.id,
+        CustomerUpdate(email="anthony.stark@test.com"),
+    )
+
+    assert updated_customer.email == "anthony.stark@test.com"
+
+    # Cannot use another active customer's email.
     with pytest.raises(CustomerEmailExistsError):
-        service.update_customer(seed_workspace, c1.id, CustomerUpdate(email="bruce@test.com"))
+        await service.update_customer(
+            seed_workspace,
+            customer_one.id,
+            CustomerUpdate(email="bruce@test.com"),
+        )
 
-    # 4. Updating a customer to their *own* exact email succeeds (bypasses uniqueness check)
-    same_email_update = service.update_customer(seed_workspace, c2.id, CustomerUpdate(email="bruce@test.com"))
+    # Updating to the customer's existing email is allowed.
+    same_email_update = await service.update_customer(
+        seed_workspace,
+        customer_two.id,
+        CustomerUpdate(email="bruce@test.com"),
+    )
+
     assert same_email_update.email == "bruce@test.com"
 
 
@@ -155,20 +314,39 @@ def test_update_customer_success_and_email_uniqueness(db_session, seed_workspace
 # ==============================================================================
 
 
-def test_delete_customer_success_and_idempotency(db_session, seed_workspace):
-    """Verifies soft-deletion behavior and that double-deletes trigger a Not Found error."""
+async def test_delete_customer_success_and_idempotency(
+    db_session: AsyncSession,
+    seed_workspace,
+) -> None:
+    """Verifies soft deletion and double-delete behavior."""
+
     service = CustomerService(db_session)
-    c1 = service.create_customer(
-        seed_workspace, CustomerCreate(first_name="Delete", last_name="Me", email="del@test.com")
+
+    customer = await service.create_customer(
+        seed_workspace,
+        CustomerCreate(
+            first_name="Delete",
+            last_name="Me",
+            email="del@test.com",
+        ),
     )
 
-    # Delete successfully
-    service.delete_customer(seed_workspace, c1.id)
+    # Delete successfully.
+    await service.delete_customer(
+        seed_workspace,
+        customer.id,
+    )
 
-    # Fetching should now fail
+    # Deleted customer should no longer be accessible.
     with pytest.raises(CustomerNotFoundError):
-        service.get_customer(seed_workspace, c1.id)
+        await service.get_customer(
+            seed_workspace,
+            customer.id,
+        )
 
-    # Attempting to delete a soft-deleted record fails
+    # Deleting an already deleted customer should fail.
     with pytest.raises(CustomerNotFoundError):
-        service.delete_customer(seed_workspace, c1.id)
+        await service.delete_customer(
+            seed_workspace,
+            customer.id,
+        )

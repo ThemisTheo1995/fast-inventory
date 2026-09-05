@@ -2,7 +2,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.pricing.enums import HttpMethod, MetricType
 from src.erp.api.pricing.models import PricingPlan, PricingUsage
@@ -24,8 +25,8 @@ from src.erp.core.utils import get_start_of_month
         (MetricType.LISTING, HttpMethod.DELETE),
     ],
 )
-def test_add_usage_success(
-    db_session: Session,
+async def test_add_usage_success(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -40,9 +41,10 @@ def test_add_usage_success(
         http_method=http_method,
     )
 
-    service.add_usage(usage_data)
+    await service.add_usage(usage_data)
 
-    record = db_session.query(PricingUsage).filter(PricingUsage.workspace_id == seed_workspace).first()
+    result = await db_session.execute(select(PricingUsage).where(PricingUsage.workspace_id == seed_workspace))
+    record = result.scalars().first()
 
     assert record is not None
     assert record.workspace_id == seed_workspace
@@ -56,17 +58,17 @@ def test_add_usage_success(
 # ============================================================================
 
 
-def test_get_workspace_usage_empty_state(service: PricingUsageService, seed_workspace: uuid.UUID):
+async def test_get_workspace_usage_empty_state(service: PricingUsageService, seed_workspace: uuid.UUID):
     """Verifies get_workspace_usage returns an empty plans dict when no usage events exist."""
-    response = service.get_workspace_usage(workspace_id=seed_workspace)
+    response = await service.get_workspace_usage(workspace_id=seed_workspace)
 
     assert isinstance(response, WorkspaceUsageResponse)
     assert response.workspace_id == seed_workspace
     assert response.plans == {}
 
 
-def test_get_workspace_usage_metric_limit_routing(
-    db_session: Session,
+async def test_get_workspace_usage_metric_limit_routing(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -92,9 +94,9 @@ def test_get_workspace_usage_metric_limit_routing(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(workspace_id=seed_workspace)
+    response = await service.get_workspace_usage(workspace_id=seed_workspace)
     plan_metrics = response.plans[pricing_plan.name].metrics
 
     # API_REQUEST -> pricing_plan.api_limit
@@ -106,8 +108,8 @@ def test_get_workspace_usage_metric_limit_routing(
     assert plan_metrics[MetricType.LISTING.value].total == pricing_plan.listings_limit
 
 
-def test_get_workspace_usage_http_method_aggregation(
-    db_session: Session,
+async def test_get_workspace_usage_http_method_aggregation(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -140,16 +142,16 @@ def test_get_workspace_usage_http_method_aggregation(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(workspace_id=seed_workspace)
+    response = await service.get_workspace_usage(workspace_id=seed_workspace)
     api_metric = response.plans[pricing_plan.name].metrics[MetricType.API_REQUEST.value]
 
     assert api_metric.used == 3
 
 
-def test_get_workspace_usage_multiple_plans(
-    db_session: Session,
+async def test_get_workspace_usage_multiple_plans(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -176,9 +178,9 @@ def test_get_workspace_usage_multiple_plans(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(workspace_id=seed_workspace)
+    response = await service.get_workspace_usage(workspace_id=seed_workspace)
 
     assert pricing_plan.name in response.plans
     assert enterprise_plan.name in response.plans
@@ -186,8 +188,8 @@ def test_get_workspace_usage_multiple_plans(
     assert response.plans[enterprise_plan.name].metrics[MetricType.API_REQUEST.value].total == enterprise_plan.api_limit
 
 
-def test_get_workspace_usage_exact_date_boundaries(
-    db_session: Session,
+async def test_get_workspace_usage_exact_date_boundaries(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -232,9 +234,9 @@ def test_get_workspace_usage_exact_date_boundaries(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(
+    response = await service.get_workspace_usage(
         workspace_id=seed_workspace,
         start_dt=start_dt,
         end_dt=end_dt,
@@ -252,8 +254,8 @@ def test_get_workspace_usage_exact_date_boundaries(
         (None, datetime(2026, 1, 31, tzinfo=UTC)),
     ],
 )
-def test_get_workspace_usage_partial_or_missing_dates_triggers_default_month(
-    db_session: Session,
+async def test_get_workspace_usage_partial_or_missing_dates_triggers_default_month(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
@@ -281,9 +283,9 @@ def test_get_workspace_usage_partial_or_missing_dates_triggers_default_month(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(
+    response = await service.get_workspace_usage(
         workspace_id=seed_workspace,
         start_dt=start_dt_arg,
         end_dt=end_dt_arg,
@@ -293,8 +295,8 @@ def test_get_workspace_usage_partial_or_missing_dates_triggers_default_month(
     assert api_metric.used == 1
 
 
-def test_get_workspace_usage_workspace_isolation(
-    db_session: Session,
+async def test_get_workspace_usage_workspace_isolation(
+    db_session: AsyncSession,
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     alt_workspace: uuid.UUID,
@@ -321,9 +323,9 @@ def test_get_workspace_usage_workspace_isolation(
             ),
         ]
     )
-    db_session.commit()
+    await db_session.commit()
 
-    response = service.get_workspace_usage(workspace_id=seed_workspace)
+    response = await service.get_workspace_usage(workspace_id=seed_workspace)
 
     assert response.workspace_id == seed_workspace
     assert response.plans[pricing_plan.name].metrics[MetricType.API_REQUEST.value].used == 1

@@ -2,7 +2,7 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
@@ -22,7 +22,7 @@ from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 @pytest.fixture
 def db_session_mock():
-    return MagicMock(spec=Session)
+    return MagicMock(spec=AsyncSession)
 
 
 @pytest.fixture

@@ -1,23 +1,31 @@
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from src.erp.core.config import get_settings
 
 settings = get_settings()
 
-engine_kwargs = {"pool_pre_ping": True, "echo": False, "connect_args": {"options": "-c timezone=utc"}}
+engine_kwargs: dict[str, Any] = {
+    "pool_pre_ping": True,
+    "echo": False,
+    "connect_args": {"server_settings": {"timezone": "utc"}},
+}
 
 if settings.ENVIRONMENT in ("production", "staging"):
-    engine_kwargs.update({"pool_size": 1, "max_overflow": 2, "pool_recycle": 300, "pool_timeout": 5, "echo": False})
+    engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_recycle": 300, "pool_timeout": 30, "echo": False})
 
-# Create the engine
-engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
-# Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
 # Base model
@@ -26,9 +34,6 @@ class Base(DeclarativeBase):
 
 
 # Database Dependency for FastAPI routes
-def get_db() -> Generator[Session, Any]:
-    db = SessionLocal()
-    try:
+async def get_db() -> AsyncGenerator[AsyncSession]:
+    async with AsyncSessionLocal() as db:
         yield db
-    finally:
-        db.close()

@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.base.service import BaseService
 from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
@@ -17,10 +17,12 @@ from src.erp.api.modules.inventory.schemas.stock_movement import (
 
 
 class InventoryService(BaseService[Inventory]):
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, Inventory)
 
-    def _get_or_create_inventory(self, workspace_id: UUID, item_id: UUID, lock_for_update: bool = False) -> Inventory:
+    async def _get_or_create_inventory(
+        self, workspace_id: UUID, item_id: UUID, lock_for_update: bool = False
+    ) -> Inventory:
         """
         Helper method to securely fetch an item's inventory.
         If it doesn't exist, it initialises it at 0.
@@ -30,11 +32,12 @@ class InventoryService(BaseService[Inventory]):
 
         stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
 
-        inventory = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        inventory = result.scalar_one_or_none()
 
         if not inventory:
             try:
-                with self.db.begin_nested():
+                async with self.db.begin_nested():
                     inventory = Inventory(
                         workspace_id=workspace_id,
                         item_id=item_id,
@@ -43,14 +46,15 @@ class InventoryService(BaseService[Inventory]):
                         quantity_on_order=0,
                     )
                     self.db.add(inventory)
-                    self.db.flush()
+                    await self.db.flush()
             except IntegrityError:
                 retry_stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
-                inventory = self.db.execute(retry_stmt).scalar_one()
+                result = await self.db.execute(retry_stmt)
+                inventory = result.scalar_one()
 
         return inventory
 
-    def get_inventories(
+    async def get_inventories(
         self,
         workspace_id: UUID,
         page: int = 1,
@@ -65,7 +69,8 @@ class InventoryService(BaseService[Inventory]):
         )
 
         count_query = select(func.count()).select_from(base_query.subquery())
-        total = self.db.execute(count_query).scalar_one()
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar_one()
 
         loader_options = self.build_loader_options(expand)
 
@@ -76,23 +81,24 @@ class InventoryService(BaseService[Inventory]):
             .limit(limit)
         )
 
-        items = list(self.db.execute(items_query).scalars().unique().all())
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().unique().all())
 
         return InventoryPaginatedResponse(
             items=items,
             total=total,
         )
 
-    def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:
+    async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:
         """Fetches a single inventory balance by item_id (no lock)."""
-        return self._get_or_create_inventory(workspace_id, item_id, lock_for_update=False)
+        return await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=False)
 
-    def create_stock_movement(self, workspace_id: UUID, data: StockMovementCreate) -> StockMovement:
+    async def create_stock_movement(self, workspace_id: UUID, data: StockMovementCreate) -> StockMovement:
         """
         Creates a stock movement and automatically updates the ON-HAND inventory.
         Locks the inventory row during update and commits the transaction.
         """
-        inventory = self._get_or_create_inventory(workspace_id, data.item_id, lock_for_update=True)
+        inventory = await self._get_or_create_inventory(workspace_id, data.item_id, lock_for_update=True)
 
         if inventory.quantity_on_hand + data.quantity_change < 0:
             raise InsufficientInventoryError()
@@ -107,12 +113,12 @@ class InventoryService(BaseService[Inventory]):
         self.db.add(movement)
         self.db.add(inventory)
 
-        self.db.flush()
-        self.db.refresh(movement)
+        await self.db.flush()
+        await self.db.refresh(movement)
 
         return movement
 
-    def get_stock_movements(
+    async def get_stock_movements(
         self, workspace_id: UUID, item_id: UUID | None = None, page: int = 1, limit: int = 20
     ) -> StockMovementPaginatedResponse:
         """Fetches paginated stock movements, optionally filtered by item_id."""
@@ -128,19 +134,21 @@ class InventoryService(BaseService[Inventory]):
         base_query = base_query.order_by(StockMovement.created_at.desc())
 
         count_query = select(func.count()).select_from(base_query.subquery())
-        total = self.db.execute(count_query).scalar_one()
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar_one()
 
         skip = (page - 1) * limit
         items_query = base_query.offset(skip).limit(limit)
-        items = list(self.db.execute(items_query).scalars().all())
+        items_result = await self.db.execute(items_query)
+        items = list(items_result.scalars().all())
 
         return StockMovementPaginatedResponse(items=items, total=total)
 
-    def adjust_quantity_on_order(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
+    async def adjust_quantity_on_order(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
         if delta == 0:
             return
 
-        inventory = self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+        inventory = await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
 
         if inventory.quantity_on_order + delta < 0:
             raise InsufficientInventoryError()
@@ -148,11 +156,11 @@ class InventoryService(BaseService[Inventory]):
         inventory.quantity_on_order += delta
         self.db.add(inventory)
 
-    def adjust_quantity_allocated(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
+    async def adjust_quantity_allocated(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
         if delta == 0:
             return
 
-        inventory = self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+        inventory = await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
 
         # 1. Prevent negative allocation when decreasing (delta < 0)
         if inventory.quantity_allocated + delta < 0:

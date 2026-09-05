@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
@@ -37,19 +38,21 @@ def _trigger_unhandled():
 # ---------------------------------------------------------
 
 
-def test_custom_app_error_handler(client):
+@pytest.mark.asyncio
+async def test_custom_app_error_handler(client):
     """Ensures our BaseAppError correctly maps detail, code, and status."""
-    response = client.get("/_test_exceptions/custom")
+    response = await client.get("/_test_exceptions/custom")
 
     assert response.status_code == 403
     assert response.json() == {"detail": "You shall not pass", "code": "access_denied"}
 
 
-def test_validation_exception_handler(client):
+@pytest.mark.asyncio
+async def test_validation_exception_handler(client):
     """Ensures Pydantic errors are sanitized and raw inputs are hidden."""
     # Send a string where the schema strictly expects an integer
     bad_payload = {"workspace_id": "this_is_a_string"}
-    response = client.post("/_test_exceptions/validation", json=bad_payload)
+    response = await client.post("/_test_exceptions/validation", json=bad_payload)
 
     assert response.status_code == 422
 

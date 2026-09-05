@@ -31,6 +31,8 @@ def _mock_env_vars(monkeypatch):
     monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
     monkeypatch.setenv("AUTH_REFRESH_TOKEN_EXPIRE_DAYS", "7")
     monkeypatch.setenv("COOKIE_SECURE", "0")
+    monkeypatch.setenv("GEMINI_API_KEY", "Fake-key")
+    monkeypatch.setenv("GEMINI_API_KEY_NAME", "Fake-Name")
 
 
 def test_settings_load_successfully(_mock_env_vars):

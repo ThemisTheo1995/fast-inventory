@@ -4,17 +4,19 @@ from uuid import UUID
 
 from pydantic import Field
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.purchase_order.enums import POStatusEnum
 from src.erp.api.modules.purchase_order.models import PurchaseOrder
 from src.erp.core.filter import BaseFilter, FilterSpec
 
 
-def get_po_amount_range(db: Session, workspace_id: UUID) -> tuple[int, int]:
-    result = db.execute(
-        select(func.min(PurchaseOrder.total_amount), func.max(PurchaseOrder.total_amount)).where(
-            PurchaseOrder.workspace_id == workspace_id, PurchaseOrder.is_deleted.is_(False)
+async def get_po_amount_range(db: AsyncSession, workspace_id: UUID) -> tuple[int, int]:
+    result = (
+        await db.execute(
+            select(func.min(PurchaseOrder.total_amount), func.max(PurchaseOrder.total_amount)).where(
+                PurchaseOrder.workspace_id == workspace_id, PurchaseOrder.is_deleted.is_(False)
+            )
         )
     ).first()
 

@@ -9,6 +9,7 @@ from src.erp.api.modules.purchase_order.router import router as purchase_order_r
 from src.erp.api.modules.sell_order.router import router as sell_order_router
 from src.erp.api.modules.supplier.router import router as supplier_router
 from src.erp.api.pricing.router import router as pricing_router
+from src.erp.api.search.router import router as global_search_router
 from src.erp.api.workspace.router import router as workspace_router
 from src.erp.api.workspace_user.router import router as workspace_user_router
 from src.erp.api.workspace_user_note.router import router as workspace_user_note_router
@@ -36,6 +37,9 @@ api_router.include_router(supplier_router)
 
 # Pricing
 api_router.include_router(pricing_router)
+
+# Global Search
+api_router.include_router(global_search_router)
 
 # Workspace
 api_router.include_router(workspace_router)

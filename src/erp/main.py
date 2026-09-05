@@ -6,6 +6,7 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import anyio
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
@@ -26,26 +27,26 @@ from src.erp.core.exceptions import BaseAppError
 logger = logging.getLogger(__name__)
 
 
+def run_migrations() -> None:
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
+
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:   # noqa
     logger.info("Initialising FAST ERP API...")
     try:
-        # Database Migrations
         logger.info("Running database migrations via Alembic...")
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
+        await anyio.to_thread.run_sync(run_migrations)
         logger.info("Database migrations completed successfully.")
 
-        # Wire Up Events
         setup_application_events()
         logger.info("Application events initialized successfully.")
-
     except Exception:
         logger.exception("Fatal error during API startup initialization")
         raise
 
     yield
-
     logger.info("Shutting down FAST ERP API...")
 
 

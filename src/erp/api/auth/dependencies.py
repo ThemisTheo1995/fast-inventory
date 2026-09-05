@@ -4,7 +4,7 @@ from uuid import UUID
 import jwt
 from fastapi import Cookie, Depends
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.auth.exceptions import CredentialsExceptionError
 from src.erp.api.auth.models import User
@@ -20,8 +20,8 @@ SECRET_KEY = settings.AUTH_SECRET_KEY
 ALGORITHM = settings.AUTH_ALGORITHM
 
 
-def get_current_user(
-    db: Annotated[Session, Depends(get_db)], access_token: Annotated[str | None, Cookie()] = None
+async def get_current_user(
+    db: Annotated[AsyncSession, Depends(get_db)], access_token: Annotated[str | None, Cookie()] = None
 ) -> User:
 
     if not access_token:
@@ -39,17 +39,19 @@ def get_current_user(
     except jwt.PyJWTError:
         raise CredentialsExceptionError() from None
 
-    user = db.query(User).filter(User.id == str(user_id)).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
     if user is None:
         raise CredentialsExceptionError()
 
     return user
 
 
-def get_current_workspace_user(
+async def get_current_workspace_user(
     workspace_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WorkspaceUser:
 
     query = select(WorkspaceUser).where(
@@ -58,7 +60,9 @@ def get_current_workspace_user(
         WorkspaceUser.status == InvitationStatusEnum.ACTIVE,
         WorkspaceUser.is_deleted.is_(False),
     )
-    workspace_user = db.execute(query).scalar_one_or_none()
+
+    result = await db.execute(query)
+    workspace_user = result.scalar_one_or_none()
 
     if not workspace_user:
         raise WorkspaceUserNotFoundError()

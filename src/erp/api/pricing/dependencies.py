@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.pricing.enums import HttpMethod, MetricType
 from src.erp.api.pricing.schemas import PricingUsageCreate
@@ -10,7 +10,7 @@ from src.erp.database.base import get_db
 
 
 async def log_usage(
-    request: Request, background_tasks: BackgroundTasks, db: Annotated[Session, Depends(get_db)]
+    request: Request, background_tasks: BackgroundTasks, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
 
     metric_name = MetricType.API_REQUEST

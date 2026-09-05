@@ -11,7 +11,7 @@ from src.erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
 # ==============================================================================
 
 
-def test_verify_workspace_access_no_subscription(db_session, seed_workspace, active_workspace_user):
+async def test_verify_workspace_access_no_subscription(db_session, seed_workspace, active_workspace_user):
     """
     Verifies that if a workspace has no active pricing subscription,
     access is immediately rejected with an ActiveSubscriptionNotFoundError.
@@ -21,7 +21,7 @@ def test_verify_workspace_access_no_subscription(db_session, seed_workspace, act
     request.method = "GET"
 
     with pytest.raises(ActiveSubscriptionNotFoundError):
-        verify_workspace_access(
+        await verify_workspace_access(
             request=request,
             workspace_id=seed_workspace,
             workspace_user=active_workspace_user,
@@ -29,7 +29,7 @@ def test_verify_workspace_access_no_subscription(db_session, seed_workspace, act
         )
 
 
-def test_verify_workspace_access_success_state_injection(
+async def test_verify_workspace_access_success_state_injection(
     db_session, seed_workspace, active_workspace_user, active_subscription
 ):
     """
@@ -39,7 +39,7 @@ def test_verify_workspace_access_success_state_injection(
     request = MagicMock()
     request.method = "DELETE"  # active_workspace_user is FULL_ADMIN, so DELETE is allowed
 
-    result = verify_workspace_access(
+    result = await verify_workspace_access(
         request=request,
         workspace_id=seed_workspace,
         workspace_user=active_workspace_user,
@@ -66,7 +66,7 @@ def test_verify_workspace_access_success_state_injection(
         ("GET", "unknown"),  # GET requires 1, unknown role defaults to 0 (Fits VARCHAR(10))
     ],
 )
-def test_verify_workspace_access_insufficient_permissions(
+async def test_verify_workspace_access_insufficient_permissions(
     method,
     role,
     db_session,
@@ -85,7 +85,7 @@ def test_verify_workspace_access_insufficient_permissions(
     active_workspace_user.role = role
 
     with pytest.raises(InsufficientPermissionsError):
-        verify_workspace_access(
+        await verify_workspace_access(
             request=request,
             workspace_id=seed_workspace,
             workspace_user=active_workspace_user,
@@ -103,7 +103,7 @@ def test_verify_workspace_access_insufficient_permissions(
         ("HEAD", "full_admin"),  # 1 vs 3 (Exceeds)
     ],
 )
-def test_verify_workspace_access_sufficient_permissions(
+async def test_verify_workspace_access_sufficient_permissions(
     method,
     role,
     db_session,
@@ -122,7 +122,7 @@ def test_verify_workspace_access_sufficient_permissions(
     active_workspace_user.role = role
 
     # Should execute successfully without raising any exceptions
-    verify_workspace_access(
+    await verify_workspace_access(
         request=request,
         workspace_id=seed_workspace,
         workspace_user=active_workspace_user,

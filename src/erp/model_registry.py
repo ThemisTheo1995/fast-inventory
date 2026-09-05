@@ -37,6 +37,9 @@ from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 # Modules.Supplier
 from src.erp.api.modules.supplier.models import Supplier
 
+# Search
+from src.erp.api.search.models import GlobalSearchIndex
+
 __all__ = [
     "Base",
     "User",
@@ -56,6 +59,7 @@ __all__ = [
     "SellOrder",
     "SellOrderLine",
     "Supplier",
+    "GlobalSearchIndex",
 ]
 
 metadata = Base.metadata

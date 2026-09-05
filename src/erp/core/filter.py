@@ -1,3 +1,4 @@
+import inspect
 from collections.abc import Callable
 from enum import Enum
 from typing import Any, Literal
@@ -5,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 OperatorType = Literal["eq", "ilike", "in", "gte", "lte", "between"]
 
@@ -36,11 +37,11 @@ class FilterSpec:
         placeholder: str | None = None,
         type: Literal["select", "range"] = "select",
         enum_type: type[Enum] | None = None,
-        options_fn: Callable[[Session, UUID], list[FilterOption]] | None = None,
+        options_fn: Callable[[AsyncSession, UUID], list[FilterOption]] | None = None,
         # Range-specific configurations
         min_val: float | None = None,
         max_val: float | None = None,
-        range_fn: Callable[[Session, UUID], tuple[float, float]] | None = None,
+        range_fn: Callable[[AsyncSession, UUID], tuple[float, float]] | None = None,
         step: float | None = None,
         prefix: str | None = None,
     ) -> None:
@@ -95,7 +96,7 @@ class BaseFilter(BaseModel):
 
         return query
 
-    def build_ui_filters(self, db: Session, workspace_id: UUID) -> list[TableFilter]:
+    async def build_ui_filters(self, db: AsyncSession, workspace_id: UUID) -> list[TableFilter]:
         table_filters: list[TableFilter] = []
 
         for field_name, spec in self.__filter_config__.items():
@@ -108,10 +109,16 @@ class BaseFilter(BaseModel):
                     label = getattr(item, "label", item.name.replace("_", " ").title())
                     options.append(FilterOption(label=label, value=item.value))
             elif spec.options_fn:
-                options = spec.options_fn(db, workspace_id)
+                if inspect.iscoroutinefunction(spec.options_fn):
+                    options = await spec.options_fn(db, workspace_id)
+                else:
+                    options = spec.options_fn(db, workspace_id)
 
             if spec.type == "range" and spec.range_fn:
-                min_val, max_val = spec.range_fn(db, workspace_id)
+                if inspect.iscoroutinefunction(spec.range_fn):
+                    min_val, max_val = await spec.range_fn(db, workspace_id)
+                else:
+                    min_val, max_val = spec.range_fn(db, workspace_id)
 
             table_filters.append(
                 TableFilter(

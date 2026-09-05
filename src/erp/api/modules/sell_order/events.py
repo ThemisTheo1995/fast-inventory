@@ -1,42 +1,42 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 
 @dataclass
 class SellOrderConfirmedEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
 
 
 @dataclass
 class SellOrderFulfilledEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
 
 
 @dataclass
 class SellOrderCancelledEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
 
 
 @dataclass
 class SellOrderReturnedEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
 
 
 @dataclass
 class SellOrderLineAddedEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
     line: SellOrderLine
@@ -44,7 +44,7 @@ class SellOrderLineAddedEvent:
 
 @dataclass
 class SellOrderLineUpdatedEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
     line: SellOrderLine
@@ -53,7 +53,7 @@ class SellOrderLineUpdatedEvent:
 
 @dataclass
 class SellOrderLineRemovedEvent:
-    db: Session
+    db: AsyncSession
     workspace_id: UUID
     sell_order: SellOrder
     line: SellOrderLine

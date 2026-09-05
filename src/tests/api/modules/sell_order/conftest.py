@@ -14,7 +14,7 @@ from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 
 @pytest.fixture
-def active_customer(db_session, seed_workspace) -> Customer:
+async def active_customer(db_session, seed_workspace) -> Customer:
     """Seeds a live customer record attached to the primary workspace."""
     customer = Customer(
         id=uuid.uuid4(),
@@ -25,8 +25,8 @@ def active_customer(db_session, seed_workspace) -> Customer:
         is_deleted=False,
     )
     db_session.add(customer)
-    db_session.commit()
-    db_session.refresh(customer)
+    await db_session.commit()
+    await db_session.refresh(customer)
     return customer
 
 
@@ -34,7 +34,7 @@ def active_customer(db_session, seed_workspace) -> Customer:
 
 
 @pytest.fixture
-def active_item(db_session, seed_workspace) -> Item:
+async def active_item(db_session, seed_workspace) -> Item:
     """Seeds a base item without stock."""
     item = Item(
         id=uuid.uuid4(),
@@ -45,16 +45,16 @@ def active_item(db_session, seed_workspace) -> Item:
         is_deleted=False,
     )
     db_session.add(item)
-    db_session.commit()
-    db_session.refresh(item)
+    await db_session.commit()
+    await db_session.refresh(item)
     return item
 
 
 @pytest.fixture
-def stocked_item(db_session, seed_workspace, active_item) -> Item:
+async def stocked_item(db_session, seed_workspace, active_item) -> Item:
     """Seeds physical stock (100 units) so allocation checks pass in tests."""
     inv_service = InventoryService(db_session)
-    inv_service.create_stock_movement(
+    await inv_service.create_stock_movement(
         seed_workspace,
         StockMovementCreate(
             item_id=active_item.id,
@@ -63,7 +63,7 @@ def stocked_item(db_session, seed_workspace, active_item) -> Item:
             reference_id=uuid.uuid4(),
         ),
     )
-    db_session.flush()
+    await db_session.flush()
     return active_item
 
 
@@ -71,7 +71,7 @@ def stocked_item(db_session, seed_workspace, active_item) -> Item:
 
 
 @pytest.fixture
-def active_sell_order(db_session, seed_workspace, active_customer) -> SellOrder:
+async def active_sell_order(db_session, seed_workspace, active_customer) -> SellOrder:
     """Seeds a live sell order record attached to the primary workspace and active customer."""
     sell_order = SellOrder(
         id=uuid.uuid4(),
@@ -82,13 +82,13 @@ def active_sell_order(db_session, seed_workspace, active_customer) -> SellOrder:
         status=SOStatusEnum.DRAFT,
     )
     db_session.add(sell_order)
-    db_session.commit()
-    db_session.refresh(sell_order)
+    await db_session.commit()
+    await db_session.refresh(sell_order)
     return sell_order
 
 
 @pytest.fixture
-def active_sell_order_line(db_session, active_sell_order, stocked_item) -> SellOrderLine:
+async def active_sell_order_line(db_session, active_sell_order, stocked_item) -> SellOrderLine:
     """Seeds a single sell order line attached to an active_sell_order and linked to a stocked_item."""
     sell_order_line = SellOrderLine(
         id=uuid.uuid4(),
@@ -98,6 +98,6 @@ def active_sell_order_line(db_session, active_sell_order, stocked_item) -> SellO
         unit_cost=250,
     )
     db_session.add(sell_order_line)
-    db_session.commit()
-    db_session.refresh(sell_order_line)
+    await db_session.commit()
+    await db_session.refresh(sell_order_line)
     return sell_order_line

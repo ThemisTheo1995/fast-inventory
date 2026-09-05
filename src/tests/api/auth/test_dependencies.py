@@ -4,8 +4,9 @@ from typing import Annotated
 
 import jwt
 import pytest
+import pytest_asyncio
 from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.erp.api.auth.dependencies import get_current_user, get_current_workspace_user
 from src.erp.api.auth.models import User
@@ -53,14 +54,22 @@ def mock_active_user_endpoint(workspace_user: Annotated[WorkspaceUser, Depends(g
 # ============================================================================
 
 
-@pytest.fixture
-def test_client(db_session):
+@pytest_asyncio.fixture
+async def test_client(db_session):
     """
-    Creates a FastAPI TestClient and overrides the global 'get_db'
+    Creates an AsyncClient and overrides the global 'get_db'
     dependency to use your real, isolated 'db_session' fixture.
     """
-    app.dependency_overrides[get_db] = lambda: db_session
-    yield TestClient(app)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
     app.dependency_overrides.clear()
 
 
@@ -86,8 +95,8 @@ def create_jwt():
     return _encode
 
 
-@pytest.fixture
-def persisted_user(db_session):
+@pytest_asyncio.fixture
+async def persisted_user(db_session):
     """Creates and flushes a baseline user into the test database."""
     user = User(
         id=str(uuid.uuid4()),
@@ -97,7 +106,7 @@ def persisted_user(db_session):
         hashed_password=get_password_hash("secure_pass"),
     )
     db_session.add(user)
-    db_session.flush()
+    await db_session.flush()
     return user
 
 
@@ -106,15 +115,15 @@ def persisted_user(db_session):
 # ============================================================================
 
 
-def test_get_current_user_no_token(test_client):
+async def test_get_current_user_no_token(test_client):
     """
     If no access_token cookie is provided, the dependency must reject the request.
     """
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
+async def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
     """
     A valid access token stored in the access_token cookie belonging to an existing
     user must pass authentication and return the user record.
@@ -123,7 +132,7 @@ def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
 
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -132,7 +141,7 @@ def test_get_current_user_happy_path(test_client, create_jwt, persisted_user):
     }
 
 
-def test_get_current_user_invalid_signature(test_client):
+async def test_get_current_user_invalid_signature(test_client):
     """
     Tokens tampered with or signed with an incorrect key must
     fail authentication instantly.
@@ -145,11 +154,11 @@ def test_get_current_user_invalid_signature(test_client):
 
     test_client.cookies.set("access_token", bad_token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-def test_get_current_user_missing_sub_claim(test_client):
+async def test_get_current_user_missing_sub_claim(test_client):
     """
     A token missing its subject ('sub') claim cannot identify a user
     and must trigger an exception.
@@ -159,11 +168,11 @@ def test_get_current_user_missing_sub_claim(test_client):
 
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-def test_get_current_user_wrong_token_type(test_client, create_jwt, persisted_user):
+async def test_get_current_user_wrong_token_type(test_client, create_jwt, persisted_user):
     """
     Passing a 'refresh' type token into an endpoint requiring an
     'access' token must fail verification.
@@ -172,11 +181,11 @@ def test_get_current_user_wrong_token_type(test_client, create_jwt, persisted_us
 
     test_client.cookies.set("access_token", refresh_token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-def test_get_current_user_expired(test_client, create_jwt, persisted_user):
+async def test_get_current_user_expired(test_client, create_jwt, persisted_user):
     """
     An expired access token must fail cleanly.
     """
@@ -184,11 +193,11 @@ def test_get_current_user_expired(test_client, create_jwt, persisted_user):
 
     test_client.cookies.set("access_token", expired_token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-def test_get_current_user_not_found_in_db(test_client, create_jwt):
+async def test_get_current_user_not_found_in_db(test_client, create_jwt):
     """
     If the token signature is structurally correct but the subject user ID
     no longer exists in the database, it must deny access.
@@ -197,7 +206,7 @@ def test_get_current_user_not_found_in_db(test_client, create_jwt):
 
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get("/test-user")
+    response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
@@ -206,7 +215,7 @@ def test_get_current_user_not_found_in_db(test_client, create_jwt):
 # ============================================================================
 
 
-def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, persisted_user):
+async def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, persisted_user):
     """
     Verifies that the secondary dependency wrapper correctly fetches
     the active workspace tenancy link when valid credentials and parameters match.
@@ -216,7 +225,7 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
         email="base_ws@test.com",
     )
     db_session.add(workspace)
-    db_session.flush()
+    await db_session.flush()
 
     workspace_user_link = WorkspaceUser(
         workspace_id=workspace.id,
@@ -226,12 +235,12 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
         is_deleted=False,
     )
     db_session.add(workspace_user_link)
-    db_session.flush()
+    await db_session.flush()
 
     token = create_jwt(user_id=persisted_user.id)
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get(f"/test-active-user/{workspace.id}")
+    response = await test_client.get(f"/test-active-user/{workspace.id}")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -243,7 +252,7 @@ def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, p
     }
 
 
-def test_get_current_workspace_user_not_found(test_client, create_jwt, persisted_user):
+async def test_get_current_workspace_user_not_found(test_client, create_jwt, persisted_user):
     """
     Verifies that if the user has no link to the provided workspace ID, access is denied.
     """
@@ -251,18 +260,18 @@ def test_get_current_workspace_user_not_found(test_client, create_jwt, persisted
     test_client.cookies.set("access_token", token)
 
     random_workspace_id = uuid.uuid4()
-    response = test_client.get(f"/test-active-user/{random_workspace_id}")
+    response = await test_client.get(f"/test-active-user/{random_workspace_id}")
 
     assert response.status_code in (403, 404)
 
 
-def test_get_current_workspace_user_not_active(test_client, create_jwt, db_session, persisted_user):
+async def test_get_current_workspace_user_not_active(test_client, create_jwt, db_session, persisted_user):
     """
     Verifies that users with 'PENDING' (or non-ACTIVE) status are denied access to the workspace.
     """
     workspace = Workspace(name="Pending WS", email="pending@test.com")
     db_session.add(workspace)
-    db_session.flush()
+    await db_session.flush()
 
     # Create link but leave it pending
     workspace_user_link = WorkspaceUser(
@@ -273,23 +282,23 @@ def test_get_current_workspace_user_not_active(test_client, create_jwt, db_sessi
         is_deleted=False,
     )
     db_session.add(workspace_user_link)
-    db_session.flush()
+    await db_session.flush()
 
     token = create_jwt(user_id=persisted_user.id)
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get(f"/test-active-user/{workspace.id}")
+    response = await test_client.get(f"/test-active-user/{workspace.id}")
 
     assert response.status_code in (403, 404)
 
 
-def test_get_current_workspace_user_deleted(test_client, create_jwt, db_session, persisted_user):
+async def test_get_current_workspace_user_deleted(test_client, create_jwt, db_session, persisted_user):
     """
     Verifies that users whose link has been soft-deleted are denied access.
     """
     workspace = Workspace(name="Deleted Link WS", email="deleted@test.com")
     db_session.add(workspace)
-    db_session.flush()
+    await db_session.flush()
 
     workspace_user_link = WorkspaceUser(
         workspace_id=workspace.id,
@@ -299,11 +308,11 @@ def test_get_current_workspace_user_deleted(test_client, create_jwt, db_session,
         is_deleted=True,
     )
     db_session.add(workspace_user_link)
-    db_session.flush()
+    await db_session.flush()
 
     token = create_jwt(user_id=persisted_user.id)
     test_client.cookies.set("access_token", token)
 
-    response = test_client.get(f"/test-active-user/{workspace.id}")
+    response = await test_client.get(f"/test-active-user/{workspace.id}")
 
     assert response.status_code in (403, 404)

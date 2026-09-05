@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -15,17 +15,19 @@ from src.erp.api.modules.inventory.service import InventoryService
 # ==============================================================================
 
 
-def test_get_or_create_inventory_existing(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_get_or_create_inventory_existing(db_session, seed_workspace, active_item):
     """Verifies it fetches the existing inventory."""
     service = InventoryService(db_session)
-    inv = service._get_or_create_inventory(seed_workspace, active_item.id)
+    inv = await service._get_or_create_inventory(seed_workspace, active_item.id)
     assert inv.item_id == active_item.id
 
 
-def test_get_or_create_inventory_creates_new(db_session, seed_workspace, empty_item):
+@pytest.mark.asyncio
+async def test_get_or_create_inventory_creates_new(db_session, seed_workspace, empty_item):
     """Verifies it creates an inventory record initialized to 0 if missing."""
     service = InventoryService(db_session)
-    inv = service._get_or_create_inventory(seed_workspace, empty_item.id)
+    inv = await service._get_or_create_inventory(seed_workspace, empty_item.id)
 
     assert inv.item_id == empty_item.id
     assert inv.quantity_on_hand == 0
@@ -33,7 +35,8 @@ def test_get_or_create_inventory_creates_new(db_session, seed_workspace, empty_i
     assert inv.quantity_on_order == 0
 
 
-def test_get_or_create_inventory_race_condition(db_session, seed_workspace, empty_item):
+@pytest.mark.asyncio
+async def test_get_or_create_inventory_race_condition(db_session, seed_workspace, empty_item):
     """
     Verifies that if two requests try to create the inventory simultaneously,
     the IntegrityError is caught and the newly inserted row is fetched.
@@ -43,7 +46,7 @@ def test_get_or_create_inventory_race_condition(db_session, seed_workspace, empt
     original_execute = service.db.execute
     call_count = 0
 
-    def fake_execute(stmt, *args, **kwargs):
+    async def fake_execute(stmt, *args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -56,13 +59,15 @@ def test_get_or_create_inventory_race_condition(db_session, seed_workspace, empt
             mock_result = MagicMock()
             mock_result.scalar_one.return_value = Inventory(item_id=empty_item.id, workspace_id=seed_workspace)
             return mock_result
-        return original_execute(stmt, *args, **kwargs)
+        return await original_execute(stmt, *args, **kwargs)
 
     with (
         patch.object(service.db, "execute", side_effect=fake_execute),
-        patch.object(service.db, "flush", side_effect=IntegrityError(None, None, BaseException())),
+        patch.object(
+            service.db, "flush", new_callable=AsyncMock, side_effect=IntegrityError(None, None, BaseException())
+        ),
     ):
-        inv = service._get_or_create_inventory(seed_workspace, empty_item.id, lock_for_update=True)
+        inv = await service._get_or_create_inventory(seed_workspace, empty_item.id, lock_for_update=True)
         assert inv.item_id == empty_item.id
 
 
@@ -71,11 +76,12 @@ def test_get_or_create_inventory_race_condition(db_session, seed_workspace, empt
 # ==============================================================================
 
 
-def test_get_inventories_pagination_and_expand(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_get_inventories_pagination_and_expand(db_session, seed_workspace, active_item):
     """Verifies fetching paginated lists and applying expand paths."""
     service = InventoryService(db_session)
 
-    response = service.get_inventories(seed_workspace, page=1, limit=10, expand=["item"])
+    response = await service.get_inventories(seed_workspace, page=1, limit=10, expand=["item"])
 
     assert response.total >= 1
     assert len(response.items) >= 1
@@ -83,10 +89,11 @@ def test_get_inventories_pagination_and_expand(db_session, seed_workspace, activ
     assert response.items[0].item.sku == active_item.sku
 
 
-def test_get_inventory_by_item(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_get_inventory_by_item(db_session, seed_workspace, active_item):
     """Verifies fetching inventory for a specific item ID."""
     service = InventoryService(db_session)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.item_id == active_item.id
 
 
@@ -95,7 +102,8 @@ def test_get_inventory_by_item(db_session, seed_workspace, active_item):
 # ==============================================================================
 
 
-def test_create_stock_movement_success(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_create_stock_movement_success(db_session, seed_workspace, active_item):
     """Verifies creating a stock movement updates the on-hand quantity."""
     service = InventoryService(db_session)
 
@@ -105,14 +113,15 @@ def test_create_stock_movement_success(db_session, seed_workspace, active_item):
         reference_type=OrderType.MANUAL_ADJUSTMENT,
     )
 
-    movement = service.create_stock_movement(seed_workspace, movement_data)
+    movement = await service.create_stock_movement(seed_workspace, movement_data)
 
     assert movement.quantity_change == 50
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_on_hand == 50
 
 
-def test_create_stock_movement_insufficient_stock(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_create_stock_movement_insufficient_stock(db_session, seed_workspace, active_item):
     """Verifies negative movements that drop stock below 0 are blocked."""
     service = InventoryService(db_session)
 
@@ -123,32 +132,33 @@ def test_create_stock_movement_insufficient_stock(db_session, seed_workspace, ac
     )
 
     with pytest.raises(InsufficientInventoryError):
-        service.create_stock_movement(seed_workspace, movement_data)
+        await service.create_stock_movement(seed_workspace, movement_data)
 
 
-def test_get_stock_movements_pagination_and_filtering(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_get_stock_movements_pagination_and_filtering(db_session, seed_workspace, active_item):
     """Verifies retrieving and filtering stock movements."""
     service = InventoryService(db_session)
 
     # Add a movement
-    service.create_stock_movement(
+    await service.create_stock_movement(
         seed_workspace,
         StockMovementCreate(item_id=active_item.id, quantity_change=10, reference_type=OrderType.MANUAL_ADJUSTMENT),
     )
-    db_session.commit()
+    await db_session.commit()
 
     # Test unfettered fetch
-    response = service.get_stock_movements(seed_workspace)
+    response = await service.get_stock_movements(seed_workspace)
     assert response.total >= 1
 
     # Test filtered by item_id
-    response_filtered = service.get_stock_movements(seed_workspace, item_id=active_item.id)
+    response_filtered = await service.get_stock_movements(seed_workspace, item_id=active_item.id)
     assert response_filtered.total >= 1
     assert response_filtered.items[0].quantity_change == 10
 
     # Test empty filter
     fake_id = uuid.uuid4()
-    response_empty = service.get_stock_movements(seed_workspace, item_id=fake_id)
+    response_empty = await service.get_stock_movements(seed_workspace, item_id=fake_id)
     assert response_empty.total == 0
 
 
@@ -157,58 +167,60 @@ def test_get_stock_movements_pagination_and_filtering(db_session, seed_workspace
 # ==============================================================================
 
 
-def test_adjust_quantity_on_order(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_adjust_quantity_on_order(db_session, seed_workspace, active_item):
     """Verifies adjustments to quantity_on_order."""
     service = InventoryService(db_session)
 
     # Zero delta does nothing
-    service.adjust_quantity_on_order(seed_workspace, active_item.id, 0)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    await service.adjust_quantity_on_order(seed_workspace, active_item.id, 0)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_on_order == 0
 
     # Positive delta
-    service.adjust_quantity_on_order(seed_workspace, active_item.id, 10)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    await service.adjust_quantity_on_order(seed_workspace, active_item.id, 10)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_on_order == 10
 
     # Negative delta
-    service.adjust_quantity_on_order(seed_workspace, active_item.id, -5)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    await service.adjust_quantity_on_order(seed_workspace, active_item.id, -5)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_on_order == 5
 
     # Negative delta going below 0 fails
     with pytest.raises(InsufficientInventoryError):
-        service.adjust_quantity_on_order(seed_workspace, active_item.id, -10)
+        await service.adjust_quantity_on_order(seed_workspace, active_item.id, -10)
 
 
-def test_adjust_quantity_allocated(db_session, seed_workspace, active_item):
+@pytest.mark.asyncio
+async def test_adjust_quantity_allocated(db_session, seed_workspace, active_item):
     """Verifies adjustments to quantity_allocated and over-allocation constraints."""
     service = InventoryService(db_session)
 
     # Seed on-hand inventory so we can allocate it
-    service.create_stock_movement(
+    await service.create_stock_movement(
         seed_workspace,
         StockMovementCreate(item_id=active_item.id, quantity_change=20, reference_type=OrderType.MANUAL_ADJUSTMENT),
     )
-    db_session.commit()
+    await db_session.commit()
 
     # Zero delta does nothing
-    service.adjust_quantity_allocated(seed_workspace, active_item.id, 0)
+    await service.adjust_quantity_allocated(seed_workspace, active_item.id, 0)
 
     # Positive delta (Success)
-    service.adjust_quantity_allocated(seed_workspace, active_item.id, 15)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    await service.adjust_quantity_allocated(seed_workspace, active_item.id, 15)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_allocated == 15
 
     # Positive delta (Failure: exceeding on-hand - allocated = 5)
     with pytest.raises(InsufficientInventoryError):
-        service.adjust_quantity_allocated(seed_workspace, active_item.id, 10)
+        await service.adjust_quantity_allocated(seed_workspace, active_item.id, 10)
 
     # Negative delta (Success)
-    service.adjust_quantity_allocated(seed_workspace, active_item.id, -5)
-    inv = service.get_inventory_by_item(seed_workspace, active_item.id)
+    await service.adjust_quantity_allocated(seed_workspace, active_item.id, -5)
+    inv = await service.get_inventory_by_item(seed_workspace, active_item.id)
     assert inv.quantity_allocated == 10
 
     # Negative delta (Failure: going below 0)
     with pytest.raises(InsufficientInventoryError):
-        service.adjust_quantity_allocated(seed_workspace, active_item.id, -15)
+        await service.adjust_quantity_allocated(seed_workspace, active_item.id, -15)

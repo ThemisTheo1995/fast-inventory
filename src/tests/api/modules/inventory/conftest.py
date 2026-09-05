@@ -1,7 +1,7 @@
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
+import pytest_asyncio
 
 from src.erp.api.modules.inventory.models import Inventory
 from src.erp.api.modules.item.models import Item
@@ -15,7 +15,7 @@ def create_mock_event(event_class, lines_data):
     """Helper to create a mock event with nested lines."""
     event = MagicMock(spec=event_class)
     event.workspace_id = uuid.uuid4()
-    event.db = MagicMock()
+    event.db = AsyncMock()
 
     order_mock = MagicMock()
     order_mock.id = uuid.uuid4()
@@ -41,7 +41,7 @@ def create_mock_line_event(event_class, item_id, quantity, quantity_delta=None):
     """Helper to create line-level events."""
     event = MagicMock(spec=event_class)
     event.workspace_id = uuid.uuid4()
-    event.db = MagicMock()
+    event.db = AsyncMock()
 
     line = MagicMock()
     line.item_id = item_id
@@ -54,8 +54,8 @@ def create_mock_line_event(event_class, item_id, quantity, quantity_delta=None):
     return event
 
 
-@pytest.fixture
-def active_item(db_session, seed_workspace) -> Item:
+@pytest_asyncio.fixture
+async def active_item(db_session, seed_workspace) -> Item:
     """Seeds a live item record (with automatic inventory initialization) for inventory testing."""
     item = Item(
         id=uuid.uuid4(),
@@ -66,8 +66,8 @@ def active_item(db_session, seed_workspace) -> Item:
         is_deleted=False,
     )
     db_session.add(item)
-    db_session.commit()
-    db_session.refresh(item)
+    await db_session.commit()
+    await db_session.refresh(item)
 
     inventory = Inventory(
         workspace_id=seed_workspace,
@@ -77,13 +77,13 @@ def active_item(db_session, seed_workspace) -> Item:
         quantity_on_order=0,
     )
     db_session.add(inventory)
-    db_session.commit()
+    await db_session.commit()
 
     return item
 
 
-@pytest.fixture
-def empty_item(db_session, seed_workspace) -> Item:
+@pytest_asyncio.fixture
+async def empty_item(db_session, seed_workspace) -> Item:
     """Creates an item but does NOT initialize its inventory."""
     item = Item(
         id=uuid.uuid4(),
@@ -94,6 +94,6 @@ def empty_item(db_session, seed_workspace) -> Item:
         is_deleted=False,
     )
     db_session.add(item)
-    db_session.commit()
-    db_session.refresh(item)
+    await db_session.commit()
+    await db_session.refresh(item)
     return item

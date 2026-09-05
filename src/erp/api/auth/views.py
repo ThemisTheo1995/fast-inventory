@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.auth.schemas.user import (
     LoginResponse,
@@ -21,11 +21,13 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, response: Response, db: Annotated[Session, Depends(get_db)]) -> RegisterResponse:
+async def register(
+    data: RegisterRequest, response: Response, db: Annotated[AsyncSession, Depends(get_db)]
+) -> RegisterResponse:
 
     service = AuthService(db)
 
-    result = service.register(data)
+    result = await service.register(data)
 
     response.set_cookie(
         key="access_token",
@@ -47,16 +49,16 @@ def register(data: RegisterRequest, response: Response, db: Annotated[Session, D
 
 
 @router.post("/onboard", response_model=OnboardResponse, status_code=status.HTTP_200_OK)
-def onboard(
+async def onboard(
     data: UserCreate,
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OnboardResponse:
     """Finalises profiles for users invited to an existing workspace."""
 
     service = AuthService(db)
 
-    result = service.onboard(data)
+    result = await service.onboard(data)
 
     response.set_cookie(
         key="access_token",
@@ -80,15 +82,15 @@ def onboard(
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-def login(
+async def login(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LoginResponse:
 
     service = AuthService(db)
 
-    result = service.login(form_data)
+    result = await service.login(form_data)
 
     response.set_cookie(
         key="access_token",
@@ -110,15 +112,16 @@ def login(
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-def logout(
+async def logout(
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> dict:
+
     service = AuthService(db)
 
     if refresh_token:
-        service.logout(refresh_token)
+        await service.logout(refresh_token)
 
     response.delete_cookie(key="access_token")
     response.delete_cookie(key="refresh_token")
@@ -127,9 +130,9 @@ def logout(
 
 
 @router.post("/refresh", status_code=status.HTTP_200_OK)
-def refresh_token(
+async def refresh_token(
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> dict:
 
@@ -141,7 +144,7 @@ def refresh_token(
 
     service = AuthService(db)
 
-    access_token = service.refresh_token(refresh_token)
+    access_token = await service.refresh_token(refresh_token)
 
     response.set_cookie(
         key="access_token", value=access_token, httponly=True, secure=bool(settings.COOKIE_SECURE), samesite="lax"
