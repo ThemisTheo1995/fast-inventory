@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
@@ -24,9 +24,9 @@ Expand = Annotated[list[str] | None, Query()]
 
 
 @router.get("/inventory", response_model=InventoryPaginatedResponse)
-def get_inventories(
+async def get_inventories(
     workspace_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     page: Page = 1,
     limit: Limit = 20,
     expand: Expand = None,
@@ -34,40 +34,40 @@ def get_inventories(
 
     service = InventoryService(db)
 
-    return service.get_inventories(workspace_id, page, limit, expand=expand)
+    return await service.get_inventories(workspace_id, page, limit, expand=expand)
 
 
 @router.get("/inventory/items/{item_id}", response_model=InventoryResponse)
-def get_inventory_by_item(
+async def get_inventory_by_item(
     workspace_id: UUID,
     item_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InventoryResponse:
 
     service = InventoryService(db)
 
-    return service.get_inventory_by_item(workspace_id, item_id)
+    return await service.get_inventory_by_item(workspace_id, item_id)
 
 
 # --- Stock Movement Endpoints ---
 
 
 @router.post("/inventory/movements", response_model=StockMovementResponse, status_code=status.HTTP_201_CREATED)
-def create_stock_movement(
+async def create_stock_movement(
     workspace_id: UUID,
     data: StockMovementCreate,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StockMovementResponse:
 
     service = InventoryService(db)
 
-    return service.create_stock_movement(workspace_id, data)
+    return await service.create_stock_movement(workspace_id, data)
 
 
 @router.get("/inventory/movements", response_model=StockMovementPaginatedResponse)
-def get_stock_movements(
+async def get_stock_movements(
     workspace_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     item_id: UUID | None = None,
     page: Page = 1,
     limit: Limit = 20,
@@ -75,4 +75,4 @@ def get_stock_movements(
 
     service = InventoryService(db)
 
-    return service.get_stock_movements(workspace_id, item_id, page, limit)
+    return await service.get_stock_movements(workspace_id, item_id, page, limit)

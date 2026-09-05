@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
@@ -13,7 +13,9 @@ from src.erp.api.modules.sell_order.schemas import (
     SellOrderResponse,
     SellOrderUpdate,
 )
-from src.erp.api.modules.sell_order.service import SellOrderLineService, SellOrderService
+from src.erp.api.modules.sell_order.service import SellOrderService
+from src.erp.core.dependencies import get_event_bus
+from src.erp.core.event_bus import EventBus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -24,61 +26,59 @@ router = APIRouter()
 
 
 @router.post("/sell-orders", response_model=SellOrderResponse, status_code=status.HTTP_201_CREATED)
-def create_sell_order(
-    workspace_id: UUID,
-    data: SellOrderCreate,
-    db: Annotated[Session, Depends(get_db)],
+async def create_sell_order(
+    workspace_id: UUID, data: SellOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
     service = SellOrderService(db)
-    return service.create_sell_order(workspace_id, data)
+
+    return await service.create_sell_order(workspace_id, data)
 
 
 @router.get("/sell-orders", response_model=SellOrderPaginatedResponse)
-def get_sell_orders(
+async def get_sell_orders(
     workspace_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> SellOrderPaginatedResponse:
 
     service = SellOrderService(db)
-    return service.get_sell_orders(workspace_id, search, page, limit)
+
+    return await service.get_sell_orders(workspace_id, search, page, limit)
 
 
 @router.get("/sell-orders/{sell_order_id}", response_model=SellOrderResponse)
-def get_sell_order(
-    workspace_id: UUID,
-    sell_order_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+async def get_sell_order(
+    workspace_id: UUID, sell_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> SellOrderResponse:
 
     service = SellOrderService(db)
-    return service.get_sell_order(workspace_id, sell_order_id)
+
+    return await service.get_sell_order(workspace_id, sell_order_id)
 
 
 @router.patch("/sell-orders/{sell_order_id}", response_model=SellOrderResponse)
-def update_sell_order(
+async def update_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
     data: SellOrderUpdate,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderResponse:
 
-    service = SellOrderService(db)
-    return service.update_sell_order(workspace_id, sell_order_id, data)
+    service = SellOrderService(db, event_bus)
+    return await service.update_sell_order(workspace_id, sell_order_id, data)
 
 
 @router.delete("/sell-orders/{sell_order_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sell_order(
-    workspace_id: UUID,
-    sell_order_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+async def delete_sell_order(
+    workspace_id: UUID, sell_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> None:
 
     service = SellOrderService(db)
-    service.delete_sell_order(workspace_id, sell_order_id)
+    await service.delete_sell_order(workspace_id, sell_order_id)
 
 
 # =======================================================
@@ -91,37 +91,40 @@ def delete_sell_order(
     response_model=SellOrderLineResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def add_sell_order_line(
+async def add_sell_order_line(
     workspace_id: UUID,
     sell_order_id: UUID,
     data: SellOrderLineCreate,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderLineResponse:
 
-    service = SellOrderLineService(db)
-    return service.add_line(workspace_id, sell_order_id, data)
+    service = SellOrderService(db, event_bus)
+    return await service.add_line(workspace_id, sell_order_id, data)
 
 
 @router.patch("/sell-orders/{sell_order_id}/lines/{line_id}", response_model=SellOrderLineResponse)
-def update_sell_order_line(
+async def update_sell_order_line(
     workspace_id: UUID,
     sell_order_id: UUID,
     line_id: UUID,
     data: SellOrderLineUpdate,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderLineResponse:
 
-    service = SellOrderLineService(db)
-    return service.update_line(workspace_id, sell_order_id, line_id, data)
+    service = SellOrderService(db, event_bus)
+    return await service.update_line(workspace_id, sell_order_id, line_id, data)
 
 
 @router.delete("/sell-orders/{sell_order_id}/lines/{line_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_sell_order_line(
+async def remove_sell_order_line(
     workspace_id: UUID,
     sell_order_id: UUID,
     line_id: UUID,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> None:
 
-    service = SellOrderLineService(db)
-    service.remove_line(workspace_id, sell_order_id, line_id)
+    service = SellOrderService(db, event_bus)
+    await service.remove_line(workspace_id, sell_order_id, line_id)

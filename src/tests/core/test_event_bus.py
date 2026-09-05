@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.erp.core.event_bus import EventBus, global_event_bus
 
@@ -31,41 +33,44 @@ def test_event_bus_subscribe():
     assert len(bus._subscribers[DummyEventA]) == 1
 
 
-def test_event_bus_publish_calls_subscribers():
+@pytest.mark.asyncio
+async def test_event_bus_publish_calls_subscribers():
     """Verifies that publishing an event calls all subscribed handlers with the event instance."""
     bus = EventBus()
-    handler_1 = MagicMock()
-    handler_2 = MagicMock()
+    handler_1 = AsyncMock()
+    handler_2 = AsyncMock()
 
     bus.subscribe(DummyEventA, handler_1)
     bus.subscribe(DummyEventA, handler_2)
 
     event_instance = DummyEventA()
-    bus.publish(event_instance)
+    await bus.publish(event_instance)
 
     handler_1.assert_called_once_with(event_instance)
     handler_2.assert_called_once_with(event_instance)
 
 
-def test_event_bus_publish_no_subscribers():
+@pytest.mark.asyncio
+async def test_event_bus_publish_no_subscribers():
     """Verifies that publishing an event with no subscribers doesn't throw an error."""
     bus = EventBus()
     event_instance = DummyEventA()
 
-    bus.publish(event_instance)
+    await bus.publish(event_instance)
 
 
-def test_event_bus_event_isolation():
+@pytest.mark.asyncio
+async def test_event_bus_event_isolation():
     """Verifies that handlers are only triggered for their specifically subscribed event types."""
     bus = EventBus()
-    handler_a = MagicMock()
-    handler_b = MagicMock()
+    handler_a = AsyncMock()
+    handler_b = AsyncMock()
 
     bus.subscribe(DummyEventA, handler_a)
     bus.subscribe(DummyEventB, handler_b)
 
     event_a_instance = DummyEventA()
-    bus.publish(event_a_instance)
+    await bus.publish(event_a_instance)
 
     # handler_a should be called, but handler_b should not
     handler_a.assert_called_once_with(event_a_instance)
@@ -75,3 +80,17 @@ def test_event_bus_event_isolation():
 def test_global_event_bus_is_instantiated():
     """Verifies the global_event_bus singleton is properly instantiated."""
     assert isinstance(global_event_bus, EventBus)
+
+
+@pytest.mark.asyncio
+async def test_event_bus_publish_sync_handler():
+    """Verifies that publishing an event invokes synchronous handlers."""
+    bus = EventBus()
+    sync_handler = MagicMock()
+
+    bus.subscribe(DummyEventA, sync_handler)
+
+    event_instance = DummyEventA()
+    await bus.publish(event_instance)
+
+    sync_handler.assert_called_once_with(event_instance)

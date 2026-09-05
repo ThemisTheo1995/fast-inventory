@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/coverage-89%25-green?style=for-the-badge" alt="Coverage">
-  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?style=for-the-badge&logo=apache" alt="License">
+  <img src="https://img.shields.io/badge/coverage-94%25-green" alt="Coverage">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?logo=apache" alt="License">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.13-3776AB.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python Version">
-  <img src="https://img.shields.io/badge/FastAPI-005571.svg?style=for-the-badge&logo=fastapi" alt="FastAPI">
-  <img src="https://img.shields.io/badge/uv-Package%20Manager-DE5FE9.svg?style=for-the-badge&logo=astral&logoColor=white" alt="uv Package Manager">
+  <img src="https://img.shields.io/badge/python-3.13-3776AB.svg?logo=python&logoColor=white" alt="Python Version">
+  <img src="https://img.shields.io/badge/FastAPI-005571.svg?logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/uv-Package%20Manager-DE5FE9.svg?logo=astral&logoColor=white" alt="uv Package Manager">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Alembic-Migrations-D32F2F.svg?style=for-the-badge&logo=alembic&logoColor=white" alt="Alembic">
-  <img src="https://img.shields.io/badge/Pydantic-V2-E92063.svg?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic">
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Alembic-Migrations-D32F2F.svg?logo=alembic&logoColor=white" alt="Alembic">
+  <img src="https://img.shields.io/badge/Pydantic-V2-E92063.svg?logo=pydantic&logoColor=white" alt="Pydantic">
 </p>
 
 ---
@@ -69,7 +69,7 @@ uv pip sync uv.lock
 Create a `.env` file:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/erp_db
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/erp_db
 ```
 
 ---

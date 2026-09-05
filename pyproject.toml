@@ -23,11 +23,14 @@ classifiers = [
 
 dependencies = [
     "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
     "bcrypt<=4.0.1",
     "fastapi[standard]>=0.135.1",
-    "httpx>=0.28.1",
+    "google-genai>=2.22.0",
+    "greenlet>=3.4.0",
     "mangum>=0.21.0",
-    "psycopg2-binary>=2.9.11",
+    "pgvector>=0.5.0",
+    "psycopg[binary]>=3.3.5",
     "pydantic-settings>=2.13.1",
     "pydantic[email]>=2.12.5",
     "pyjwt>=2.12.1",
@@ -40,7 +43,9 @@ dependencies = [
 dev = [
     "black>=26.3.0",
     "freezegun>=1.5.5",
+    "httpx>=0.28.1",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.5",
 ]
@@ -63,29 +68,29 @@ exclude = [
     "__pycache__",
     "migrations",
     "build",
-    "dist"
+    "dist",
 ]
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "W",   # pycodestyle warnings
-    "I",   # import sorting
-    "N",   # naming conventions
-    "UP",  # pyupgrade
-    "B",   # bugbear (common bugs)
-    "C4",  # comprehensions
-    "SIM", # simplify
-    "RET", # return rules
-    "ARG", # unused arguments
-    "PTH", # pathlib usage
-    "RUF", # ruff specific
-    "DTZ", # datetime timezone issues
-    "TCH", # type checking imports
-    "ANN", # type annotations
-    "TRY", # exception handling
-    "PERF" # performance issues
+    "E",
+    "F",
+    "W",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "C4",
+    "SIM",
+    "RET",
+    "ARG",
+    "PTH",
+    "RUF",
+    "DTZ",
+    "TCH",
+    "ANN",
+    "TRY",
+    "PERF",
 ]
 ignore = ["F821"]
 
@@ -93,7 +98,7 @@ ignore = ["F821"]
 "src/tests/*" = [
     "ANN",
     "S101",
-    "F821"
+    "F821",
 ]
 "src/erp/model_registry.py" = ["I001", "RUF022"]
 "src/alembic/versions/*.py" = ["ALL"]
@@ -110,6 +115,7 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 
-
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

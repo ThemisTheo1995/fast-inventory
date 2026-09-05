@@ -2,7 +2,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import Date, cast, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from src.erp.api.dashboard.schemas import (
     DashboardKPIs,
     DashboardResponse,
@@ -17,10 +18,10 @@ from src.erp.api.modules.sell_order.models import SellOrder
 
 
 class DashboardService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    def get_kpis(self, workspace_id: UUID, low_stock_threshold: int = 10) -> DashboardKPIs:
+    async def get_kpis(self, workspace_id: UUID, low_stock_threshold: int = 10) -> DashboardKPIs:
         """Calculates top-level Key Performance Indicators for the dashboard."""
 
         # Total Revenue (Excluding cancelled orders)
@@ -29,14 +30,14 @@ class DashboardService:
             SellOrder.is_deleted.is_(False),
             SellOrder.status.in_(["CONFIRMED", "FULLFILLED"]),
         )
-        total_revenue = self.db.execute(revenue_stmt).scalar_one()
+        total_revenue = (await self.db.execute(revenue_stmt)).scalar_one()
 
         # Total Sell Orders
         so_count_stmt = select(func.count(SellOrder.id)).where(
             SellOrder.workspace_id == workspace_id,
             SellOrder.is_deleted.is_(False),
         )
-        total_sell_orders = self.db.execute(so_count_stmt).scalar_one()
+        total_sell_orders = (await self.db.execute(so_count_stmt)).scalar_one()
 
         # Total Purchase Orders
         po_count_stmt = select(func.count(PurchaseOrder.id)).where(
@@ -44,7 +45,7 @@ class DashboardService:
             PurchaseOrder.is_deleted.is_(False),
             PurchaseOrder.status.in_(["SENT", "RECEIVED"]),
         )
-        total_pos = self.db.execute(po_count_stmt).scalar_one()
+        total_pos = (await self.db.execute(po_count_stmt)).scalar_one()
 
         # Low Stock Items count (Quantity on hand - allocated <= threshold)
         low_stock_count_stmt = select(func.count(Inventory.id)).where(
@@ -52,7 +53,7 @@ class DashboardService:
             Inventory.is_deleted.is_(False),
             (Inventory.quantity_on_hand - Inventory.quantity_allocated) <= low_stock_threshold,
         )
-        items_low_stock = self.db.execute(low_stock_count_stmt).scalar_one()
+        items_low_stock = (await self.db.execute(low_stock_count_stmt)).scalar_one()
 
         return DashboardKPIs(
             total_revenue=total_revenue,
@@ -61,7 +62,7 @@ class DashboardService:
             items_low_stock=items_low_stock,
         )
 
-    def get_revenue_chart_data(self, workspace_id: UUID, days: int = 30) -> list[RevenueChartDataPoint]:
+    async def get_revenue_chart_data(self, workspace_id: UUID, days: int = 30) -> list[RevenueChartDataPoint]:
         """Aggregates revenue grouped by date for the last X days."""
         target_date = datetime.now(UTC).today() - timedelta(days=days)
 
@@ -80,10 +81,10 @@ class DashboardService:
             .order_by(cast(SellOrder.created_at, Date).asc())
         )
 
-        results = self.db.execute(stmt).all()
+        results = (await self.db.execute(stmt)).all()
         return [RevenueChartDataPoint(date=row.date, revenue=row.revenue) for row in results]
 
-    def get_recent_sell_orders(self, workspace_id: UUID, limit: int = 50) -> list[RecentSellOrderSummary]:
+    async def get_recent_sell_orders(self, workspace_id: UUID, limit: int = 50) -> list[RecentSellOrderSummary]:
         """Fetches the most recently created sell orders, sliced via SQL .limit()"""
         stmt = (
             select(SellOrder)
@@ -95,10 +96,13 @@ class DashboardService:
             .limit(limit)
         )
 
-        orders = self.db.execute(stmt).scalars().all()
+        result = await self.db.execute(stmt)
+        orders = result.scalars().all()
         return [RecentSellOrderSummary.model_validate(order) for order in orders]
 
-    def get_incoming_purchase_orders(self, workspace_id: UUID, limit: int = 50) -> list[IncomingPurchaseOrderSummary]:
+    async def get_incoming_purchase_orders(
+        self, workspace_id: UUID, limit: int = 50
+    ) -> list[IncomingPurchaseOrderSummary]:
         """Fetches recent purchase orders that are awaiting delivery, sliced via SQL .limit()"""
         stmt = (
             select(PurchaseOrder)
@@ -111,10 +115,13 @@ class DashboardService:
             .limit(limit)
         )
 
-        orders = self.db.execute(stmt).scalars().all()
+        result = await self.db.execute(stmt)
+        orders = result.scalars().all()
         return [IncomingPurchaseOrderSummary.model_validate(order) for order in orders]
 
-    def get_low_stock_alerts(self, workspace_id: UUID, threshold: int = 10, limit: int = 50) -> list[LowStockAlert]:
+    async def get_low_stock_alerts(
+        self, workspace_id: UUID, threshold: int = 10, limit: int = 50
+    ) -> list[LowStockAlert]:
         """Fetches inventory items whose actual available stock is running low, sliced via SQL .limit()"""
         stmt = (
             select(Inventory)
@@ -128,7 +135,8 @@ class DashboardService:
             .limit(limit)
         )
 
-        inventories = self.db.scalars(stmt).all()
+        result = await self.db.execute(stmt)
+        inventories = result.scalars().all()
 
         alerts = []
         for inv in inventories:
@@ -148,14 +156,14 @@ class DashboardService:
             )
         return alerts
 
-    def get_full_dashboard(
+    async def get_full_dashboard(
         self, workspace_id: UUID, chart_days: int = 30, low_stock_threshold: int = 10, list_limit: int = 50
     ) -> DashboardResponse:
         """Orchestrates all queries to return the complete dashboard payload."""
         return DashboardResponse(
-            kpis=self.get_kpis(workspace_id, low_stock_threshold),
-            revenue_chart=self.get_revenue_chart_data(workspace_id, chart_days),
-            recent_sell_orders=self.get_recent_sell_orders(workspace_id, limit=list_limit),
-            incoming_purchase_orders=self.get_incoming_purchase_orders(workspace_id, limit=list_limit),
-            low_stock_alerts=self.get_low_stock_alerts(workspace_id, low_stock_threshold, limit=list_limit),
+            kpis=await self.get_kpis(workspace_id, low_stock_threshold),
+            revenue_chart=await self.get_revenue_chart_data(workspace_id, chart_days),
+            recent_sell_orders=await self.get_recent_sell_orders(workspace_id, limit=list_limit),
+            incoming_purchase_orders=await self.get_incoming_purchase_orders(workspace_id, limit=list_limit),
+            low_stock_alerts=await self.get_low_stock_alerts(workspace_id, low_stock_threshold, limit=list_limit),
         )

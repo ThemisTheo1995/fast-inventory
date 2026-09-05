@@ -1,13 +1,58 @@
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import status
 
 from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
+from src.erp.api.workspace_user.schemas import UserUpdateRequest
+from src.erp.api.workspace_user.views import update_me
+
+# ==============================================================================
+# DIRECT UNIT TESTS
+# ==============================================================================
 
 
-def test_router_get_workspace_users(client, seed_workspace, active_workspace_user):
+@pytest.mark.asyncio
+async def test_update_me_direct_unit():
+    """Directly tests update_me view function to ensure model validation line executes."""
+    user_id = uuid.uuid4()
+    mock_user = MagicMock()
+    mock_user.id = user_id
+    mock_user.email = "test@example.com"
+    mock_user.first_name = "UpdatedFirst"
+    mock_user.last_name = "UpdatedLast"
+
+    mock_workspace_user = MagicMock()
+    mock_workspace_user.user = mock_user
+
+    mock_request = MagicMock()
+    mock_request.state.workspace_user = mock_workspace_user
+
+    mock_db = AsyncMock()
+    data = UserUpdateRequest(first_name="UpdatedFirst", last_name="UpdatedLast")
+
+    with patch("src.erp.api.workspace_user.views.WorkspaceUserService") as mock_service_cls:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.update_user.return_value = mock_user
+        mock_service_cls.return_value = mock_service_instance
+
+        response = await update_me(request=mock_request, data=data, db=mock_db)
+
+        mock_service_instance.update_user.assert_called_once_with(mock_user, data)
+        assert response.id == user_id
+        assert response.first_name == "UpdatedFirst"
+        assert response.last_name == "UpdatedLast"
+
+
+# ==============================================================================
+# INTEGRATION TESTS
+# ==============================================================================
+
+
+async def test_router_get_workspace_users(client, seed_workspace, active_workspace_user):
     """Verifies retrieval of all users associated with a specific workspace path layout."""
-    response = client.get(f"/{seed_workspace}/workspace-users")
+    response = await client.get(f"/{seed_workspace}/workspace-users")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -17,16 +62,16 @@ def test_router_get_workspace_users(client, seed_workspace, active_workspace_use
     assert any(item["id"] == str(active_workspace_user.id) for item in data)
 
 
-def test_router_get_workspace_user_not_found(client, seed_workspace):
+async def test_router_get_workspace_user_not_found(client, seed_workspace):
     """Verifies fetching a non-existent workspace user returns 404 NOT FOUND."""
     random_id = uuid.uuid4()
 
-    response = client.get(f"/{seed_workspace}/workspace-users/{random_id}")
+    response = await client.get(f"/{seed_workspace}/workspace-users/{random_id}")
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_router_invite_workspace_user(client, seed_workspace):
+async def test_router_invite_workspace_user(client, seed_workspace):
     """Verifies an authorized admin can invite a member to their specific workspace route."""
     payload = {
         "email": "invited-collaborator@test.com",
@@ -35,7 +80,7 @@ def test_router_invite_workspace_user(client, seed_workspace):
         "role": WorkspaceRoleEnum.EDIT_ONLY,
     }
 
-    response = client.post(f"/{seed_workspace}/workspace-users/invite", json=payload)
+    response = await client.post(f"/{seed_workspace}/workspace-users/invite", json=payload)
 
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
@@ -45,11 +90,11 @@ def test_router_invite_workspace_user(client, seed_workspace):
     assert data["status"] == "pending"
 
 
-def test_router_update_workspace_user(client, seed_workspace, target_workspace_user):
+async def test_router_update_workspace_user(client, seed_workspace, target_workspace_user):
     """Verifies altering a workspace user role transitions cleanly via structural routes."""
     payload = {"role": WorkspaceRoleEnum.FULL_ADMIN}
 
-    response = client.patch(f"/{seed_workspace}/workspace-users/{target_workspace_user.id}", json=payload)
+    response = await client.patch(f"/{seed_workspace}/workspace-users/{target_workspace_user.id}", json=payload)
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -58,29 +103,29 @@ def test_router_update_workspace_user(client, seed_workspace, target_workspace_u
     assert data["role"] == "full_admin"
 
 
-def test_router_update_workspace_user_not_found(client, seed_workspace):
+async def test_router_update_workspace_user_not_found(client, seed_workspace):
     """Verifies modifying a non-existent tracking reference inside a valid workspace gets a 404."""
     random_id = uuid.uuid4()
     payload = {"role": WorkspaceRoleEnum.READ_ONLY}
 
-    response = client.patch(f"/{seed_workspace}/workspace-users/{random_id}", json=payload)
+    response = await client.patch(f"/{seed_workspace}/workspace-users/{random_id}", json=payload)
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_router_update_workspace_user_unprocessible_no_role_found(client, seed_workspace):
+async def test_router_update_workspace_user_unprocessible_no_role_found(client, seed_workspace):
     """Verifies modifying a workspace user with a non-existent role gets a 422."""
     random_id = uuid.uuid4()
     payload = {"role": "NOT_FOUND"}
 
-    response = client.patch(f"/{seed_workspace}/workspace-users/{random_id}", json=payload)
+    response = await client.patch(f"/{seed_workspace}/workspace-users/{random_id}", json=payload)
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
-def test_router_get_me(client, seed_workspace, active_workspace_user):
+async def test_router_get_me(client, seed_workspace, active_workspace_user):
     """Verifies retrieval of the currently authenticated user's workspace profile."""
-    response = client.get(f"/{seed_workspace}/me")
+    response = await client.get(f"/{seed_workspace}/me")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -91,11 +136,11 @@ def test_router_get_me(client, seed_workspace, active_workspace_user):
     assert data["role"] == active_workspace_user.role
 
 
-def test_router_update_me(client, seed_workspace, active_workspace_user):
+async def test_router_update_me(client, seed_workspace, active_workspace_user):
     """Verifies the currently authenticated user can update their personal details."""
     payload = {"first_name": "UpdatedFirst", "last_name": "UpdatedLast"}
 
-    response = client.patch(f"/{seed_workspace}/me", json=payload)
+    response = await client.patch(f"/{seed_workspace}/me", json=payload)
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -105,9 +150,9 @@ def test_router_update_me(client, seed_workspace, active_workspace_user):
     assert data["id"] == str(active_workspace_user.user.id)
 
 
-def test_router_get_workspace_user_by_id(client, seed_workspace, target_workspace_user):
+async def test_router_get_workspace_user_by_id(client, seed_workspace, target_workspace_user):
     """Verifies retrieving a specific workspace user by their ID."""
-    response = client.get(f"/{seed_workspace}/workspace-users/{target_workspace_user.id}")
+    response = await client.get(f"/{seed_workspace}/workspace-users/{target_workspace_user.id}")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()

@@ -1,12 +1,19 @@
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
-from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.sell_order.enums import SOStatusEnum
+from src.erp.api.modules.sell_order.events import (
+    SellOrderCancelledEvent,
+    SellOrderConfirmedEvent,
+    SellOrderFulfilledEvent,
+    SellOrderLineAddedEvent,
+    SellOrderLineRemovedEvent,
+    SellOrderLineUpdatedEvent,
+    SellOrderReturnedEvent,
+)
 from src.erp.api.modules.sell_order.exceptions import (
     SellOrderCannotDeleteError,
     SellOrderExistsError,
@@ -25,14 +32,27 @@ from src.erp.api.modules.sell_order.schemas import (
     SellOrderPaginatedResponse,
     SellOrderUpdate,
 )
+from src.erp.core.event_bus import EventBus
+
+TRANSITION_EVENTS: dict[tuple[str, str], type] = {
+    (SOStatusEnum.DRAFT, SOStatusEnum.CONFIRMED): SellOrderConfirmedEvent,
+    (SOStatusEnum.CONFIRMED, SOStatusEnum.FULLFILLED): SellOrderFulfilledEvent,
+    (SOStatusEnum.CONFIRMED, SOStatusEnum.CANCELLED): SellOrderCancelledEvent,
+    (SOStatusEnum.CONFIRMED, SOStatusEnum.RETURNED): SellOrderReturnedEvent,
+    (SOStatusEnum.FULLFILLED, SOStatusEnum.RETURNED): SellOrderReturnedEvent,
+}
 
 
 class SellOrderService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession, event_bus: EventBus | None = None) -> None:
         self.db = db
-        self.inventory_service = InventoryService(db)
+        self.event_bus = event_bus
 
-    def _get_active_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
+    # ==============================================================================
+    # INTERNAL HELPERS
+    # ==============================================================================
+
+    async def _get_active_sell_order(self, workspace_id: UUID, sell_order_id: UUID, lock: bool = False) -> SellOrder:
         """Securely fetch a SO, enforcing workspace isolation and eagerly loading lines."""
         stmt = (
             select(SellOrder)
@@ -46,106 +66,88 @@ class SellOrderService:
                 selectinload(SellOrder.customer),
             )
         )
-        sell_order = self.db.execute(stmt).scalar_one_or_none()
+
+        if lock:
+            stmt = stmt.with_for_update()
+
+        result = await self.db.execute(stmt)
+        sell_order = result.scalar_one_or_none()
 
         if not sell_order:
             raise SellOrderNotFoundError()
         return sell_order
 
-    def _check_so_unique(self, workspace_id: UUID, so_number: str, exclude_sell_order_id: UUID | None = None) -> None:
+    async def _get_active_line(self, sell_order_id: UUID, line_id: UUID) -> SellOrderLine:
+        stmt = (
+            select(SellOrderLine)
+            .where(
+                SellOrderLine.id == line_id,
+                SellOrderLine.sell_order_id == sell_order_id,
+                SellOrderLine.is_deleted.is_(False),
+            )
+            .options(selectinload(SellOrderLine.item))
+        )
+        result = await self.db.execute(stmt)
+        line = result.scalar_one_or_none()
+        if not line:
+            raise SellOrderLineNotFoundError()
+        return line
+
+    def _ensure_so_is_editable(self, so: SellOrder) -> None:
+        if so.status in [SOStatusEnum.FULLFILLED, SOStatusEnum.CANCELLED, SOStatusEnum.RETURNED]:
+            raise SellOrderNotEditableError(so.status)
+
+    async def _check_so_unique(
+        self, workspace_id: UUID, so_number: str, exclude_sell_order_id: UUID | None = None
+    ) -> None:
         """Ensures SO number is unique within the workspace."""
         stmt = select(SellOrder).where(SellOrder.workspace_id == workspace_id, SellOrder.so_number == so_number)
-
         if exclude_sell_order_id:
             stmt = stmt.where(SellOrder.id != exclude_sell_order_id)
 
-        if self.db.execute(stmt).scalar_one_or_none():
+        result = await self.db.execute(stmt)
+        if result.scalar_one_or_none():
             raise SellOrderExistsError()
 
-    def _handle_status_transition(
-        self, workspace_id: UUID, so: SellOrder, old_status: SOStatusEnum, new_status: SOStatusEnum
-    ) -> None:
+    def _recalculate_so_total(self, so: SellOrder) -> None:
+        """Recalculates the SO total directly from memory. No database queries needed."""
+        so.total_amount = sum(
+            (line.quantity * line.unit_cost) for line in so.sell_order_lines if not getattr(line, "is_deleted", False)
+        )
 
+    def _validate_status_transition(self, old_status: SOStatusEnum, new_status: SOStatusEnum) -> None:
+        """Enforces domain rules for status transitions."""
         if old_status in [SOStatusEnum.CANCELLED, SOStatusEnum.RETURNED]:
             raise SellOrderStatusTerminalError(old_status)
 
         if old_status == SOStatusEnum.FULLFILLED and new_status != SOStatusEnum.RETURNED:
             raise SellOrderStatusTransitionError(old_status.label, new_status.label)
 
-        for line in so.sell_order_lines:
-            if not line.item_id:
-                continue
+    # ==============================================================================
+    # HEADER OPERATIONS
+    # ==============================================================================
 
-            match (old_status, new_status):
-                case (SOStatusEnum.DRAFT, SOStatusEnum.CONFIRMED):
-                    self.inventory_service.adjust_quantity_allocated(
-                        workspace_id,
-                        line.item_id,
-                        line.quantity,
-                    )
-
-                case (SOStatusEnum.CONFIRMED, SOStatusEnum.FULLFILLED):
-                    # Remove allocation and permanently deduct from physical stock
-                    self.inventory_service.adjust_quantity_allocated(
-                        workspace_id,
-                        line.item_id,
-                        -line.quantity,
-                    )
-                    self.inventory_service.create_stock_movement(
-                        workspace_id,
-                        StockMovementCreate(
-                            item_id=line.item_id,
-                            quantity_change=-line.quantity,
-                            reference_type=OrderType.SELL_ORDER,
-                            reference_id=so.id,
-                        ),
-                    )
-
-                case (SOStatusEnum.CONFIRMED, SOStatusEnum.CANCELLED) | (SOStatusEnum.CONFIRMED, SOStatusEnum.RETURNED):
-                    # De-allocate the stock since sell order never fullfilled
-                    self.inventory_service.adjust_quantity_allocated(
-                        workspace_id,
-                        line.item_id,
-                        -line.quantity,
-                    )
-
-                case (SOStatusEnum.FULLFILLED, SOStatusEnum.RETURNED):
-                    self.inventory_service.create_stock_movement(
-                        workspace_id,
-                        StockMovementCreate(
-                            item_id=line.item_id,
-                            quantity_change=line.quantity,
-                            reference_type=OrderType.SELL_ORDER,
-                            reference_id=so.id,
-                        ),
-                    )
-                case _:
-                    pass
-
-    def create_sell_order(self, workspace_id: UUID, data: SellOrderCreate) -> SellOrder:
+    async def create_sell_order(self, workspace_id: UUID, data: SellOrderCreate) -> SellOrder:
         """Creates a SO and its nested lines in a single atomic transaction."""
-        self._check_so_unique(workspace_id, data.so_number)
+        await self._check_so_unique(workspace_id, data.so_number)
 
         so_data = data.model_dump(exclude={"sell_order_lines"})
         lines_data = data.sell_order_lines
 
         sell_order = SellOrder(workspace_id=workspace_id, **so_data)
 
-        total_amount = 0
         for line_data in lines_data:
             line = SellOrderLine(**line_data.model_dump())
-            total_amount += line.quantity * line.unit_cost
             sell_order.sell_order_lines.append(line)
 
-        sell_order.total_amount = total_amount
+        self._recalculate_so_total(sell_order)
 
         self.db.add(sell_order)
-        self.db.commit()
-        self.db.refresh(sell_order)
+        await self.db.commit()
 
-        return sell_order
+        return await self._get_active_sell_order(workspace_id, sell_order.id)
 
-    def get_sell_orders(
+    async def get_sell_orders(
         self, workspace_id: UUID, search: str | None = None, page: int = 1, limit: int = 20
     ) -> SellOrderPaginatedResponse:
         """Fetches paginated SOs with lines eager-loaded."""
@@ -157,172 +159,161 @@ class SellOrderService:
         if search:
             base_query = base_query.where(SellOrder.so_number.ilike(f"%{search}%"))
 
-        # Total Count
         count_query = select(func.count()).select_from(base_query.subquery())
-        total = self.db.execute(count_query).scalar_one()
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
 
-        # Pagination & Eager Loading
         skip = (page - 1) * limit
         sell_orders_query = (
-            base_query.options(selectinload(SellOrder.sell_order_lines))
-            .order_by(
-                SellOrder.created_at.desc(),
-                SellOrder.id.desc(),
+            base_query.options(
+                selectinload(SellOrder.sell_order_lines).selectinload(SellOrderLine.item),
+                selectinload(SellOrder.customer),
             )
+            .order_by(SellOrder.created_at.desc(), SellOrder.id.desc())
             .offset(skip)
             .limit(limit)
         )
-        sell_orders = list(self.db.execute(sell_orders_query).scalars().all())
+        sell_orders_result = await self.db.execute(sell_orders_query)
+        sell_orders = list(sell_orders_result.scalars().all())
 
         return SellOrderPaginatedResponse(items=sell_orders, total=total)
 
-    def get_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
-        return self._get_active_sell_order(workspace_id, sell_order_id)
+    async def get_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
+        return await self._get_active_sell_order(workspace_id, sell_order_id)
 
-    def update_sell_order(self, workspace_id: UUID, sell_order_id: UUID, data: SellOrderUpdate) -> SellOrder:
-        """Applies partial updates to SO metadata (Header only)."""
-        sell_order = self._get_active_sell_order(workspace_id, sell_order_id)
+    async def update_sell_order(self, workspace_id: UUID, sell_order_id: UUID, data: SellOrderUpdate) -> SellOrder:
+        """Applies partial updates to SO metadata and publishes transition events."""
+        so = await self._get_active_sell_order(workspace_id, sell_order_id, lock=True)
         update_data = data.model_dump(exclude_unset=True)
 
-        if "so_number" in update_data and update_data["so_number"] != sell_order.so_number:
-            self._check_so_unique(workspace_id, update_data["so_number"], exclude_sell_order_id=sell_order_id)
+        if "so_number" in update_data and update_data["so_number"] != so.so_number:
+            await self._check_so_unique(workspace_id, update_data["so_number"], exclude_sell_order_id=sell_order_id)
 
-        old_status = SOStatusEnum(sell_order.status)
+        old_status = SOStatusEnum(so.status)
         new_status = SOStatusEnum(update_data.get("status", old_status))
 
+        event_to_publish = None
         if old_status != new_status:
-            self._handle_status_transition(workspace_id, sell_order, old_status, new_status)
+            self._validate_status_transition(old_status, new_status)
+            transition_key = (old_status, new_status)
+
+            if transition_key not in TRANSITION_EVENTS:
+                raise SellOrderStatusTransitionError(old_status.label, new_status.label)
+
+            event_class = TRANSITION_EVENTS[transition_key]
+            event_to_publish = event_class(db=self.db, workspace_id=workspace_id, sell_order=so)
 
         for key, value in update_data.items():
-            setattr(sell_order, key, value)
+            setattr(so, key, value)
 
-        self.db.add(sell_order)
-        self.db.commit()
-        self.db.refresh(sell_order)
-        return sell_order
-
-    def delete_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> None:
-        """Soft-deletes a SO and cascades the soft-delete to its lines."""
-        sell_order = self._get_active_sell_order(workspace_id, sell_order_id)
-
-        if sell_order.status not in [SOStatusEnum.DRAFT, SOStatusEnum.CANCELLED]:
-            raise SellOrderCannotDeleteError(sell_order.status.label)
-
-        for line in sell_order.sell_order_lines:
-            line.soft_delete()
-
-        sell_order.soft_delete()
-        self.db.commit()
-
-
-class SellOrderLineService:
-    def __init__(self, db: Session) -> None:
-        self.db = db
-        self.inventory_service = InventoryService(db)
-
-    def _ensure_so_is_editable(self, so: SellOrder) -> None:
-        if so.status in [SOStatusEnum.FULLFILLED, SOStatusEnum.CANCELLED, SOStatusEnum.RETURNED]:
-            raise SellOrderNotEditableError(so.status.label)
-
-    def _get_parent_so(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
-        """Validates that the SO exists and belongs to the workspace before modifying lines."""
-        stmt = select(SellOrder).where(
-            SellOrder.workspace_id == workspace_id,
-            SellOrder.id == sell_order_id,
-            SellOrder.is_deleted.is_(False),
-        )
-        so = self.db.execute(stmt).scalar_one_or_none()
-        if not so:
-            raise SellOrderNotFoundError()
-        return so
-
-    def _get_line(self, sell_order_id: UUID, line_id: UUID) -> SellOrderLine:
-        """Fetches a specific line belonging to a specific SO."""
-        stmt = select(SellOrderLine).where(
-            SellOrderLine.id == line_id,
-            SellOrderLine.sell_order_id == sell_order_id,
-            SellOrderLine.is_deleted.is_(False),
-        )
-        line = self.db.execute(stmt).scalar_one_or_none()
-        if not line:
-            raise SellOrderLineNotFoundError()
-        return line
-
-    def _recalculate_so_total(self, sell_order_id: UUID) -> None:
-        """Recalculates the SO total directly from the database lines."""
-        total_stmt = select(func.coalesce(func.sum(SellOrderLine.quantity * SellOrderLine.unit_cost), 0)).where(
-            SellOrderLine.sell_order_id == sell_order_id
-        )
-
-        new_total = self.db.execute(total_stmt).scalar_one()
-
-        so_stmt = select(SellOrder).where(SellOrder.id == sell_order_id)
-        so = self.db.execute(so_stmt).scalar_one()
-        so.total_amount = new_total
         self.db.add(so)
 
-    def add_line(self, workspace_id: UUID, sell_order_id: UUID, data: SellOrderLineCreate) -> SellOrderLine:
-        """Adds a line and updates the SO total."""
-        so = self._get_parent_so(workspace_id, sell_order_id)
+        if event_to_publish:
+            await self.event_bus.publish(event_to_publish)
+
+        await self.db.commit()
+        return await self._get_active_sell_order(workspace_id, sell_order_id)
+
+    async def delete_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> None:
+        """Soft-deletes a SO and cascades the soft-delete to its lines."""
+        so = await self._get_active_sell_order(workspace_id, sell_order_id, lock=True)
+
+        if so.status not in [SOStatusEnum.DRAFT, SOStatusEnum.CANCELLED]:
+            raise SellOrderCannotDeleteError(so.status.label)
+
+        for line in so.sell_order_lines:
+            line.soft_delete()
+
+        so.soft_delete()
+        await self.db.commit()
+
+    # ==============================================================================
+    # LINE OPERATIONS
+    # ==============================================================================
+
+    async def add_line(self, workspace_id: UUID, sell_order_id: UUID, data: SellOrderLineCreate) -> SellOrderLine:
+        so = await self._get_active_sell_order(workspace_id, sell_order_id, lock=True)
         self._ensure_so_is_editable(so)
 
         new_line = SellOrderLine(sell_order_id=sell_order_id, **data.model_dump())
+        so.sell_order_lines.append(new_line)
         self.db.add(new_line)
-        self.db.flush()
+
+        self._recalculate_so_total(so)
 
         if so.status == SOStatusEnum.CONFIRMED and new_line.item_id:
-            self.inventory_service.adjust_quantity_allocated(workspace_id, new_line.item_id, new_line.quantity)
+            event = SellOrderLineAddedEvent(db=self.db, workspace_id=workspace_id, sell_order=so, line=new_line)
+            await self.event_bus.publish(event)
 
-        self._recalculate_so_total(sell_order_id)
-        self.db.commit()
-        self.db.refresh(new_line)
-        return new_line
+        await self.db.commit()
+        return await self._get_active_line(sell_order_id, new_line.id)
 
-    def update_line(
+    async def update_line(
         self, workspace_id: UUID, sell_order_id: UUID, line_id: UUID, data: SellOrderLineUpdate
     ) -> SellOrderLine:
-        """Updates a line and mathematically recalculates the SO total."""
-        so = self._get_parent_so(workspace_id, sell_order_id)
+        so = await self._get_active_sell_order(workspace_id, sell_order_id, lock=True)
         self._ensure_so_is_editable(so)
 
-        line = self._get_line(sell_order_id, line_id)
+        line = next(
+            (
+                sell_order_line
+                for sell_order_line in so.sell_order_lines
+                if sell_order_line.id == line_id and not getattr(sell_order_line, "is_deleted", False)
+            ),
+            None,
+        )
+        if not line:
+            raise SellOrderLineNotFoundError()
+
         update_data = data.model_dump(exclude_unset=True)
 
         if "item_id" in update_data and update_data["item_id"] != line.item_id:
             raise SellOrderLineItemChangeError()
 
+        delta = 0
         if so.status == SOStatusEnum.CONFIRMED and "quantity" in update_data and line.item_id:
             delta = update_data["quantity"] - line.quantity
-            self.inventory_service.adjust_quantity_allocated(workspace_id, line.item_id, delta)
 
         for key, value in update_data.items():
             setattr(line, key, value)
 
         self.db.add(line)
-        self.db.flush()
 
         if "quantity" in update_data or "unit_cost" in update_data:
-            self._recalculate_so_total(sell_order_id)
+            self._recalculate_so_total(so)
 
-        self.db.commit()
-        self.db.refresh(line)
-        return line
+        if delta != 0:
+            event = SellOrderLineUpdatedEvent(
+                db=self.db, workspace_id=workspace_id, sell_order=so, line=line, quantity_delta=delta
+            )
+            await self.event_bus.publish(event)
 
-    def remove_line(self, workspace_id: UUID, sell_order_id: UUID, line_id: UUID) -> None:
-        """Removes a line and updates the SO total amount."""
-        so = self._get_parent_so(workspace_id, sell_order_id)
+        await self.db.commit()
+        return await self._get_active_line(sell_order_id, line.id)
+
+    async def remove_line(self, workspace_id: UUID, sell_order_id: UUID, line_id: UUID) -> None:
+        so = await self._get_active_sell_order(workspace_id, sell_order_id, lock=True)
         self._ensure_so_is_editable(so)
 
-        line = self._get_line(sell_order_id, line_id)
+        line = next(
+            (
+                sell_order_line
+                for sell_order_line in so.sell_order_lines
+                if sell_order_line.id == line_id and not getattr(sell_order_line, "is_deleted", False)
+            ),
+            None,
+        )
+
+        if not line:
+            raise SellOrderLineNotFoundError()
+
+        so.sell_order_lines.remove(line)
+        await self.db.delete(line)
+
+        self._recalculate_so_total(so)
 
         if so.status == SOStatusEnum.CONFIRMED and line.item_id:
-            self.inventory_service.adjust_quantity_allocated(workspace_id, line.item_id, -line.quantity)
+            event = SellOrderLineRemovedEvent(db=self.db, workspace_id=workspace_id, sell_order=so, line=line)
+            await self.event_bus.publish(event)
 
-        if line in so.sell_order_lines:
-            so.sell_order_lines.remove(line)
-
-        self.db.delete(line)
-        self.db.flush()
-
-        self._recalculate_so_total(sell_order_id)
-        self.db.commit()
+        await self.db.commit()

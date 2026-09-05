@@ -2,8 +2,8 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session
 
 from src.erp.api.auth.dependencies import get_current_workspace_user
 from src.erp.api.auth.exceptions import InsufficientPermissionsError
@@ -26,12 +26,12 @@ METHOD_WEIGHTS = {
 }
 
 
-def verify_workspace_access(
+async def verify_workspace_access(
     request: Request,
     workspace_id: UUID,
     # CHECK 1: This sub-dependency guarantees an active, authenticated workspace user
     workspace_user: Annotated[WorkspaceUser, Depends(get_current_workspace_user)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WorkspaceUser:
     """
     Master dependency for workspace routes.
@@ -42,7 +42,9 @@ def verify_workspace_access(
     subscription_query = select(PricingSubscription.plan_id).where(
         PricingSubscription.workspace_id == workspace_id, PricingSubscription.is_active.is_(True)
     )
-    subscription = db.execute(subscription_query).scalar_one_or_none()
+
+    result = await db.execute(subscription_query)
+    subscription = result.scalar_one_or_none()
 
     if not subscription:
         raise ActiveSubscriptionNotFoundError()

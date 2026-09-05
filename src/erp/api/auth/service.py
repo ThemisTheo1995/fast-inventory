@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
 
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
@@ -34,19 +36,22 @@ from src.erp.api.workspace_user.models import WorkspaceUser
 
 
 class AuthService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    def register(self, data: RegisterRequest) -> RegisterResult:
+    async def register(self, data: RegisterRequest) -> RegisterResult:
         """Service to register completely new customers."""
 
         # 1. Pre-checks
         #   Email existence check
-        if self.db.query(User).filter(User.email == data.user.email).first():
+        existing_user_result = await self.db.execute(select(User).where(User.email == data.user.email))
+        if existing_user_result.scalar_one_or_none():
             raise UserExistsExceptionError()
 
         #   Price plan existence check
-        selected_plan = self.db.query(PricingPlan).filter(PricingPlan.name == data.plan).first()
+        plan_result = await self.db.execute(select(PricingPlan).where(PricingPlan.name == data.plan))
+        selected_plan = plan_result.scalar_one_or_none()
+
         if not selected_plan:
             raise PricingPlanDoesNotExistError()
 
@@ -54,7 +59,7 @@ class AuthService:
             # 2. Create the Workspace
             workspace = Workspace(name=data.workspace.name, email=data.workspace.email)
             self.db.add(workspace)
-            self.db.flush()
+            await self.db.flush()
 
             # 3 Create Subscription
             subscription = PricingSubscription(
@@ -71,7 +76,7 @@ class AuthService:
                 hashed_password=hashed_pw,
             )
             self.db.add(user)
-            self.db.flush()
+            await self.db.flush()
 
             # 5. Link them via WorkspaceUser
             workspace_user = WorkspaceUser(
@@ -81,7 +86,7 @@ class AuthService:
                 status=InvitationStatusEnum.ACTIVE,
             )
             self.db.add(workspace_user)
-            self.db.flush()
+            await self.db.flush()
 
             # 6. Generate JWT tokens
             tokens = generate_token_pair(user.id)
@@ -92,10 +97,10 @@ class AuthService:
             user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
             self.db.add(user_session)
 
-            self.db.commit()
+            await self.db.commit()
 
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise OnboardingFailedExceptionError() from e
 
         else:
@@ -105,20 +110,21 @@ class AuthService:
                 refresh_token=tokens["refresh_token"],
             )
 
-    def onboard(self, data: UserCreate) -> OnboardResult:
+    async def onboard(self, data: UserCreate) -> OnboardResult:
         """Service to fully onboard and activate an invited workspace user."""
 
         # 1. Locate the pre-seeded user record from invite_member step
-        user = self.db.query(User).filter(User.email == data.email).first()
+        user_result = await self.db.execute(select(User).where(User.email == data.email))
+        user = user_result.scalar_one_or_none()
+
         if not user:
             raise InvitationNotFoundExceptionError()
 
         # 2. Verify there is a pending workspace link for this user
-        workspace_user = (
-            self.db.query(WorkspaceUser)
-            .filter(WorkspaceUser.is_deleted.is_(False), WorkspaceUser.user_id == user.id)
-            .first()
+        ws_user_result = await self.db.execute(
+            select(WorkspaceUser).where(WorkspaceUser.is_deleted.is_(False), WorkspaceUser.user_id == user.id)
         )
+        workspace_user = ws_user_result.scalar_one_or_none()
 
         if not workspace_user:
             raise InvitationNotFoundExceptionError()
@@ -144,7 +150,7 @@ class AuthService:
             user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
             self.db.add(user_session)
 
-            self.db.commit()
+            await self.db.commit()
 
             # 7. Construct the response schema
             return OnboardResult(
@@ -154,14 +160,17 @@ class AuthService:
             )
 
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise OnboardingFailedExceptionError() from e
 
-    def login(self, data: OAuth2PasswordRequestForm) -> LoginResult:
+    async def login(self, data: OAuth2PasswordRequestForm) -> LoginResult:
         """Service to login users via OAuth2 Form Data."""
 
-        # 1. Find user by email
-        user = self.db.query(User).filter(User.email == data.username).first()
+        # 1. Find user by email (eagerly load workspaces to prevent MissingGreenlet lazy-load crashes)
+        user_result = await self.db.execute(
+            select(User).options(selectinload(User.workspaces)).where(User.email == data.username)
+        )
+        user = user_result.scalar_one_or_none()
 
         # 2. Verify password
         if not user or not verify_password(data.password, user.hashed_password):
@@ -172,13 +181,13 @@ class AuthService:
         refresh_payload = decode_token(tokens["refresh_token"])
 
         # 4. Create new UserSession record (Stateful auth)
-        self.db.query(UserSession).filter(UserSession.user_id == user.id).delete(synchronize_session=False)
+        await self.db.execute(delete(UserSession).where(UserSession.user_id == user.id))
 
         # 5. Create new single active UserSession record
         expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
         new_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
         self.db.add(new_session)
-        self.db.commit()
+        await self.db.commit()
 
         workspace_user = user.workspaces[0]
 
@@ -188,7 +197,7 @@ class AuthService:
             refresh_token=tokens["refresh_token"],
         )
 
-    def logout(self, refresh_token: str) -> None:
+    async def logout(self, refresh_token: str) -> None:
         """Service to logout user."""
         try:
             # 1. Decode the refresh token to extract the user (sub) and session ID (jti)
@@ -200,22 +209,19 @@ class AuthService:
             if not user_id or not session_id:
                 return
 
-            # 2. Delete the specific session from the database
-            deleted_count = (
-                self.db.query(UserSession)
-                .filter(UserSession.user_id == user_id, UserSession.session_id == session_id)
-                .delete(synchronize_session=False)
+            # 2. Delete the specific session from the database using SQLAlchemy 2.0 delete()
+            result = await self.db.execute(
+                delete(UserSession).where(UserSession.user_id == user_id, UserSession.session_id == session_id)
             )
 
             # 3. Commit the transaction if a session was found and deleted
-            if deleted_count > 0:
-                self.db.commit()
+            if result.rowcount > 0:
+                await self.db.commit()
 
         except Exception:
-            self.db.rollback()
-            pass
+            await self.db.rollback()
 
-    def refresh_token(self, refresh_token: str | None) -> str:
+    async def refresh_token(self, refresh_token: str | None) -> str:
         if not refresh_token:
             raise TokenInvalidError()
 
@@ -230,14 +236,10 @@ class AuthService:
         if not user_id or not session_id:
             raise TokenInvalidError()
 
-        active_session = (
-            self.db.query(UserSession)
-            .filter(
-                UserSession.user_id == user_id,
-                UserSession.session_id == session_id,
-            )
-            .first()
+        session_result = await self.db.execute(
+            select(UserSession).where(UserSession.user_id == user_id, UserSession.session_id == session_id)
         )
+        active_session = session_result.scalar_one_or_none()
 
         if not active_session:
             raise TokenInvalidError()

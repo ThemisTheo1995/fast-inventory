@@ -1,13 +1,8 @@
-# Copyright 2026 Your Name
-#
-# Licensed under the Apache License, Version 2.0
-
+# main.py
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from alembic import command
-from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,46 +25,28 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa
     logger.info("Initialising FAST ERP API...")
     try:
-        # Database Migrations
-        logger.info("Running database migrations via Alembic...")
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations completed successfully.")
-
-        # Wire Up Events
         setup_application_events()
         logger.info("Application events initialized successfully.")
-
     except Exception:
         logger.exception("Fatal error during API startup initialization")
         raise
 
     yield
-
     logger.info("Shutting down FAST ERP API...")
 
 
 app = FastAPI(title="FAST ERP API", lifespan=lifespan)
 
-
-# Register your custom app errors
+# Exception Handlers
 app.add_exception_handler(BaseAppError, custom_app_error_handler)
-
-
-# Override FastAPI's default Pydantic validation error handler
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
-
-
-# Prevent raw 500 Stack Traces from leaking
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
-
-# Define the origins that are allowed to talk to your API
+# Middleware
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://vue-inventory-six.vercel.app",
-    # Add your production domain here later
 ]
 
 app.add_middleware(
@@ -81,6 +58,5 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
-
 
 handler = Mangum(app)

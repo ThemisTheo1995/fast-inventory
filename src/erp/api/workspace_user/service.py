@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.erp.api.auth.models import User
 from src.erp.api.workspace_user.enums import InvitationStatusEnum
@@ -16,37 +18,40 @@ from src.erp.api.workspace_user.utils import guard_against_self_action, guard_pr
 
 
 class WorkspaceUserService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    def _get_active_workspace_user(self, workspace_id: UUID, workspace_user_id: UUID) -> WorkspaceUser:
+    async def _get_active_workspace_user(self, workspace_id: UUID, workspace_user_id: UUID) -> WorkspaceUser:
         """Internal helper to dry up member lookups."""
-        link = (
-            self.db.query(WorkspaceUser)
-            .filter(
+        stmt = (
+            select(WorkspaceUser)
+            .options(selectinload(WorkspaceUser.user))
+            .where(
                 WorkspaceUser.workspace_id == workspace_id,
                 WorkspaceUser.id == workspace_user_id,
                 WorkspaceUser.is_deleted.is_(False),
             )
-            .first()
         )
+        result = await self.db.execute(stmt)
+        link = result.scalar_one_or_none()
         if not link:
             raise WorkspaceUserNotFoundError()
         return link
 
-    def get_workspace_users(self, workspace_id: UUID) -> list[WorkspaceUser]:
+    async def get_workspace_users(self, workspace_id: UUID) -> list[WorkspaceUserResponse]:
         """Fetch all non-deleted workspace users linked to a specific workspace."""
-        results = (
-            self.db.query(WorkspaceUser, User)
+        stmt = (
+            select(WorkspaceUser, User)
             .join(User, WorkspaceUser.user_id == User.id)
-            .filter(
+            .where(
                 WorkspaceUser.workspace_id == workspace_id,
                 WorkspaceUser.is_deleted.is_(False),
                 User.is_deleted.is_(False),
             )
             .order_by(WorkspaceUser.status.desc())
-            .all()
         )
+        result = await self.db.execute(stmt)
+        results = result.all()
 
         workspace_users = []
         for ws_user, user in results:
@@ -63,35 +68,38 @@ class WorkspaceUserService:
 
         return workspace_users
 
-    def get_workspace_user(self, workspace_user_id: UUID) -> WorkspaceUserResponse:
+    async def get_workspace_user(self, workspace_user_id: UUID) -> WorkspaceUserResponse:
         """Fetch a single non-deleted workspace user."""
-        result = (
-            self.db.query(WorkspaceUser, User)
+        stmt = (
+            select(WorkspaceUser, User)
             .join(User, WorkspaceUser.user_id == User.id)
-            .filter(
+            .where(
                 WorkspaceUser.id == workspace_user_id,
                 WorkspaceUser.is_deleted.is_(False),
                 User.is_deleted.is_(False),
             )
-            .first()
         )
+        result = await self.db.execute(stmt)
+        row = result.first()
 
-        if not result:
+        if not row:
             raise WorkspaceUserNotFoundError()
 
-        ws_user, user = result
+        ws_user, user = row
+
+        full_name = f"{user.first_name} {user.last_name}".strip() if user.first_name else None
 
         return WorkspaceUserResponse(
             id=str(ws_user.id),
-            workspace_id=str(ws_user.workspace_id),
-            first_name=user.first_name,
-            last_name=user.last_name,
+            name=full_name,
             email=user.email,
             role=ws_user.role,
             status=ws_user.status,
         )
 
-    def invite_workspace_user(self, data: WorkspaceUserInviteRequest, actor: WorkspaceUser) -> dict:
+    async def invite_workspace_user(
+        self, data: WorkspaceUserInviteRequest, actor: WorkspaceUser
+    ) -> WorkspaceUserResponse:
         """Invite a workspace user while enforcing safeguards against privilege escalation."""
         role = data.role
         email = data.email
@@ -99,18 +107,21 @@ class WorkspaceUserService:
         guard_privilege_escalation(actor.role, role)
 
         is_existing_user = True
-        user = self.db.query(User).filter(User.email == email).first()
+        user_stmt = select(User).where(User.email == email)
+        user_result = await self.db.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+
         if not user:
             user = User(email=email, hashed_password="", first_name="", last_name="", is_deleted=False)
             self.db.add(user)
-            self.db.flush()
+            await self.db.flush()
             is_existing_user = False
 
-        workspace_user = (
-            self.db.query(WorkspaceUser)
-            .filter(WorkspaceUser.workspace_id == actor.workspace_id, WorkspaceUser.user_id == user.id)
-            .first()
+        ws_user_stmt = select(WorkspaceUser).where(
+            WorkspaceUser.workspace_id == actor.workspace_id, WorkspaceUser.user_id == user.id
         )
+        ws_user_result = await self.db.execute(ws_user_stmt)
+        workspace_user = ws_user_result.scalar_one_or_none()
 
         workspace_user_status = InvitationStatusEnum.ACTIVE if is_existing_user else InvitationStatusEnum.PENDING
 
@@ -120,7 +131,7 @@ class WorkspaceUserService:
             workspace_user.is_deleted = False
             workspace_user.role = role
             workspace_user.status = workspace_user_status
-            self.db.commit()
+            await self.db.commit()
 
             return WorkspaceUserResponse(
                 id=str(workspace_user.id),
@@ -134,8 +145,8 @@ class WorkspaceUserService:
             workspace_id=actor.workspace_id, user_id=user.id, role=role, status=workspace_user_status, is_deleted=False
         )
         self.db.add(new_workspace_user)
-        self.db.commit()
-        self.db.refresh(new_workspace_user)
+        await self.db.commit()
+        await self.db.refresh(new_workspace_user)
 
         return WorkspaceUserResponse(
             id=str(new_workspace_user.user_id),
@@ -145,10 +156,10 @@ class WorkspaceUserService:
             status=workspace_user_status,
         )
 
-    def update_workspace_user(
+    async def update_workspace_user(
         self, data: WorkspaceUserUpdateRequest, target_id: UUID, actor: WorkspaceUser
     ) -> WorkspaceUserResponse:
-        target = self._get_active_workspace_user(actor.workspace_id, target_id)
+        target = await self._get_active_workspace_user(actor.workspace_id, target_id)
 
         guard_rank_immunity(actor.role, target.role)
 
@@ -163,8 +174,8 @@ class WorkspaceUserService:
             setattr(target, key, value)
 
         self.db.add(target)
-        self.db.commit()
-        self.db.refresh(target)
+        await self.db.commit()
+        await self.db.refresh(target)
 
         return WorkspaceUserResponse(
             id=str(target.id),
@@ -174,14 +185,14 @@ class WorkspaceUserService:
             status=target.status,
         )
 
-    def update_user(self, user: User, data: UserUpdateRequest) -> User:
+    async def update_user(self, user: User, data: UserUpdateRequest) -> User:
         update_data = data.model_dump(exclude_unset=True)
 
         for key, value in update_data.items():
             setattr(user, key, value)
 
         self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
