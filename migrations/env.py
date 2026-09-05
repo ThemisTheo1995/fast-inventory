@@ -59,7 +59,7 @@ async def run_async_migrations() -> None:
     async with connectable.connect() as connection:
         # run_sync bridges the gap between async SQLAlchemy and sync Alembic
         await connection.run_sync(do_run_migrations)
-        
+
     await connectable.dispose()
 
 

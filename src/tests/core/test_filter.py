@@ -35,7 +35,6 @@ class MockStatusEnum(enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
 
-    # Simulating a custom label property if it exists
     @property
     def label(self):
         return f"Status: {self.name.title()}"
@@ -58,7 +57,7 @@ def sync_mock_range(_db, _workspace_id):
     return (0.0, 50.0)
 
 
-class TestFilter(BaseFilter):
+class MockFilter(BaseFilter):
     """A mock filter implementing all operator types and UI configurations."""
 
     name_eq: str | None = None
@@ -69,7 +68,6 @@ class TestFilter(BaseFilter):
     price_between_str: str | None = None
     price_between_tuple: tuple[int, int] | None = None
 
-    # Used for testing edge cases
     unmapped_field: str | None = None
 
     __filter_config__: ClassVar[dict[str, FilterSpec]] = {
@@ -98,13 +96,10 @@ def test_apply_ignores_empty_and_unmapped_values():
     """Ensures None, empty strings, and missing configs do not modify the query."""
     base_query = select(MockModel)
 
-    # empty string, None, and unmapped fields
-    filt = TestFilter(name_eq="", age_gte=None, unmapped_field="test")
+    filt = MockFilter(name_eq="", age_gte=None, unmapped_field="test")
     filtered_query = filt.apply(base_query, MockModel)
 
     compiled = str(filtered_query.compile(compile_kwargs={"literal_binds": True}))
-
-    # The query should not have a WHERE clause
     assert "WHERE" not in compiled
 
 
@@ -112,7 +107,7 @@ def test_apply_standard_operators():
     """Tests eq, ilike, in, gte, lte operators."""
     base_query = select(MockModel)
 
-    filt = TestFilter(
+    filt = MockFilter(
         name_eq="John",
         name_ilike="Doe",
         status_in=["active", "pending"],
@@ -121,7 +116,6 @@ def test_apply_standard_operators():
     )
 
     filtered_query = filt.apply(base_query, MockModel)
-
     compiled = str(filtered_query.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
 
     assert "mock_table.name = 'John'" in compiled
@@ -135,7 +129,7 @@ def test_apply_between_operator_string():
     """Tests the 'between' operator when provided as a comma-separated string."""
     base_query = select(MockModel)
 
-    filt = TestFilter(price_between_str="100,500")
+    filt = MockFilter(price_between_str="100,500")
     filtered_query = filt.apply(base_query, MockModel)
     compiled = str(filtered_query.compile(compile_kwargs={"literal_binds": True}))
 
@@ -146,7 +140,7 @@ def test_apply_between_operator_tuple():
     """Tests the 'between' operator when provided as a tuple/list."""
     base_query = select(MockModel)
 
-    filt = TestFilter(price_between_tuple=(50, 200))
+    filt = MockFilter(price_between_tuple=(50, 200))
     filtered_query = filt.apply(base_query, MockModel)
     compiled = str(filtered_query.compile(compile_kwargs={"literal_binds": True}))
 
@@ -164,15 +158,13 @@ async def test_build_ui_filters_enum_parsing():
     mock_db = AsyncMock()
     workspace_id = uuid4()
 
-    filt = TestFilter()
+    filt = MockFilter()
     ui_filters = await filt.build_ui_filters(mock_db, workspace_id)
 
     status_ui_filter = next(f for f in ui_filters if f.key == "status_in")
 
     assert status_ui_filter.type == "select"
     assert len(status_ui_filter.options) == 2
-
-    # Check that it used the custom @property 'label' from the Enum
     assert status_ui_filter.options[0].label == "Status: Active"
     assert status_ui_filter.options[0].value == "active"
 
@@ -183,7 +175,7 @@ async def test_build_ui_filters_options_functions():
     mock_db = AsyncMock()
     workspace_id = uuid4()
 
-    filt = TestFilter()
+    filt = MockFilter()
     ui_filters = await filt.build_ui_filters(mock_db, workspace_id)
 
     sync_options_filter = next(f for f in ui_filters if f.key == "sync_options")
@@ -199,7 +191,7 @@ async def test_build_ui_filters_range_functions():
     mock_db = AsyncMock()
     workspace_id = uuid4()
 
-    filt = TestFilter()
+    filt = MockFilter()
     ui_filters = await filt.build_ui_filters(mock_db, workspace_id)
 
     async_range_filter = next(f for f in ui_filters if f.key == "price_between_str")
