@@ -49,8 +49,12 @@ jobs:
       - name: Create Temporary Test DB on RDS
         run: |
           uv run python -c "
-          import psycopg
-          conn = psycopg.connect('${{ env.BASE_RDS_URL }}', autocommit=True)
+          import psycopg, re
+          # Strip SQLAlchemy driver prefixes like +asyncpg or +psycopg
+          raw_url = '${{ env.BASE_RDS_URL }}'
+          clean_url = re.sub(r'^postgresql\+[a-zA-Z0-9_]+://', 'postgresql://', raw_url)
+          
+          conn = psycopg.connect(clean_url, autocommit=True)
           with conn.cursor() as cur:
               cur.execute('CREATE DATABASE ${{ env.TEST_DB_NAME }};')
           conn.close()
