@@ -17,6 +17,12 @@ jobs:
 
     env:
       DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+      AUTH_ALGORITHM: ${{ vars.AUTH_ALGORITHM }}
+      AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES }}
+      AUTH_REFRESH_TOKEN_EXPIRE_DAYS: ${{ vars.AUTH_REFRESH_TOKEN_EXPIRE_DAYS }}
+      COOKIE_SECURE: ${{ vars.COOKIE_SECURE }}
+      AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
 
     steps:
       - name: Checkout repository
