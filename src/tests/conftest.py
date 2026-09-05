@@ -7,6 +7,7 @@ from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -43,7 +44,9 @@ def initialize_test_db() -> Generator[None]:
     yield
 
     # Teardown down
-    sync_database_url = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    database_url = make_url(TEST_DATABASE_URL)
+    sync_database_url = database_url.set(drivername="postgresql+psycopg")
+
     sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=utc"})
     with sync_engine.begin() as connection:
         target_metadata.drop_all(bind=connection)
