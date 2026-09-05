@@ -43,6 +43,7 @@ dev = [
     "black>=26.3.0",
     "freezegun>=1.5.5",
     "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.5",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
