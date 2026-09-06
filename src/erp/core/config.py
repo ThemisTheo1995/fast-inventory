@@ -15,13 +15,13 @@ class Settings(BaseSettings):
     TEST_DATABASE_URL: str | None = None
 
     # Auth
-    AUTH_SECRET_KEY: str
-    AUTH_ALGORITHM: str
-    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int
-    AUTH_REFRESH_TOKEN_EXPIRE_DAYS: int
+    AUTH_SECRET_KEY: str | None = None
+    AUTH_ALGORITHM: str | None = None
+    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int | None = None
+    AUTH_REFRESH_TOKEN_EXPIRE_DAYS: int | None = None
 
     # Cookies
-    COOKIE_SECURE: int
+    COOKIE_SECURE: int | None = None
 
     # AI
     GEMINI_API_KEY: str | None = None
