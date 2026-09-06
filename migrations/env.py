@@ -3,7 +3,6 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.erp.core.config import get_settings
@@ -15,13 +14,7 @@ settings = get_settings()
 current_url = config.get_main_option("sqlalchemy.url")
 
 if not current_url or current_url.startswith("driver://"):
-    db_url = make_url(str(settings.DATABASE_URL))
-
-    updated_url = db_url.set(drivername="postgresql+asyncpg")
-
-    safe_url = updated_url.render_as_string(hide_password=False)
-
-    config.set_main_option("sqlalchemy.url", safe_url.replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
