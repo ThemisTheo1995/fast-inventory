@@ -2,9 +2,9 @@ import uuid
 
 import pytest
 
-from src.erp.api.workspace.exceptions import WorkspaceNotFoundError
-from src.erp.api.workspace.schemas import WorkspaceUpdate
-from src.erp.api.workspace.service import WorkspaceService
+from erp.api.workspace.exceptions import WorkspaceNotFoundError
+from erp.api.workspace.schemas import WorkspaceUpdate
+from erp.api.workspace.service import WorkspaceService
 
 
 async def test_get_workspace_success(db_session, seed_workspace):

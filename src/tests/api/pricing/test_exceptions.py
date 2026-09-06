@@ -1,5 +1,5 @@
-from src.erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
-from src.erp.core.exceptions import BaseAppError
+from erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
+from erp.core.exceptions import BaseAppError
 
 # ============================================================================
 # BaseAppError Exception Subclass Tests

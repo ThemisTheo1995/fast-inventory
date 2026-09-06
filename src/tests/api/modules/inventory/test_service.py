@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
-from src.erp.api.modules.inventory.models import Inventory
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
-from src.erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.exceptions import InsufficientInventoryError
+from erp.api.modules.inventory.models import Inventory
+from erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
+from erp.api.modules.inventory.service import InventoryService
 
 # ==============================================================================
 # 1. CORE HELPER TESTS (_get_or_create_inventory)

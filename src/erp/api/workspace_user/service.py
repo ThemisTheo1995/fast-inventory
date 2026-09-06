@@ -4,17 +4,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.erp.api.auth.models import User
-from src.erp.api.workspace_user.enums import InvitationStatusEnum
-from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.api.workspace_user.schemas import (
+from erp.api.auth.models import User
+from erp.api.workspace_user.enums import InvitationStatusEnum
+from erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.api.workspace_user.schemas import (
     UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
 )
-from src.erp.api.workspace_user.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
+from erp.api.workspace_user.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
 
 
 class WorkspaceUserService:

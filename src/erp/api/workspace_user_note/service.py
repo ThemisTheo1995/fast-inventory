@@ -2,9 +2,10 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.erp.api.workspace_user_note.exceptions import WorkspaceUserNoteNotFoundError
-from src.erp.api.workspace_user_note.models import WorkspaceUserNote
-from src.erp.api.workspace_user_note.schemas import (
+
+from erp.api.workspace_user_note.exceptions import WorkspaceUserNoteNotFoundError
+from erp.api.workspace_user_note.models import WorkspaceUserNote
+from erp.api.workspace_user_note.schemas import (
     WorkspaceUserNoteCreate,
     WorkspaceUserNotePaginatedResponse,
     WorkspaceUserNoteUpdate,

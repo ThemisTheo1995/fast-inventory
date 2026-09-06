@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
+from erp.api.workspace_user.enums import WorkspaceRoleEnum
 
 
 class WorkspaceUserInviteRequest(BaseModel):

@@ -6,9 +6,9 @@ from pydantic import Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.models import PurchaseOrder
-from src.erp.core.filter import BaseFilter, FilterSpec
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.models import PurchaseOrder
+from erp.core.filter import BaseFilter, FilterSpec
 
 
 async def get_po_amount_range(db: AsyncSession, workspace_id: UUID) -> tuple[int, int]:

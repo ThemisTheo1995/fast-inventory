@@ -3,11 +3,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.workspace.exceptions import (
+from erp.api.workspace.exceptions import (
     WorkspaceNotFoundError,
 )
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace.schemas import WorkspaceUpdate
+from erp.api.workspace.models import Workspace
+from erp.api.workspace.schemas import WorkspaceUpdate
 
 
 class WorkspaceService:

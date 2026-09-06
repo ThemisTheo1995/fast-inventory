@@ -6,15 +6,15 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.models import User
-from src.erp.api.auth.utils import create_access_token
-from src.erp.api.pricing.enums import PlanName
-from src.erp.api.pricing.models import PricingPlan, PricingSubscription
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.database.base import get_db
-from src.erp.main import app
+from erp.api.auth.models import User
+from erp.api.auth.utils import create_access_token
+from erp.api.pricing.enums import PlanName
+from erp.api.pricing.models import PricingPlan, PricingSubscription
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.database.base import get_db
+from erp.main import app
 
 # --- WORKSPACE FIXTURES ---
 

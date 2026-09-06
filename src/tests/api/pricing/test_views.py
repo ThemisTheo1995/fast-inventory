@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType
-from src.erp.api.pricing.models import PricingUsage
+from erp.api.pricing.enums import HttpMethod, MetricType
+from erp.api.pricing.models import PricingUsage
 
 
 async def test_router_get_workspace_usage_empty(client, seed_workspace):

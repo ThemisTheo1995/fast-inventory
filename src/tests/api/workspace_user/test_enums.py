@@ -1,6 +1,6 @@
 import pytest
 
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 
 # ============================================================================
 # WORKSPACE ROLE ENUM TESTS

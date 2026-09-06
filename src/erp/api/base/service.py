@@ -3,7 +3,7 @@ from typing import TypeVar
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Load
 
-from src.erp.api.base.models import build_loader_options
+from erp.api.base.models import build_loader_options
 
 ModelT = TypeVar("ModelT")
 

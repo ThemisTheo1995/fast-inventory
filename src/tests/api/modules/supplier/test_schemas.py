@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.supplier.schemas import (
+from erp.api.modules.supplier.schemas import (
     SupplierCreate,
     SupplierPaginatedResponse,
     SupplierResponse,

@@ -121,7 +121,7 @@ Make sure:
 **`alembic/env.py`**
 
 ```python
-from src.erp.db.base import Base  # Adjust your project's path.
+from erp.db.base import Base  # Adjust your project's path.
 target_metadata = Base.metadata
 ```
 

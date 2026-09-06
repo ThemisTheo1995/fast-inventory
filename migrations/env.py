@@ -5,8 +5,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.erp.core.config import get_settings
-from src.erp.model_registry import metadata as target_metadata
+from erp.core.config import get_settings
+from erp.model_registry import metadata as target_metadata
 
 config = context.config
 settings = get_settings()

@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.erp.api.auth.exceptions import InsufficientPermissionsError
-from src.erp.api.auth.permissions import verify_workspace_access
-from src.erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
+from erp.api.auth.exceptions import InsufficientPermissionsError
+from erp.api.auth.permissions import verify_workspace_access
+from erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
 
 # ==============================================================================
 # DEPENDENCY TESTS: verify_workspace_access

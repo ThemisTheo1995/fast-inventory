@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.sell_order.schemas import (
+from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
     SellOrderLineResponse,
@@ -13,10 +13,10 @@ from src.erp.api.modules.sell_order.schemas import (
     SellOrderResponse,
     SellOrderUpdate,
 )
-from src.erp.api.modules.sell_order.service import SellOrderService
-from src.erp.core.dependencies import get_event_bus
-from src.erp.core.event_bus import EventBus
-from src.erp.database.base import get_db
+from erp.api.modules.sell_order.service import SellOrderService
+from erp.core.dependencies import get_event_bus
+from erp.core.event_bus import EventBus
+from erp.database.base import get_db
 
 router = APIRouter()
 

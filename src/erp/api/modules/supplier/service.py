@@ -3,9 +3,9 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.supplier.exceptions import SupplierEmailExistsError, SupplierNotFoundError
-from src.erp.api.modules.supplier.models import Supplier
-from src.erp.api.modules.supplier.schemas import SupplierCreate, SupplierPaginatedResponse, SupplierUpdate
+from erp.api.modules.supplier.exceptions import SupplierEmailExistsError, SupplierNotFoundError
+from erp.api.modules.supplier.models import Supplier
+from erp.api.modules.supplier.schemas import SupplierCreate, SupplierPaginatedResponse, SupplierUpdate
 
 
 class SupplierService:

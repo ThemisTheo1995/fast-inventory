@@ -4,9 +4,9 @@ from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.search.models import GlobalSearchIndex
-from src.erp.api.search.schemas import SearchResult
-from src.erp.services.embedding import generate_embedding
+from erp.api.search.models import GlobalSearchIndex
+from erp.api.search.schemas import SearchResult
+from erp.services.embedding import generate_embedding
 
 
 class GlobalSearchService:

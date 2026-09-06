@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
+from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 
 @dataclass

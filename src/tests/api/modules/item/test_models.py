@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.erp.api.modules.inventory.models import Inventory
-from src.erp.api.modules.item.models import Item
+from erp.api.modules.inventory.models import Inventory
+from erp.api.modules.item.models import Item
 
 # ==============================================================================
 # Model Constraint & Relationship Tests

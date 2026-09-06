@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType
+from erp.api.pricing.enums import HttpMethod, MetricType
 
 
 class PricingUsageCreate(BaseModel):

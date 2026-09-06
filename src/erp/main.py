@@ -8,15 +8,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
-from src.erp import model_registry  # noqa: F401
-from src.erp.api.router import api_router
-from src.erp.core.bootstrap import setup_application_events
-from src.erp.core.exception_handlers import (
+from erp import model_registry  # noqa: F401
+from erp.api.router import api_router
+from erp.core.bootstrap import setup_application_events
+from erp.core.exception_handlers import (
     custom_app_error_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 logger = logging.getLogger(__name__)
 

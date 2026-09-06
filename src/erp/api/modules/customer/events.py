@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 
-from src.erp.api.modules.customer.models import Customer
+from erp.api.modules.customer.models import Customer
 
 
 @dataclass

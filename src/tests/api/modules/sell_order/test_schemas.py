@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.sell_order.schemas import (
+from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
     SellOrderLineResponse,

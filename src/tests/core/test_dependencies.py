@@ -1,5 +1,5 @@
-from src.erp.core.dependencies import get_event_bus
-from src.erp.core.event_bus import global_event_bus
+from erp.core.dependencies import get_event_bus
+from erp.core.event_bus import global_event_bus
 
 
 def test_get_event_bus():

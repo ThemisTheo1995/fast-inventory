@@ -1,18 +1,18 @@
 from fastapi import APIRouter
 
-from src.erp.api.auth.router import router as auth_router
-from src.erp.api.dashboard.router import router as dashboard_router
-from src.erp.api.modules.customer.router import router as customer_router
-from src.erp.api.modules.inventory.router import router as inventory_router
-from src.erp.api.modules.item.router import router as item_router
-from src.erp.api.modules.purchase_order.router import router as purchase_order_router
-from src.erp.api.modules.sell_order.router import router as sell_order_router
-from src.erp.api.modules.supplier.router import router as supplier_router
-from src.erp.api.pricing.router import router as pricing_router
-from src.erp.api.search.router import router as global_search_router
-from src.erp.api.workspace.router import router as workspace_router
-from src.erp.api.workspace_user.router import router as workspace_user_router
-from src.erp.api.workspace_user_note.router import router as workspace_user_note_router
+from erp.api.auth.router import router as auth_router
+from erp.api.dashboard.router import router as dashboard_router
+from erp.api.modules.customer.router import router as customer_router
+from erp.api.modules.inventory.router import router as inventory_router
+from erp.api.modules.item.router import router as item_router
+from erp.api.modules.purchase_order.router import router as purchase_order_router
+from erp.api.modules.sell_order.router import router as sell_order_router
+from erp.api.modules.supplier.router import router as supplier_router
+from erp.api.pricing.router import router as pricing_router
+from erp.api.search.router import router as global_search_router
+from erp.api.workspace.router import router as workspace_router
+from erp.api.workspace_user.router import router as workspace_user_router
+from erp.api.workspace_user_note.router import router as workspace_user_note_router
 
 api_router = APIRouter()
 

@@ -3,8 +3,8 @@ import uuid
 from sqlalchemy import Boolean, Enum as SQLAlchemyEnum, ForeignKey, Index, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.erp.api.base.models import BaseModel
-from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
+from erp.api.base.models import BaseModel
+from erp.api.pricing.enums import HttpMethod, MetricType, PlanName
 
 
 class PricingPlan(BaseModel):

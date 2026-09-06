@@ -8,7 +8,7 @@ from sqlalchemy import Column, Integer, String, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import declarative_base
 
-from src.erp.core.filter import BaseFilter, FilterOption, FilterSpec
+from erp.core.filter import BaseFilter, FilterOption, FilterSpec
 
 # ==============================================================================
 # 1. SETUP & MOCKS

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from src.erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.enums import OrderType
 
 
 class StockMovementCreate(BaseModel):

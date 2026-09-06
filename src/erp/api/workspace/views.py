@@ -4,12 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.workspace.schemas import (
+from erp.api.workspace.schemas import (
     WorkspaceResponse,
     WorkspaceUpdate,
 )
-from src.erp.api.workspace.service import WorkspaceService
-from src.erp.database.base import get_db
+from erp.api.workspace.service import WorkspaceService
+from erp.database.base import get_db
 
 router = APIRouter()
 

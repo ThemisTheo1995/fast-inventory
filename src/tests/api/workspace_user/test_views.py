@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import status
 
-from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
-from src.erp.api.workspace_user.schemas import UserUpdateRequest
-from src.erp.api.workspace_user.views import update_me
+from erp.api.workspace_user.enums import WorkspaceRoleEnum
+from erp.api.workspace_user.schemas import UserUpdateRequest
+from erp.api.workspace_user.views import update_me
 
 # ==============================================================================
 # DIRECT UNIT TESTS
@@ -32,7 +32,7 @@ async def test_update_me_direct_unit():
     mock_db = AsyncMock()
     data = UserUpdateRequest(first_name="UpdatedFirst", last_name="UpdatedLast")
 
-    with patch("src.erp.api.workspace_user.views.WorkspaceUserService") as mock_service_cls:
+    with patch("erp.api.workspace_user.views.WorkspaceUserService") as mock_service_cls:
         mock_service_instance = AsyncMock()
         mock_service_instance.update_user.return_value = mock_user
         mock_service_cls.return_value = mock_service_instance
