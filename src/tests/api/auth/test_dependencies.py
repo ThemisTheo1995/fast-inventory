@@ -9,18 +9,18 @@ import pytest_asyncio
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from src.erp.api.auth.dependencies import get_current_user, get_current_workspace_user
-from src.erp.api.auth.exceptions import CredentialsExceptionError
-from src.erp.api.auth.models import User
-from src.erp.api.auth.utils import get_password_hash
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum
-from src.erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.core.config import get_settings
-from src.erp.core.exception_handlers import custom_app_error_handler
-from src.erp.core.exceptions import BaseAppError
-from src.erp.database.base import get_db
+from erp.api.auth.dependencies import get_current_user, get_current_workspace_user
+from erp.api.auth.exceptions import CredentialsExceptionError
+from erp.api.auth.models import User
+from erp.api.auth.utils import get_password_hash
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import InvitationStatusEnum
+from erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.core.config import get_settings
+from erp.core.exception_handlers import custom_app_error_handler
+from erp.core.exceptions import BaseAppError
+from erp.database.base import get_db
 
 settings = get_settings()
 SECRET_KEY = settings.AUTH_SECRET_KEY
@@ -171,7 +171,7 @@ async def test_get_current_workspace_user_raises_when_missing(db_session, persis
 @pytest.mark.asyncio
 async def test_get_current_user_jwt_decode_error():
     """Forces a PyJWTError exception during decoding to ensure robust handling."""
-    from src.erp.api.auth import dependencies
+    from erp.api.auth import dependencies
 
     db = AsyncMock()
     with pytest.MonkeyPatch.context() as monkeypatch:

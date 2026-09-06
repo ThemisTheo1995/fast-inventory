@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from freezegun import freeze_time
 
-from src.erp.core.utils import get_end_of_month, get_start_of_month, utc_now
+from erp.core.utils import get_end_of_month, get_start_of_month, utc_now
 
 
 def test_utc_now_returns_correct_time_and_timezone():

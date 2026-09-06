@@ -16,12 +16,12 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from src.erp.api.modules.inventory.handlers import register_inventory_handlers
-from src.erp.core.config import get_settings
-from src.erp.core.event_bus import EventBus
-from src.erp.database.base import get_db
-from src.erp.main import app
-from src.erp.model_registry import metadata as target_metadata
+from erp.api.modules.inventory.handlers import register_inventory_handlers
+from erp.core.config import get_settings
+from erp.core.event_bus import EventBus
+from erp.database.base import get_db
+from erp.main import app
+from erp.model_registry import metadata as target_metadata
 
 settings = get_settings()
 TEST_DATABASE_URL = settings.TEST_DATABASE_URL
@@ -110,4 +110,4 @@ def mock_generate_embedding(monkeypatch):
     def fake_embed(text: str) -> list[float]:  # noqa
         return [0.123] * 768
 
-    monkeypatch.setattr("src.erp.services.embedding.generate_embedding", fake_embed)
+    monkeypatch.setattr("erp.services.embedding.generate_embedding", fake_embed)

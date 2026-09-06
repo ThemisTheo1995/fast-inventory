@@ -5,12 +5,12 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.erp.api.auth.dependencies import get_current_workspace_user
-from src.erp.api.auth.exceptions import InsufficientPermissionsError
-from src.erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
-from src.erp.api.pricing.models import PricingSubscription
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.database.base import get_db
+from erp.api.auth.dependencies import get_current_workspace_user
+from erp.api.auth.exceptions import InsufficientPermissionsError
+from erp.api.pricing.exceptions import ActiveSubscriptionNotFoundError
+from erp.api.pricing.models import PricingSubscription
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.database.base import get_db
 
 ROLE_WEIGHTS = {"full_admin": 3, "edit_only": 2, "read_only": 1}
 

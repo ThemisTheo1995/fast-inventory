@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
-from src.erp.api.auth.permissions import verify_workspace_access
-from src.erp.api.pricing.dependencies import log_usage
+
+from erp.api.auth.permissions import verify_workspace_access
+from erp.api.pricing.dependencies import log_usage
 
 from .views import router as dashboard_router
 

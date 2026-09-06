@@ -1,5 +1,5 @@
-from src.erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
-from src.erp.core.exceptions import BaseAppError
+from erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
+from erp.core.exceptions import BaseAppError
 
 # ============================================================================
 # Exception Subclass Tests

@@ -2,13 +2,13 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.supplier.exceptions import (
+from erp.api.modules.supplier.exceptions import (
     SupplierEmailExistsError,
     SupplierNotFoundError,
 )
-from src.erp.api.modules.supplier.models import Supplier
-from src.erp.api.modules.supplier.schemas import SupplierCreate, SupplierUpdate
-from src.erp.api.modules.supplier.service import SupplierService
+from erp.api.modules.supplier.models import Supplier
+from erp.api.modules.supplier.schemas import SupplierCreate, SupplierUpdate
+from erp.api.modules.supplier.service import SupplierService
 
 # ==============================================================================
 # EXISTING TESTS

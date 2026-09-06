@@ -6,13 +6,13 @@ from fastapi import Cookie, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import CredentialsExceptionError
-from src.erp.api.auth.models import User
-from src.erp.api.workspace_user.enums import InvitationStatusEnum
-from src.erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.core.config import get_settings
-from src.erp.database.base import get_db
+from erp.api.auth.exceptions import CredentialsExceptionError
+from erp.api.auth.models import User
+from erp.api.workspace_user.enums import InvitationStatusEnum
+from erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.core.config import get_settings
+from erp.database.base import get_db
 
 settings = get_settings()
 

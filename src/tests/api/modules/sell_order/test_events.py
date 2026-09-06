@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.sell_order.events import (
+from erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
     SellOrderConfirmedEvent,
     SellOrderFulfilledEvent,
@@ -13,7 +13,7 @@ from src.erp.api.modules.sell_order.events import (
     SellOrderLineUpdatedEvent,
     SellOrderReturnedEvent,
 )
-from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
+from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 # ==============================================================================
 # FIXTURES

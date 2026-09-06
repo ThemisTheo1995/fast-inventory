@@ -4,8 +4,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.events import (
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.events import (
     PurchaseOrderCancelledEvent,
     PurchaseOrderLineAddedEvent,
     PurchaseOrderLineRemovedEvent,
@@ -14,7 +14,7 @@ from src.erp.api.modules.purchase_order.events import (
     PurchaseOrderReturnedEvent,
     PurchaseOrderSentEvent,
 )
-from src.erp.api.modules.purchase_order.exceptions import (
+from erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderCannotDeleteError,
     PurchaseOrderExistsError,
     PurchaseOrderLineItemChangeError,
@@ -23,17 +23,17 @@ from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderNotFoundError,
     PurchaseOrderStatusTransitionError,
 )
-from src.erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
-from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
-from src.erp.api.modules.purchase_order.schemas.purchase_order import (
+from erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
+from erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
+from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineUpdate,
     PurchaseOrderPaginatedResponse,
     PurchaseOrderUpdate,
 )
-from src.erp.api.modules.supplier.models import Supplier
-from src.erp.core.event_bus import EventBus
+from erp.api.modules.supplier.models import Supplier
+from erp.core.event_bus import EventBus
 
 TRANSITION_EVENTS: dict[tuple[str, str], type] = {
     (POStatusEnum.DRAFT, POStatusEnum.SENT): PurchaseOrderSentEvent,

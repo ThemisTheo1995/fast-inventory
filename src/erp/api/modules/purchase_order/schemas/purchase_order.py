@@ -4,10 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.erp.api.modules.item.schemas import ItemResponse
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.supplier.schemas import SupplierResponse
-from src.erp.core.filter import TableFilter
+from erp.api.modules.item.schemas import ItemResponse
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.supplier.schemas import SupplierResponse
+from erp.core.filter import TableFilter
 
 # =======================================================
 # Common Types

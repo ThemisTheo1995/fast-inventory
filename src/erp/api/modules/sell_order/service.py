@@ -4,8 +4,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
-from src.erp.api.modules.sell_order.events import (
+from erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
     SellOrderConfirmedEvent,
     SellOrderFulfilledEvent,
@@ -14,7 +14,7 @@ from src.erp.api.modules.sell_order.events import (
     SellOrderLineUpdatedEvent,
     SellOrderReturnedEvent,
 )
-from src.erp.api.modules.sell_order.exceptions import (
+from erp.api.modules.sell_order.exceptions import (
     SellOrderCannotDeleteError,
     SellOrderExistsError,
     SellOrderLineItemChangeError,
@@ -24,15 +24,15 @@ from src.erp.api.modules.sell_order.exceptions import (
     SellOrderStatusTerminalError,
     SellOrderStatusTransitionError,
 )
-from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
-from src.erp.api.modules.sell_order.schemas import (
+from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
+from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
     SellOrderLineUpdate,
     SellOrderPaginatedResponse,
     SellOrderUpdate,
 )
-from src.erp.core.event_bus import EventBus
+from erp.core.event_bus import EventBus
 
 TRANSITION_EVENTS: dict[tuple[str, str], type] = {
     (SOStatusEnum.DRAFT, SOStatusEnum.CONFIRMED): SellOrderConfirmedEvent,

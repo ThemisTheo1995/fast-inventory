@@ -1,9 +1,9 @@
-from src.erp.api.modules.sell_order.exceptions import (
+from erp.api.modules.sell_order.exceptions import (
     SellOrderExistsError,
     SellOrderLineNotFoundError,
     SellOrderNotFoundError,
 )
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 
 def test_sell_order_not_found_error():

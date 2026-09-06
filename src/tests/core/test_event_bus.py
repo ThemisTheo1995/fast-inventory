@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.erp.core.event_bus import EventBus, global_event_bus
+from erp.core.event_bus import EventBus, global_event_bus
 
 # ==============================================================================
 # MOCK EVENTS

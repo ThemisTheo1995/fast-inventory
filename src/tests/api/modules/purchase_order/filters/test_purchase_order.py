@@ -6,12 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.filters.purchase_order import (
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.filters.purchase_order import (
     PurchaseOrderFilter,
     get_po_amount_range,
 )
-from src.erp.api.modules.purchase_order.models import PurchaseOrder
+from erp.api.modules.purchase_order.models import PurchaseOrder
 
 # ============================================================================
 # Unit Tests for get_po_amount_range (Mocked DB)

@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
     InvitationNotFoundExceptionError,
@@ -15,16 +15,16 @@ from src.erp.api.auth.exceptions import (
     TokenInvalidError,
     UserExistsExceptionError,
 )
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.schemas.user import RegisterRequest, UserCreate
-from src.erp.api.auth.service import AuthService
-from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
-from src.erp.api.pricing.enums import PlanName
-from src.erp.api.pricing.models import PricingPlan
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace.schemas import WorkspaceCreate
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.schemas.user import RegisterRequest, UserCreate
+from erp.api.auth.service import AuthService
+from erp.api.auth.utils import create_access_token, decode_token, generate_token_pair, get_password_hash
+from erp.api.pricing.enums import PlanName
+from erp.api.pricing.models import PricingPlan
+from erp.api.workspace.models import Workspace
+from erp.api.workspace.schemas import WorkspaceCreate
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
 
 # ============================================================================
 # REGISTER SERVICE TESTS (`register`)
@@ -110,7 +110,7 @@ async def test_register_exception_database_failure_triggers_rollback(db_session:
     # Force an internal failure mid-flight by patching 'generate_token_pair' to raise a runtime error
     with (
         patch(
-            "src.erp.api.auth.service.generate_token_pair",
+            "erp.api.auth.service.generate_token_pair",
             side_effect=ValueError("JWT Crypto System Error"),
         ),
         pytest.raises(OnboardingFailedExceptionError),
@@ -343,7 +343,7 @@ async def test_logout_edge_case_token_missing_claims(db_session: AsyncSession):
     auth_service = AuthService(db_session)
 
     with patch(
-        "src.erp.api.auth.service.decode_token",
+        "erp.api.auth.service.decode_token",
         return_value={"type": "refresh"},
     ):
         # Should not raise
@@ -359,7 +359,7 @@ async def test_logout_silently_swallows_decoding_exceptions(db_session: AsyncSes
     auth_service = AuthService(db_session)
 
     with patch(
-        "src.erp.api.auth.service.decode_token",
+        "erp.api.auth.service.decode_token",
         side_effect=Exception("Invalid token"),
     ):
         try:
@@ -435,7 +435,7 @@ async def test_refresh_token_exception_missing_required_claims(db_session: Async
     auth_service = AuthService(db_session)
 
     with (
-        patch("src.erp.api.auth.service.decode_token", return_value=mock_payload),
+        patch("erp.api.auth.service.decode_token", return_value=mock_payload),
         pytest.raises(TokenInvalidError),
     ):
         await auth_service.refresh_token("valid.token.payload")
@@ -588,7 +588,7 @@ async def test_onboard_exception_database_failure_triggers_rollback(db_session: 
 
     with (
         patch(
-            "src.erp.api.auth.service.generate_token_pair",
+            "erp.api.auth.service.generate_token_pair",
             side_effect=Exception("Crypto Error"),
         ),
         pytest.raises(OnboardingFailedExceptionError),

@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.erp.api.base.models import BaseModel
+from erp.api.base.models import BaseModel
 
 
 class User(BaseModel):

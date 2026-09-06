@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.supplier.models import Supplier
+from erp.api.modules.supplier.models import Supplier
 
 
 @pytest.fixture

@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.item.schemas import ItemCreate, ItemPaginatedResponse, ItemResponse, ItemUpdate
-from src.erp.api.modules.item.service import ItemService
-from src.erp.database.base import get_db
+from erp.api.modules.item.schemas import ItemCreate, ItemPaginatedResponse, ItemResponse, ItemUpdate
+from erp.api.modules.item.service import ItemService
+from erp.database.base import get_db
 
 router = APIRouter()
 

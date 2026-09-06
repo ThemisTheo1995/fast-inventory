@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from src.erp.core.config import get_settings
+from erp.core.config import get_settings
 
 settings = get_settings()
 

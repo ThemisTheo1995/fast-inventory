@@ -4,16 +4,16 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.schemas.user import (
+from erp.api.auth.schemas.user import (
     LoginResponse,
     OnboardResponse,
     RegisterRequest,
     RegisterResponse,
     UserCreate,
 )
-from src.erp.api.auth.service import AuthService
-from src.erp.core.config import get_settings
-from src.erp.database.base import get_db
+from erp.api.auth.service import AuthService
+from erp.core.config import get_settings
+from erp.database.base import get_db
 
 settings = get_settings()
 

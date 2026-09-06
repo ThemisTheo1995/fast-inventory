@@ -4,17 +4,17 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.inventory.schemas.inventory import (
+from erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
     InventoryResponse,
 )
-from src.erp.api.modules.inventory.schemas.stock_movement import (
+from erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
     StockMovementResponse,
 )
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.database.base import get_db
+from erp.api.modules.inventory.service import InventoryService
+from erp.database.base import get_db
 
 router = APIRouter()
 

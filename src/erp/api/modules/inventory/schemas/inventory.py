@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from src.erp.api.modules.item.schemas import ItemResponse
+from erp.api.modules.item.schemas import ItemResponse
 
 
 class InventoryResponse(BaseModel):

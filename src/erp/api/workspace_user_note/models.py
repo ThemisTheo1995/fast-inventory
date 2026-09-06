@@ -2,7 +2,8 @@ import uuid
 
 from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.erp.api.base.models import BaseModel
+
+from erp.api.base.models import BaseModel
 
 
 class WorkspaceUserNote(BaseModel):

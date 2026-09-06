@@ -116,15 +116,25 @@ jobs:
 
       - name: Build Lambda Package
         run: |
-          uv export --no-dev -o requirements.txt
-          uv pip install -r requirements.txt --target ./build_pkg
+          rm -rf build_pkg
+          mkdir build_pkg
 
-          cp -r src ./build_pkg/src
+          uv export --no-dev -o requirements.txt
+          uv pip install \
+            -r requirements.txt \
+            --target ./build_pkg
+
+          uv pip install \
+            . \
+            --target ./build_pkg \
+            --no-deps
+
           cp -r migrations ./build_pkg/migrations
           cp alembic.ini ./build_pkg/alembic.ini
 
           cd build_pkg
           zip -r9 ../deployment.zip .
+
 
       - name: Deploy to AWS Lambda
         run: |

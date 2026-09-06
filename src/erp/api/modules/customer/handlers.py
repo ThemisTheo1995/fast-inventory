@@ -1,11 +1,11 @@
-from src.erp.api.modules.customer.embeddings import (
+from erp.api.modules.customer.embeddings import (
     process_customer_search_index,
 )
-from src.erp.api.modules.customer.events import (
+from erp.api.modules.customer.events import (
     CustomerCreatedEvent,
     CustomerUpdatedEvent,
 )
-from src.erp.core.event_bus import EventBus
+from erp.core.event_bus import EventBus
 
 
 async def _handle_customer_created(

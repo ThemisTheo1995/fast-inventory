@@ -1,5 +1,5 @@
-from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
-from src.erp.core.exceptions import BaseAppError
+from erp.api.modules.inventory.exceptions import InsufficientInventoryError
+from erp.core.exceptions import BaseAppError
 
 
 def test_insufficient_inventory_error():

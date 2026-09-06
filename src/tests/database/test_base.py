@@ -1,6 +1,6 @@
 import pytest
 
-from src.erp.database import base
+from erp.database import base
 
 
 @pytest.mark.asyncio

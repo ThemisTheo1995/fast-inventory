@@ -1,7 +1,7 @@
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.api.modules.purchase_order.events import (
+from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
+from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.purchase_order.events import (
     PurchaseOrderCancelledEvent,
     PurchaseOrderLineAddedEvent,
     PurchaseOrderLineRemovedEvent,
@@ -10,7 +10,7 @@ from src.erp.api.modules.purchase_order.events import (
     PurchaseOrderReturnedEvent,
     PurchaseOrderSentEvent,
 )
-from src.erp.api.modules.sell_order.events import (
+from erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
     SellOrderConfirmedEvent,
     SellOrderFulfilledEvent,
@@ -19,7 +19,7 @@ from src.erp.api.modules.sell_order.events import (
     SellOrderLineUpdatedEvent,
     SellOrderReturnedEvent,
 )
-from src.erp.core.event_bus import EventBus
+from erp.core.event_bus import EventBus
 
 # ==============================================================================
 # PURCHASE ORDER HANDLERS

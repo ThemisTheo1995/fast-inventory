@@ -3,8 +3,8 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.handlers import (
+from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.handlers import (
     _handle_po_cancelled,
     _handle_po_line_added,
     _handle_po_line_removed,
@@ -21,8 +21,8 @@ from src.erp.api.modules.inventory.handlers import (
     _handle_so_returned,
     register_inventory_handlers,
 )
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
-from src.erp.api.modules.purchase_order.events import (
+from erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
+from erp.api.modules.purchase_order.events import (
     PurchaseOrderCancelledEvent,
     PurchaseOrderLineAddedEvent,
     PurchaseOrderLineRemovedEvent,
@@ -31,7 +31,7 @@ from src.erp.api.modules.purchase_order.events import (
     PurchaseOrderReturnedEvent,
     PurchaseOrderSentEvent,
 )
-from src.erp.api.modules.sell_order.events import (
+from erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
     SellOrderConfirmedEvent,
     SellOrderFulfilledEvent,
@@ -40,7 +40,7 @@ from src.erp.api.modules.sell_order.events import (
     SellOrderLineUpdatedEvent,
     SellOrderReturnedEvent,
 )
-from src.erp.core.event_bus import EventBus
+from erp.core.event_bus import EventBus
 from src.tests.api.modules.inventory.conftest import create_mock_event, create_mock_line_event
 
 # ==============================================================================
@@ -49,7 +49,7 @@ from src.tests.api.modules.inventory.conftest import create_mock_event, create_m
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_po_sent(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_on_order = AsyncMock()
@@ -63,7 +63,7 @@ async def test_handle_po_sent(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_po_received(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_on_order = AsyncMock()
@@ -86,7 +86,7 @@ async def test_handle_po_received(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_po_cancelled(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_on_order = AsyncMock()
@@ -100,7 +100,7 @@ async def test_handle_po_cancelled(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_po_returned(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.create_stock_movement = AsyncMock()
@@ -121,7 +121,7 @@ async def test_handle_po_returned(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_po_line_events(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_on_order = AsyncMock()
@@ -144,7 +144,7 @@ async def test_handle_po_line_events(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_so_confirmed(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_allocated = AsyncMock()
@@ -158,7 +158,7 @@ async def test_handle_so_confirmed(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_so_fulfilled(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_allocated = AsyncMock()
@@ -181,7 +181,7 @@ async def test_handle_so_fulfilled(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_so_cancelled(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_allocated = AsyncMock()
@@ -195,7 +195,7 @@ async def test_handle_so_cancelled(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_so_returned(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.create_stock_movement = AsyncMock()
@@ -216,7 +216,7 @@ async def test_handle_so_returned(mock_inventory_service_class):
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.inventory.handlers.InventoryService")
+@patch("erp.api.modules.inventory.handlers.InventoryService")
 async def test_handle_so_line_events(mock_inventory_service_class):
     mock_service = mock_inventory_service_class.return_value
     mock_service.adjust_quantity_allocated = AsyncMock()

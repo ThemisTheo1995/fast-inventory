@@ -2,8 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from src.erp.api.pricing.enums import PlanName
-from src.erp.api.workspace.schemas import WorkspaceCreate
+from erp.api.pricing.enums import PlanName
+from erp.api.workspace.schemas import WorkspaceCreate
 
 
 class AuthUser(BaseModel):

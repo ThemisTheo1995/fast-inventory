@@ -4,7 +4,8 @@ from uuid import UUID
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from src.erp.api.dashboard.schemas import (
+
+from erp.api.dashboard.schemas import (
     DashboardKPIs,
     DashboardResponse,
     IncomingPurchaseOrderSummary,
@@ -12,9 +13,9 @@ from src.erp.api.dashboard.schemas import (
     RecentSellOrderSummary,
     RevenueChartDataPoint,
 )
-from src.erp.api.modules.inventory.models import Inventory
-from src.erp.api.modules.purchase_order.models import PurchaseOrder
-from src.erp.api.modules.sell_order.models import SellOrder
+from erp.api.modules.inventory.models import Inventory
+from erp.api.modules.purchase_order.models import PurchaseOrder
+from erp.api.modules.sell_order.models import SellOrder
 
 
 class DashboardService:

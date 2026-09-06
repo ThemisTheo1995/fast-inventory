@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
+from erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
 
 
 @dataclass

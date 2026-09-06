@@ -5,9 +5,9 @@ from typing import Any
 from sqlalchemy import Boolean, DateTime, Uuid, func, inspect
 from sqlalchemy.orm import Load, Mapped, mapped_column, selectinload
 
-from src.erp.api.base.exceptions import InvalidExpandError
-from src.erp.core.utils import utc_now
-from src.erp.database.base import Base
+from erp.api.base.exceptions import InvalidExpandError
+from erp.core.utils import utc_now
+from erp.database.base import Base
 
 
 class BaseModel(Base):

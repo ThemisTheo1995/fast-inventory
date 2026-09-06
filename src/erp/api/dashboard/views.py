@@ -3,9 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.erp.api.dashboard.schemas import DashboardResponse
-from src.erp.api.dashboard.service import DashboardService
-from src.erp.database.base import get_db
+
+from erp.api.dashboard.schemas import DashboardResponse
+from erp.api.dashboard.service import DashboardService
+from erp.database.base import get_db
 
 router = APIRouter()
 

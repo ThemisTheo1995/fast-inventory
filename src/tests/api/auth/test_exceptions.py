@@ -1,6 +1,6 @@
 from fastapi import status
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
     InsufficientPermissionsError,
@@ -12,7 +12,7 @@ from src.erp.api.auth.exceptions import (
     TokenInvalidError,
     UserExistsExceptionError,
 )
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 # ==============================================================================
 # STANDARD EXCEPTION TESTS (Token Hierarchy)

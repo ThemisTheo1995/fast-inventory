@@ -1,6 +1,6 @@
 from fastapi import status
 
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 
 class TokenError(Exception):
