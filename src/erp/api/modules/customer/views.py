@@ -90,10 +90,7 @@ async def get_customer(
     )
 
 
-@router.patch(
-    "/customers/{customer_id}",
-    response_model=CustomerResponse,
-)
+@router.patch("/customers/{customer_id}", response_model=CustomerResponse)
 async def update_customer(
     workspace_id: UUID,
     customer_id: UUID,

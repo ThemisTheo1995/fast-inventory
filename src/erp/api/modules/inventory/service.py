@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.base.service import BaseService
 from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
+from src.erp.api.modules.inventory.filters.inventory import InventoryFilter
 from src.erp.api.modules.inventory.models import Inventory, StockMovement
 from src.erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
@@ -14,6 +15,7 @@ from src.erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
 )
+from src.erp.api.modules.item.models import Item
 
 
 class InventoryService(BaseService[Inventory]):
@@ -57,16 +59,34 @@ class InventoryService(BaseService[Inventory]):
     async def get_inventories(
         self,
         workspace_id: UUID,
+        filters: InventoryFilter | None = None,
+        search: str | None = None,
         page: int = 1,
         limit: int = 20,
         expand: list[str] | None = None,
     ) -> InventoryPaginatedResponse:
-        """Fetches paginated inventory balances and the total count."""
+        filters = filters or InventoryFilter()
 
-        base_query = select(Inventory).where(
-            Inventory.workspace_id == workspace_id,
-            Inventory.is_deleted.is_(False),
+        base_query = (
+            select(Inventory)
+            .join(Item, Inventory.item_id == Item.id)
+            .where(
+                Inventory.workspace_id == workspace_id,
+                Inventory.is_deleted.is_(False),
+                Item.is_deleted.is_(False),
+            )
         )
+
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.where(
+                or_(
+                    Item.title.ilike(search_term),
+                    Item.sku.ilike(search_term),
+                )
+            )
+
+        base_query = filters.apply(base_query, Inventory)
 
         count_query = select(func.count()).select_from(base_query.subquery())
         count_result = await self.db.execute(count_query)
@@ -74,19 +94,23 @@ class InventoryService(BaseService[Inventory]):
 
         loader_options = self.build_loader_options(expand)
 
+        skip = (page - 1) * limit
         items_query = (
             base_query.options(*loader_options)
-            .order_by(Inventory.created_at.desc())
-            .offset((page - 1) * limit)
+            .order_by(Inventory.created_at.desc(), Inventory.id.desc())
+            .offset(skip)
             .limit(limit)
         )
 
         items_result = await self.db.execute(items_query)
         items = list(items_result.scalars().unique().all())
 
+        table_filters = await filters.build_ui_filters(self.db, workspace_id)
+
         return InventoryPaginatedResponse(
             items=items,
             total=total,
+            filters=table_filters,
         )
 
     async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:

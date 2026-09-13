@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from src.erp.api.modules.item.schemas import ItemResponse
+from src.erp.core.filter import TableFilter
 
 
 class InventoryResponse(BaseModel):
@@ -31,3 +32,4 @@ class InventoryPaginatedResponse(BaseModel):
 
     items: list[InventoryResponse]
     total: int
+    filters: list[TableFilter] = []

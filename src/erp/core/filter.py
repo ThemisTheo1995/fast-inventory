@@ -5,7 +5,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Select
+from sqlalchemy import Boolean, Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 OperatorType = Literal["eq", "ilike", "in", "gte", "lte", "between"]
@@ -38,7 +38,6 @@ class FilterSpec:
         type: Literal["select", "range"] = "select",
         enum_type: type[Enum] | None = None,
         options_fn: Callable[[AsyncSession, UUID], list[FilterOption]] | None = None,
-        # Range-specific configurations
         min_val: float | None = None,
         max_val: float | None = None,
         range_fn: Callable[[AsyncSession, UUID], tuple[float, float]] | None = None,
@@ -76,6 +75,14 @@ class BaseFilter(BaseModel):
             column = getattr(model, spec.column_name, None)
             if column is None:
                 continue
+
+            # Automatically coerce string values to booleans for PostgreSQL boolean columns
+            if isinstance(column.type, Boolean) and isinstance(value, str):
+                val_lower = value.lower()
+                if val_lower in ("true", "1", "yes", "t"):
+                    value = True
+                elif val_lower in ("false", "0", "no", "f"):
+                    value = False
 
             if spec.operator == "eq":
                 query = query.where(column == value)

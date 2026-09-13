@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.erp.api.modules.inventory.filters.inventory import InventoryFilter
 from src.erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
     InventoryResponse,
@@ -27,14 +28,23 @@ Expand = Annotated[list[str] | None, Query()]
 async def get_inventories(
     workspace_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    page: Page = 1,
-    limit: Limit = 20,
+    filters: Annotated[InventoryFilter, Depends()],
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 20,
     expand: Expand = None,
 ) -> InventoryPaginatedResponse:
 
     service = InventoryService(db)
 
-    return await service.get_inventories(workspace_id, page, limit, expand=expand)
+    return await service.get_inventories(
+        workspace_id=workspace_id,
+        filters=filters,
+        search=search,
+        page=page,
+        limit=limit,
+        expand=expand,
+    )
 
 
 @router.get("/inventory/items/{item_id}", response_model=InventoryResponse)

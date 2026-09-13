@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.modules.inventory.service import InventoryService
 from src.erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
+from src.erp.api.modules.item.filters.item import ItemFilter
 from src.erp.api.modules.item.models import Item
 from src.erp.api.modules.item.schemas import ItemCreate, ItemPaginatedResponse, ItemUpdate
 
@@ -14,13 +15,18 @@ class ItemService:
         self.db = db
         self.inventory_service = InventoryService(db)
 
-    async def _get_active_item(self, workspace_id: UUID, item_id: UUID) -> Item:
+    async def _get_active_item(
+        self, workspace_id: UUID, item_id: UUID, include_deleted: bool = False
+    ) -> Item:
         """Securely fetch an item enforcing workspace isolation."""
-        stmt = select(Item).where(
+        conditions = [
             Item.workspace_id == workspace_id,
             Item.id == item_id,
-            Item.is_deleted.is_(False),
-        )
+        ]
+        if not include_deleted:
+            conditions.append(Item.is_deleted.is_(False))
+
+        stmt = select(Item).where(*conditions)
         result = await self.db.execute(stmt)
         item = result.scalar_one_or_none()
 
@@ -62,12 +68,18 @@ class ItemService:
         return item
 
     async def get_items(
-        self, workspace_id: UUID, search: str | None = None, page: int = 1, limit: int = 20
+        self,
+        workspace_id: UUID,
+        filters: ItemFilter | None = None,
+        search: str | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> ItemPaginatedResponse:
         """Fetches paginated items and the total count."""
+        filters = filters or ItemFilter()
+
         base_query = select(Item).where(
             Item.workspace_id == workspace_id,
-            Item.is_deleted.is_(False),
         )
 
         if search:
@@ -79,6 +91,8 @@ class ItemService:
                 )
             )
 
+        base_query = filters.apply(base_query, Item)
+
         count_query = select(func.count()).select_from(base_query.subquery())
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one()
@@ -86,6 +100,7 @@ class ItemService:
         skip = (page - 1) * limit
         items_query = (
             base_query.order_by(
+                Item.is_deleted.asc(),
                 Item.created_at.desc(),
                 Item.id.desc(),
             )
@@ -95,7 +110,13 @@ class ItemService:
         items_result = await self.db.execute(items_query)
         items = list(items_result.scalars().all())
 
-        return ItemPaginatedResponse(items=items, total=total)
+        table_filters = await filters.build_ui_filters(self.db, workspace_id)
+
+        return ItemPaginatedResponse(
+            items=items,
+            total=total,
+            filters=table_filters,
+        )
 
     async def get_item(self, workspace_id: UUID, item_id: UUID) -> Item:
         """Fetches a single active item."""
@@ -103,8 +124,10 @@ class ItemService:
 
     async def update_item(self, workspace_id: UUID, item_id: UUID, data: ItemUpdate) -> Item:
         """Applies partial updates, validating uniqueness if the SKU changes."""
-        item = await self._get_active_item(workspace_id, item_id)
         update_data = data.model_dump(exclude_unset=True)
+
+        include_deleted = "is_deleted" in update_data
+        item = await self._get_active_item(workspace_id, item_id, include_deleted=include_deleted)
 
         if "sku" in update_data and update_data["sku"] != item.sku:
             await self._check_sku_unique(workspace_id, update_data["sku"], exclude_item_id=item_id)

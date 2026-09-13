@@ -5,10 +5,12 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
+from src.erp.core.filter import TableFilter
 
 Title = Annotated[str | None, Field(default=None, max_length=255)]
 Sku = Annotated[str | None, Field(default=None, max_length=100)]
 BasePrice = Annotated[int | None, Field(default=None, ge=0)]
+IsDeleted = Annotated[bool | None, Field(default=None)]
 
 
 # =======================================================
@@ -52,16 +54,18 @@ class ItemResponse(BaseModel):
     base_price: int | None
     created_at: datetime
     updated_at: datetime
+    is_deleted: bool
     stock_movements: list[StockMovementResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ItemPaginatedResponse(BaseModel):
-    """Payload for paginated item lists."""
-
     items: list[ItemResponse]
     total: int
+    page: int = 1
+    limit: int = 20
+    filters: list[TableFilter] = Field(default_factory=list)
 
 
 # =======================================================
@@ -83,4 +87,4 @@ class ItemCreate(ItemBase):
 class ItemUpdate(ItemBase):
     """Payload for updating an item."""
 
-    pass
+    is_deleted: IsDeleted = None
