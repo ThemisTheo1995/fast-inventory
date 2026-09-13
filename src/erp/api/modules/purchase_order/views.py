@@ -1,9 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.erp.api.modules.purchase_order.events import (
+    PurchaseOrderCreatedEvent,
+    PurchaseOrderUpdatedEvent,
+)
 from src.erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
 from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
@@ -16,7 +20,7 @@ from src.erp.api.modules.purchase_order.schemas.purchase_order import (
 )
 from src.erp.api.modules.purchase_order.service import PurchaseOrderService
 from src.erp.core.dependencies import get_event_bus
-from src.erp.core.event_bus import EventBus
+from src.erp.core.event_bus import EventBus, global_event_bus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -28,12 +32,24 @@ router = APIRouter()
 
 @router.post("/purchase-orders", response_model=PurchaseOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_purchase_order(
-    workspace_id: UUID, data: PurchaseOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID,
+    data: PurchaseOrderCreate,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PurchaseOrderResponse:
-
     service = PurchaseOrderService(db)
 
-    return await service.create_purchase_order(workspace_id, data)
+    purchase_order = await service.create_purchase_order(workspace_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        PurchaseOrderCreatedEvent(
+            workspace_id=workspace_id,
+            purchase_order=purchase_order,
+        ),
+    )
+
+    return purchase_order
 
 
 @router.get("/purchase-orders", response_model=PurchaseOrderPaginatedResponse)
@@ -74,13 +90,23 @@ async def update_purchase_order(
     workspace_id: UUID,
     purchase_order_id: UUID,
     data: PurchaseOrderUpdate,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> PurchaseOrderResponse:
-
     service = PurchaseOrderService(db, event_bus)
 
-    return await service.update_purchase_order(workspace_id, purchase_order_id, data)
+    purchase_order = await service.update_purchase_order(workspace_id, purchase_order_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        PurchaseOrderUpdatedEvent(
+            workspace_id=workspace_id,
+            purchase_order=purchase_order,
+        ),
+    )
+
+    return purchase_order
 
 
 @router.delete("/purchase-orders/{purchase_order_id}", status_code=status.HTTP_204_NO_CONTENT)

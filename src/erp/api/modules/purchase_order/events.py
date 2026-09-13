@@ -8,6 +8,22 @@ from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrd
 
 
 @dataclass
+class PurchaseOrderCreatedEvent:
+    """Created event schema for global search."""
+
+    workspace_id: UUID
+    purchase_order: PurchaseOrder
+
+
+@dataclass
+class PurchaseOrderUpdatedEvent:
+    """Updated event schema for global search."""
+
+    workspace_id: UUID
+    purchase_order: PurchaseOrder
+
+
+@dataclass
 class PurchaseOrderSentEvent:
     db: AsyncSession
     workspace_id: UUID

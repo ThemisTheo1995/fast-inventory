@@ -29,6 +29,7 @@ class MockItemORM:
         title: str = "Widget Pro",
         sku: str = "WDG-PRO-001",
         base_price: int | None = 1500,
+        is_deleted: bool = False,
     ):
         self.id = item_id or uuid.uuid4()
         self.workspace_id = workspace_id or uuid.uuid4()
@@ -37,6 +38,7 @@ class MockItemORM:
         self.base_price = base_price
         self.created_at = datetime.now(UTC)
         self.updated_at = datetime.now(UTC)
+        self.is_deleted = is_deleted
 
 
 class MockCustomerORM:
@@ -227,6 +229,7 @@ def test_sell_order_line_response_dictionary_deserialization():
         "base_price": 50,
         "created_at": now,
         "updated_at": now,
+        "is_deleted": False,
     }
     payload_with_item = {
         **payload_no_item,
@@ -252,6 +255,7 @@ def test_sell_order_line_response_item_base_price_can_be_none():
         "base_price": None,  # Optional int
         "created_at": now,
         "updated_at": now,
+        "is_deleted": False,
     }
     payload = {
         "id": uuid.uuid4(),

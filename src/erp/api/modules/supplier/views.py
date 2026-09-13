@@ -1,9 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.erp.api.modules.supplier.events import (
+    SupplierCreatedEvent,
+    SupplierUpdatedEvent,
+)
 from src.erp.api.modules.supplier.schemas import (
     SupplierCreate,
     SupplierPaginatedResponse,
@@ -11,6 +15,7 @@ from src.erp.api.modules.supplier.schemas import (
     SupplierUpdate,
 )
 from src.erp.api.modules.supplier.service import SupplierService
+from src.erp.core.event_bus import global_event_bus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -20,12 +25,23 @@ router = APIRouter()
 async def create_supplier(
     workspace_id: UUID,
     data: SupplierCreate,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SupplierResponse:
 
     service = SupplierService(db)
 
-    return await service.create_supplier(workspace_id, data)
+    supplier = await service.create_supplier(workspace_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        SupplierCreatedEvent(
+            workspace_id=workspace_id,
+            supplier=supplier,
+        ),
+    )
+
+    return supplier
 
 
 @router.get("/suppliers", response_model=SupplierPaginatedResponse)
@@ -59,12 +75,23 @@ async def update_supplier(
     workspace_id: UUID,
     supplier_id: UUID,
     data: SupplierUpdate,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SupplierResponse:
 
     service = SupplierService(db)
 
-    return await service.update_supplier(workspace_id, supplier_id, data)
+    supplier = await service.update_supplier(workspace_id, supplier_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        SupplierUpdatedEvent(
+            workspace_id=workspace_id,
+            supplier=supplier,
+        ),
+    )
+
+    return supplier
 
 
 @router.delete("/suppliers/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)

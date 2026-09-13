@@ -1,9 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.erp.api.modules.sell_order.events import (
+    SellOrderCreatedEvent,
+    SellOrderUpdatedEvent,
+)
 from src.erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
@@ -15,7 +19,7 @@ from src.erp.api.modules.sell_order.schemas import (
 )
 from src.erp.api.modules.sell_order.service import SellOrderService
 from src.erp.core.dependencies import get_event_bus
-from src.erp.core.event_bus import EventBus
+from src.erp.core.event_bus import EventBus, global_event_bus
 from src.erp.database.base import get_db
 
 router = APIRouter()
@@ -27,12 +31,24 @@ router = APIRouter()
 
 @router.post("/sell-orders", response_model=SellOrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_sell_order(
-    workspace_id: UUID, data: SellOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
+    workspace_id: UUID,
+    data: SellOrderCreate,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SellOrderResponse:
-
     service = SellOrderService(db)
 
-    return await service.create_sell_order(workspace_id, data)
+    sell_order = await service.create_sell_order(workspace_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        SellOrderCreatedEvent(
+            workspace_id=workspace_id,
+            sell_order=sell_order,
+        ),
+    )
+
+    return sell_order
 
 
 @router.get("/sell-orders", response_model=SellOrderPaginatedResponse)
@@ -64,12 +80,23 @@ async def update_sell_order(
     workspace_id: UUID,
     sell_order_id: UUID,
     data: SellOrderUpdate,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> SellOrderResponse:
-
     service = SellOrderService(db, event_bus)
-    return await service.update_sell_order(workspace_id, sell_order_id, data)
+
+    sell_order = await service.update_sell_order(workspace_id, sell_order_id, data)
+
+    background_tasks.add_task(
+        global_event_bus.publish,
+        SellOrderUpdatedEvent(
+            workspace_id=workspace_id,
+            sell_order=sell_order,
+        ),
+    )
+
+    return sell_order
 
 
 @router.delete("/sell-orders/{sell_order_id}", status_code=status.HTTP_204_NO_CONTENT)

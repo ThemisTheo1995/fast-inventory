@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/coverage-94%25-green" alt="Coverage">
+  <img src="https://img.shields.io/badge/coverage-91%25-green" alt="Coverage">
   <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?logo=apache" alt="License">
 </p>
 

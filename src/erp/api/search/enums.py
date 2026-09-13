@@ -6,6 +6,7 @@ class EntityTypeEnum(StrEnum):
     SUPPLIER = "supplier"
     ITEM = "item"
     SELL_ORDER = "sell_order"
+    PURCHASE_ORDER = "purchase_order"
     INVENTORY = "inventory"
     STOCK_MOVEMENT = "stock_movementt"
 

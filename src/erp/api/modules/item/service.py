@@ -15,9 +15,7 @@ class ItemService:
         self.db = db
         self.inventory_service = InventoryService(db)
 
-    async def _get_active_item(
-        self, workspace_id: UUID, item_id: UUID, include_deleted: bool = False
-    ) -> Item:
+    async def _get_active_item(self, workspace_id: UUID, item_id: UUID, include_deleted: bool = False) -> Item:
         """Securely fetch an item enforcing workspace isolation."""
         conditions = [
             Item.workspace_id == workspace_id,

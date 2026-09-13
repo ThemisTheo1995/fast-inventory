@@ -7,6 +7,22 @@ from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
 
 @dataclass
+class SellOrderCreatedEvent:
+    """Created event schema for global search."""
+
+    workspace_id: UUID
+    sell_order: SellOrder
+
+
+@dataclass
+class SellOrderUpdatedEvent:
+    """Updated event schema for global search."""
+
+    workspace_id: UUID
+    sell_order: SellOrder
+
+
+@dataclass
 class SellOrderConfirmedEvent:
     db: AsyncSession
     workspace_id: UUID

@@ -2,32 +2,32 @@ import uuid
 
 from sqlalchemy import select
 
-from src.erp.api.modules.customer.models import Customer
+from src.erp.api.modules.supplier.models import Supplier
 from src.erp.api.search.enums import EntityTypeEnum
 from src.erp.api.search.models import GlobalSearchIndex
 from src.erp.database.base import AsyncSessionLocal
 from src.erp.services.embedding import generate_embedding
 
 
-async def process_customer_search_index(customer_id: uuid.UUID) -> None:
+async def process_supplier_search_index(supplier_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as db:
-        customer = await db.get(Customer, customer_id)
+        supplier = await db.get(Supplier, supplier_id)
 
-        if not customer or customer.is_deleted:
+        if not supplier or supplier.is_deleted:
             return
 
-        title = f"{customer.first_name} {customer.last_name or ''}".strip()
-        snippet = f"Email: {customer.email}"
-        url = f"/customers/{customer.id}"
+        title = f"{supplier.name}".strip()
+        snippet = f"Email: {supplier.email or ''}"
+        url = f"/suppliers/{supplier.id}"
 
-        text_to_embed = f"Customer: {title} {snippet}"
+        text_to_embed = f"Supplier: {title} {snippet}"
         vector = generate_embedding(text_to_embed)
 
         result = await db.execute(
             select(GlobalSearchIndex).where(
-                GlobalSearchIndex.workspace_id == customer.workspace_id,
-                GlobalSearchIndex.entity_type == EntityTypeEnum.CUSTOMER,
-                GlobalSearchIndex.entity_id == customer.id,
+                GlobalSearchIndex.workspace_id == supplier.workspace_id,
+                GlobalSearchIndex.entity_type == EntityTypeEnum.SUPPLIER,
+                GlobalSearchIndex.entity_id == supplier.id,
             )
         )
 
@@ -41,9 +41,9 @@ async def process_customer_search_index(customer_id: uuid.UUID) -> None:
         else:
             db.add(
                 GlobalSearchIndex(
-                    workspace_id=customer.workspace_id,
-                    entity_type=EntityTypeEnum.CUSTOMER,
-                    entity_id=customer.id,
+                    workspace_id=supplier.workspace_id,
+                    entity_type=EntityTypeEnum.SUPPLIER,
+                    entity_id=supplier.id,
                     title=title,
                     snippet=snippet,
                     url=url,

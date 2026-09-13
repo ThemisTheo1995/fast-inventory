@@ -130,6 +130,7 @@ def test_item_response_valid():
         "base_price": 25000,
         "created_at": now,
         "updated_at": now,
+        "is_deleted": False,
     }
 
     response = ItemResponse(**payload)
@@ -152,6 +153,7 @@ def test_item_paginated_response():
         base_price=100,
         created_at=now,
         updated_at=now,
+        is_deleted=False,
     )
 
     paginated = ItemPaginatedResponse(items=[item], total=1)
@@ -173,6 +175,7 @@ def test_item_response_from_attributes():
             self.base_price = 100
             self.created_at = datetime.now(UTC)
             self.updated_at = datetime.now(UTC)
+            self.is_deleted = False
             self.stock_movements = []
 
     orm_obj = DummyItemORM()
