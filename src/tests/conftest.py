@@ -131,7 +131,7 @@ def initialize_test_db() -> Generator[None]:
 
 
 @pytest.fixture(scope="session")
-def db_engine(initialize_test_db) -> Generator[AsyncEngine, None, None]:  # noqa
+def db_engine(initialize_test_db) -> Generator[AsyncEngine]:  # noqa
     """Created ONCE globally, but safely used by function-scoped async tests."""
     engine = create_async_engine(
         _get_test_database_url(),
