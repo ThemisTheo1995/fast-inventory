@@ -18,6 +18,13 @@ os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("TEST_DATABASE_URL", db_url)
 os.environ.setdefault("DATABASE_URL", db_url)
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+
+os.environ.setdefault("AUTH_SECRET_KEY", "testing")
+os.environ.setdefault("AUTH_ALGORITHM", "TESTALGO")
+os.environ.setdefault("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", 5)
+os.environ.setdefault("AUTH_REFRESH_TOKEN_EXPIRE_DAYS", 7)
+os.environ.setdefault("COOKIE_SECURE", 7)
+
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 os.environ.setdefault("AWS_SECURITY_TOKEN", "testing")
@@ -26,6 +33,8 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "eu-west-1")
 os.environ.setdefault("AWS_REGION", "eu-west-1")
 os.environ.setdefault("DEFAULT_FROM_EMAIL", "sender@example.com")
 os.environ.setdefault("EMAIL_PROVIDER", "ses")
+os.environ.setdefault("SUPPORT_EMAIL", "sender@example.com")
+
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
