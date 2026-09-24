@@ -111,7 +111,7 @@ def initialize_test_db() -> Generator[None]:
 
     database_url = make_url(test_db_url)
     sync_database_url = database_url.set(drivername="postgresql+psycopg")
-    sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=utc"})
+    sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=UTC"})
 
     with sync_engine.begin() as connection:
         target_metadata.drop_all(bind=connection)
@@ -133,9 +133,13 @@ def initialize_test_db() -> Generator[None]:
 @pytest.fixture(scope="session")
 def db_engine(initialize_test_db) -> Generator[AsyncEngine]:  # noqa
     """Created ONCE globally, but safely used by function-scoped async tests."""
+    url = _get_test_database_url()
+
+    connect_args = {"options": "-c timezone=UTC"} if "psycopg" in url else {"server_settings": {"timezone": "UTC"}}
+
     engine = create_async_engine(
-        _get_test_database_url(),
-        connect_args={"server_settings": {"timezone": "UTC"}},
+        url,
+        connect_args=connect_args,
         poolclass=NullPool,
     )
     yield engine
