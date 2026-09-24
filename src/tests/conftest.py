@@ -14,6 +14,7 @@ if TEST_ENV_FILE.exists():
 fallback_db = "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
 db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or fallback_db
 
+os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("TEST_DATABASE_URL", db_url)
 os.environ.setdefault("DATABASE_URL", db_url)

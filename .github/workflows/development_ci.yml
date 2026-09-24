@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      DATABASE_URL: postgresql+asyncpg://postgres:temp_password@localhost:5432/temp_db
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:temp_password@localhost:5432/temp_db
 
     services:
