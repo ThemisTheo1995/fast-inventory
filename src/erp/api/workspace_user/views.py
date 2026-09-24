@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.erp.api.workspace_user.schemas import (
@@ -64,19 +64,19 @@ async def get_workspace_user(
     return await service.get_workspace_user(workspace_user_id)
 
 
-@router.post(
-    "/workspace-users/invite",
-    response_model=WorkspaceUserResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/workspace-users/invite", response_model=WorkspaceUserResponse, status_code=status.HTTP_201_CREATED)
 async def add_workspace_user(
     request: Request,
     data: WorkspaceUserInviteRequest,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WorkspaceUserResponse:
+
     workspace_user = request.state.workspace_user
+
     service = WorkspaceUserService(db)
-    return await service.invite_workspace_user(data, actor=workspace_user)
+
+    return await service.invite_workspace_user(data, actor=workspace_user, background_tasks=background_tasks)
 
 
 @router.patch(

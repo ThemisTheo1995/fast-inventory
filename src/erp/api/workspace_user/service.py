@@ -1,10 +1,12 @@
 from uuid import UUID
 
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.erp.api.auth.models import User
+from src.erp.api.workspace.models import Workspace
 from src.erp.api.workspace_user.enums import InvitationStatusEnum
 from src.erp.api.workspace_user.exceptions import WorkspaceUserAlreadyInWorkspaceError, WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
@@ -15,6 +17,9 @@ from src.erp.api.workspace_user.schemas import (
     WorkspaceUserUpdateRequest,
 )
 from src.erp.api.workspace_user.utils import guard_against_self_action, guard_privilege_escalation, guard_rank_immunity
+from src.erp.core.config import get_settings
+from src.erp.services.emails.builder import build_invite_email
+from src.erp.services.emails.factory import get_email_provider
 
 
 class WorkspaceUserService:
@@ -98,14 +103,22 @@ class WorkspaceUserService:
         )
 
     async def invite_workspace_user(
-        self, data: WorkspaceUserInviteRequest, actor: WorkspaceUser
+        self,
+        data: WorkspaceUserInviteRequest,
+        actor: WorkspaceUser,
+        background_tasks: BackgroundTasks | None = None,
     ) -> WorkspaceUserResponse:
-        """Invite a workspace user while enforcing safeguards against privilege escalation."""
         role = data.role
         email = data.email
 
         guard_privilege_escalation(actor.role, role)
 
+        # 1. Fetch Workspace and Inviter Details for Email Context
+        workspace = await self.db.get(Workspace, actor.workspace_id)
+        inviter_user = await self.db.get(User, actor.user_id)
+        inviter_name = f"{inviter_user.first_name} {inviter_user.last_name}".strip() or "An administrator"
+
+        # 2. Check / Create User
         is_existing_user = True
         user_stmt = select(User).where(User.email == email)
         user_result = await self.db.execute(user_stmt)
@@ -117,6 +130,7 @@ class WorkspaceUserService:
             await self.db.flush()
             is_existing_user = False
 
+        # 3. Check / Create Workspace User
         ws_user_stmt = select(WorkspaceUser).where(
             WorkspaceUser.workspace_id == actor.workspace_id, WorkspaceUser.user_id == user.id
         )
@@ -131,27 +145,41 @@ class WorkspaceUserService:
             workspace_user.is_deleted = False
             workspace_user.role = role
             workspace_user.status = workspace_user_status
-            await self.db.commit()
-
-            return WorkspaceUserResponse(
-                id=str(workspace_user.id),
-                name=f"{user.first_name} {user.last_name}".strip() or None,
-                email=email,
+            target_ws_user = workspace_user
+        else:
+            target_ws_user = WorkspaceUser(
+                workspace_id=actor.workspace_id,
+                user_id=user.id,
                 role=role,
                 status=workspace_user_status,
+                is_deleted=False,
             )
+            self.db.add(target_ws_user)
 
-        new_workspace_user = WorkspaceUser(
-            workspace_id=actor.workspace_id, user_id=user.id, role=role, status=workspace_user_status, is_deleted=False
-        )
-        self.db.add(new_workspace_user)
         await self.db.commit()
-        await self.db.refresh(new_workspace_user)
+        await self.db.refresh(target_ws_user)
+
+        if background_tasks:
+            settings = get_settings()
+            # 4. Generate Action URL
+            action_url = f"{settings.DOMAIN_URL}/auth/onboard?email={user.email}"
+
+            # 5. Build and Send Email
+            invite_message = build_invite_email(
+                recipient=user.email,
+                workspace_name=workspace.name if workspace else "an Aegis workspace",
+                inviter_name=inviter_name,
+                action_url=action_url,
+            )
+            email_provider = get_email_provider()
+
+            # Queue email task
+            background_tasks.add_task(email_provider.send_email, invite_message)
 
         return WorkspaceUserResponse(
-            id=str(new_workspace_user.user_id),
-            name=None,
-            email=email,
+            id=str(target_ws_user.user_id),
+            name=f"{user.first_name} {user.last_name}".strip() or None,
+            email=user.email,
             role=role,
             status=workspace_user_status,
         )

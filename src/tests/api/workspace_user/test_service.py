@@ -362,7 +362,7 @@ async def test_invite_workspace_user_happy_path_existing_user_without_link(db_se
 
     response = await service.invite_workspace_user(data=data, actor=actor)
     assert response.id == existing_user.id
-    assert response.name is None
+    assert response.name == "Known User"
     assert response.email == "known@test.com"
     assert response.role == WorkspaceRoleEnum.READ_ONLY
 

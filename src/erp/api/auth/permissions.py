@@ -14,7 +14,6 @@ from src.erp.database.base import get_db
 
 ROLE_WEIGHTS = {"full_admin": 3, "edit_only": 2, "read_only": 1}
 
-# Map HTTP methods to the minimum required role weight
 METHOD_WEIGHTS = {
     "GET": 1,  # read_only, edit_only, full_admin
     "OPTIONS": 1,
@@ -24,6 +23,8 @@ METHOD_WEIGHTS = {
     "PATCH": 2,
     "DELETE": 3,  # full_admin only
 }
+
+ELIGIBLE_ROUTES_EVEN_IF_READ_ONLY = ["create_note", "update_note"]
 
 
 async def verify_workspace_access(
@@ -37,6 +38,9 @@ async def verify_workspace_access(
     Master dependency for workspace routes.
     Validates active session, workspace membership, and HTTP method permissions.
     """
+
+    endpoint = request.scope.get("endpoint")
+    route_fn_name = getattr(endpoint, "__name__", "unknown")
 
     # CHECK 2: Verify Pricing Subscription existence
     subscription_query = select(PricingSubscription.plan_id).where(
@@ -53,7 +57,7 @@ async def verify_workspace_access(
     required_weight = METHOD_WEIGHTS.get(request.method.upper(), 3)
     user_weight = ROLE_WEIGHTS.get(workspace_user.role.lower(), 0)
 
-    if user_weight < required_weight:
+    if user_weight < required_weight and route_fn_name not in ELIGIBLE_ROUTES_EVEN_IF_READ_ONLY:
         raise InsufficientPermissionsError()
 
     request.state.workspace_user = workspace_user

@@ -100,8 +100,6 @@ def test_purchase_order_filter_apply_amount_between_range():
         )
     )
 
-    print(compiled)
-
     assert "purchase_orders.total_amount BETWEEN 1000.0 AND 5000.0" in compiled
 
 

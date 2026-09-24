@@ -166,6 +166,7 @@ async def test_login_happy_path(db_session: AsyncSession):
         first_name="Login",
         last_name="User",
         hashed_password=get_password_hash(raw_password),
+        is_whitelisted=True,
     )
     workspace = Workspace(name="User Space", email="space@user.com")
     db_session.add_all([user, workspace])
@@ -206,6 +207,7 @@ async def test_login_user_with_no_workspaces_raises_index_error(db_session: Asyn
         first_name="Orphaned",
         last_name="User",
         hashed_password=get_password_hash(raw_password),
+        is_whitelisted=True,
     )
     db_session.add(user)
     await db_session.flush()
@@ -263,7 +265,13 @@ async def test_login_purges_multiple_concurrent_sessions(db_session: AsyncSessio
     """
     auth_service = AuthService(db_session)
     raw_pw = "pass123"
-    user = User(email="purge@example.com", first_name="P", last_name="U", hashed_password=get_password_hash(raw_pw))
+    user = User(
+        email="purge@example.com",
+        first_name="P",
+        last_name="U",
+        hashed_password=get_password_hash(raw_pw),
+        is_whitelisted=True,
+    )
     workspace = Workspace(name="Purge Corp", email="purge@corp.com")
     db_session.add_all([user, workspace])
     await db_session.flush()
@@ -306,10 +314,7 @@ async def test_logout_happy_path(db_session: AsyncSession):
     auth_service = AuthService(db_session)
 
     user = User(
-        email="logout_target@example.com",
-        first_name="L",
-        last_name="O",
-        hashed_password="hash",
+        email="logout_target@example.com", first_name="L", last_name="O", hashed_password="hash", is_whitelisted=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -381,10 +386,7 @@ async def test_refresh_token_happy_path(db_session: AsyncSession):
     auth_service = AuthService(db_session)
 
     user = User(
-        email="refresh_me@example.com",
-        first_name="R",
-        last_name="M",
-        hashed_password="hash",
+        email="refresh_me@example.com", first_name="R", last_name="M", hashed_password="hash", is_whitelisted=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -449,10 +451,7 @@ async def test_refresh_token_exception_session_revoked_or_overwritten(db_session
     auth_service = AuthService(db_session)
 
     user = User(
-        email="stale_session@example.com",
-        first_name="S",
-        last_name="S",
-        hashed_password="hash",
+        email="stale_session@example.com", first_name="S", last_name="S", hashed_password="hash", is_whitelisted=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -477,7 +476,7 @@ async def test_onboard_happy_path(db_session: AsyncSession):
     auth_service = AuthService(db_session)
 
     # 1. Seed a pending invited user
-    user = User(email="invitee@test.com", first_name=None, last_name=None, hashed_password=None)
+    user = User(email="invitee@test.com", first_name=None, last_name=None, is_whitelisted=True, hashed_password=None)
     workspace = Workspace(name="Invite Workspace", email="ws@test.com")
     db_session.add_all([user, workspace])
     await db_session.flush()
@@ -543,7 +542,7 @@ async def test_onboard_exception_already_onboarded(db_session: AsyncSession):
     """
     auth_service = AuthService(db_session)
 
-    user = User(email="active@test.com", hashed_password="existing_hash")
+    user = User(email="active@test.com", hashed_password="existing_hash", is_whitelisted=True)
     workspace = Workspace(name="Active WS", email="activews@test.com")
     db_session.add_all([user, workspace])
     await db_session.flush()
@@ -570,7 +569,7 @@ async def test_onboard_exception_database_failure_triggers_rollback(db_session: 
     """
     auth_service = AuthService(db_session)
 
-    user = User(email="fail@test.com", first_name=None, hashed_password=None)
+    user = User(email="fail@test.com", first_name=None, hashed_password=None, is_whitelisted=True)
     workspace = Workspace(name="Fail WS", email="faledws@test.com")
     db_session.add_all([user, workspace])
     await db_session.flush()

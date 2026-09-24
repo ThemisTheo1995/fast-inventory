@@ -5,7 +5,7 @@ from typing import Any
 import bcrypt
 import jwt
 
-from src.erp.api.auth.exceptions import TokenExpiredError, TokenInvalidError
+from src.erp.api.auth.exceptions import TokenExpiredError, TokenInvalidError, VerificationFailedError
 from src.erp.core.config import get_settings
 
 settings = get_settings()
@@ -103,3 +103,29 @@ def generate_token_pair(subject: str) -> dict[str, str]:
     Method to generate both tokens at login/registration.
     """
     return {"access_token": create_access_token(subject), "refresh_token": create_refresh_token(subject)}
+
+
+def generate_whitelist_token(user_id: uuid.UUID) -> str:
+    """Generates a signed JWT token for email verification / whitelisting (valid for 24h)."""
+    expire = datetime.now(UTC) + timedelta(hours=24)
+    payload = {
+        "sub": str(user_id),
+        "type": "whitelist_verification",
+        "exp": expire.timestamp(),
+    }
+    return jwt.encode(payload, settings.AUTH_SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
+
+
+def decode_whitelist_user_token(token: str) -> uuid.UUID:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.AUTH_SECRET_KEY,
+            algorithms=[settings.AUTH_ALGORITHM],
+        )
+        if payload.get("type") != "whitelist_verification":
+            raise TokenInvalidError()
+
+        return uuid.UUID(payload["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError) as err:
+        raise VerificationFailedError() from err

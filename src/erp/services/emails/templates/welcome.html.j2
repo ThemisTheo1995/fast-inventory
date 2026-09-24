@@ -1,0 +1,89 @@
+{% extends "base.html.j2" %}
+
+{% block subject %}Welcome to Aegis — Your enterprise workspace is live{% endblock %}
+
+{% block preheader %}Your workspace is ready. Follow these quick steps to set up your team, inventory, and operations.{% endblock %}
+
+{% block content %}
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+  <!-- Header -->
+  <tr>
+    <td class="theme-text-main" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 800; color: #0f172a; padding-bottom: 12px; letter-spacing: -0.025em;">
+      Welcome aboard, {{ user_name }}!
+    </td>
+  </tr>
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; color: #475569; line-height: 1.6; padding-bottom: 24px;">
+      Your workspace is officially provisioned and ready for deployment. You now have full visibility and real-time control over your inventory, customer pipelines and daily operations.
+    </td>
+  </tr>
+
+  <!-- Divider -->
+  <tr>
+    <td style="padding-bottom: 24px;">
+      <hr class="theme-divider" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;" />
+    </td>
+  </tr>
+
+  <!-- Onboarding Steps Header -->
+  <tr>
+    <td class="theme-text-main" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 16px;">
+      Next Steps to Onboard
+    </td>
+  </tr>
+
+  <!-- Step 1 -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6; padding-bottom: 10px;">
+      <strong class="theme-strong" style="color: #0f172a;">1. Complete Profile & Preferences:</strong> Set your phone number, company address, and alternative emails.
+    </td>
+  </tr>
+
+  <!-- Step 2 -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6; padding-bottom: 10px;">
+      <strong class="theme-strong" style="color: #0f172a;">2. Invite Team Members:</strong> Grant role-based access control (RBAC) permissions to keep your workspace secure.
+    </td>
+  </tr>
+
+  <!-- Step 3 -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #334155; line-height: 1.6; padding-bottom: 28px;">
+      <strong class="theme-strong" style="color: #0f172a;">3. Migrate Inventory, Customers & Suppliers:</strong> Import your active records and start automating your workflows.
+    </td>
+  </tr>
+
+  <!-- Primary CTA Button -->
+  <tr>
+    <td align="center" style="padding-bottom: 28px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="mobile-btn">
+        <tr>
+          <td align="center" style="border-radius: 8px; background-color: #3b82f6;">
+            <a href="{{ action_url }}" target="_blank" class="mobile-btn" style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
+              Verify Account
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Divider -->
+  <tr>
+    <td style="padding-bottom: 20px;">
+      <hr class="theme-divider" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;" />
+    </td>
+  </tr>
+
+  <!-- Support Contact Section -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #64748b; line-height: 1.6;">
+      <strong class="theme-strong" style="color: #0f172a;">Need help setting up?</strong><br />
+      Our technical onboarding specialists are here for you. Reply directly to this email or reach us at 
+      <a href="mailto:{{ support_email }}" style="color: #3b82f6; text-decoration: underline;">
+        {{ support_email }}
+      </a>.
+    </td>
+  </tr>
+</table>
+{% endblock %}

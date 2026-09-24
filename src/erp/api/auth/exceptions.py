@@ -21,6 +21,21 @@ class TokenInvalidError(TokenError):
     pass
 
 
+class VerificationFailedError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="Email verification failed.")
+
+
+class UserNotFoundError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+
+class UserNotWhitelistedError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User requires to verify email.")
+
+
 class UserExistsExceptionError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.")

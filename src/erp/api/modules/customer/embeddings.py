@@ -2,11 +2,11 @@ import uuid
 
 from sqlalchemy import select
 
+from erp.services.ai.embedding import generate_embedding
 from src.erp.api.modules.customer.models import Customer
 from src.erp.api.search.enums import EntityTypeEnum
 from src.erp.api.search.models import GlobalSearchIndex
 from src.erp.database.base import AsyncSessionLocal
-from src.erp.services.embedding import generate_embedding
 
 
 async def process_customer_search_index(customer_id: uuid.UUID) -> None:

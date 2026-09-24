@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,14 +20,30 @@ settings = get_settings()
 router = APIRouter()
 
 
+@router.post("/verify", status_code=status.HTTP_200_OK)
+async def verify(
+    token: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Endpoint called when user clicks the presigned/signed URL in their email."""
+    service = AuthService(db)
+
+    await service.verify(token)
+
+    return {"detail": "Account successfully whitelisted. You may now log in."}
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
-    data: RegisterRequest, response: Response, db: Annotated[AsyncSession, Depends(get_db)]
+    data: RegisterRequest,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RegisterResponse:
 
     service = AuthService(db)
 
-    result = await service.register(data)
+    result = await service.register(data, background_tasks=background_tasks)
 
     response.set_cookie(
         key="access_token",
@@ -45,7 +61,7 @@ async def register(
         samesite="lax",
     )
 
-    return RegisterResponse(workspace_id=result.workspace_id)
+    return RegisterResponse(workspace_id=result.workspace_id, is_whitelisted=result.is_whitelisted)
 
 
 @router.post("/onboard", response_model=OnboardResponse, status_code=status.HTTP_200_OK)
@@ -76,9 +92,7 @@ async def onboard(
         samesite="lax",
     )
 
-    return OnboardResponse(
-        workspace_id=result.workspace_id,
-    )
+    return RegisterResponse(workspace_id=result.workspace_id, is_whitelisted=result.is_whitelisted)
 
 
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
@@ -108,7 +122,7 @@ async def login(
         samesite="lax",
     )
 
-    return LoginResponse(workspace_id=result.workspace_id)
+    return LoginResponse(workspace_id=result.workspace_id, is_whitelisted=result.is_whitelisted)
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

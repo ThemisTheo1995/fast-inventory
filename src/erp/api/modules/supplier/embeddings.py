@@ -2,11 +2,11 @@ import uuid
 
 from sqlalchemy import select
 
+from erp.services.ai.embedding import generate_embedding
 from src.erp.api.modules.supplier.models import Supplier
 from src.erp.api.search.enums import EntityTypeEnum
 from src.erp.api.search.models import GlobalSearchIndex
 from src.erp.database.base import AsyncSessionLocal
-from src.erp.services.embedding import generate_embedding
 
 
 async def process_supplier_search_index(supplier_id: uuid.UUID) -> None:

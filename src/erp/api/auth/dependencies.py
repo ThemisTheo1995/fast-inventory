@@ -6,7 +6,7 @@ from fastapi import Cookie, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import CredentialsExceptionError
+from src.erp.api.auth.exceptions import CredentialsExceptionError, UserNotWhitelistedError
 from src.erp.api.auth.models import User
 from src.erp.api.workspace_user.enums import InvitationStatusEnum
 from src.erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
@@ -44,6 +44,9 @@ async def get_current_user(
 
     if user is None:
         raise CredentialsExceptionError()
+
+    if not user.is_whitelisted:
+        raise UserNotWhitelistedError()
 
     return user
 

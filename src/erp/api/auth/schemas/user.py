@@ -16,9 +16,12 @@ class AuthResult(BaseModel):
     access_token: str
     refresh_token: str
     workspace_id: uuid.UUID
+    is_whitelisted: bool
+    whitelisted_token: str | None = None
 
 
 class AuthResponse(BaseModel):
+    is_whitelisted: bool
     workspace_id: uuid.UUID
 
 
@@ -71,3 +74,4 @@ class LoginResult(AuthResult):
 
 class LoginResponse(BaseModel):
     workspace_id: uuid.UUID
+    is_whitelisted: bool

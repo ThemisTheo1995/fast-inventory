@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.erp.api.base.models import BaseModel
@@ -12,6 +12,7 @@ class User(BaseModel):
 
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_whitelisted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     first_name: Mapped[str | None] = mapped_column(String)
     last_name: Mapped[str | None] = mapped_column(String)

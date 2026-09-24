@@ -17,14 +17,10 @@ from src.erp.api.workspace.models import Workspace
 from src.erp.api.workspace_user.enums import InvitationStatusEnum
 from src.erp.api.workspace_user.exceptions import WorkspaceUserNotFoundError
 from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.core.config import get_settings
+from src.erp.core.config import Settings
 from src.erp.core.exception_handlers import custom_app_error_handler
 from src.erp.core.exceptions import BaseAppError
 from src.erp.database.base import get_db
-
-settings = get_settings()
-SECRET_KEY = settings.AUTH_SECRET_KEY
-ALGORITHM = settings.AUTH_ALGORITHM
 
 # ============================================================================
 # DUMMY FASTAPI APP FOR INTEGRATION TESTING
@@ -72,13 +68,15 @@ async def test_client(db_session):
 
 
 @pytest.fixture
-def create_jwt():
-    """Helper tool to encode valid/invalid testing tokens."""
+def create_jwt(settings: Settings):
+    """Helper tool to encode valid/invalid testing tokens using runtime settings."""
 
     def _encode(
         user_id: str | uuid.UUID,
         token_type: str = "access",
         expires_delta: timedelta | None = None,
+        secret_key: str | None = None,
+        algorithm: str | None = None,
     ):
         expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=15))
         payload = {
@@ -86,7 +84,9 @@ def create_jwt():
             "type": token_type,
             "exp": expire.timestamp(),
         }
-        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        key = secret_key or settings.AUTH_SECRET_KEY
+        alg = algorithm or settings.AUTH_ALGORITHM or "HS256"
+        return jwt.encode(payload, key, algorithm=alg)
 
     return _encode
 
@@ -100,6 +100,7 @@ async def persisted_user(db_session):
         first_name="Dep",
         last_name="Tester",
         hashed_password=get_password_hash("secure_pass"),
+        is_whitelisted=True,
     )
     db_session.add(user)
     await db_session.flush()
@@ -107,7 +108,7 @@ async def persisted_user(db_session):
 
 
 # ============================================================================
-# 1. DIRECT UNIT TESTS FOR DEPENDENCY FUNCTIONS (Guarantees Line Coverage)
+# 1. DIRECT UNIT TESTS FOR DEPENDENCY FUNCTIONS
 # ============================================================================
 
 
@@ -123,7 +124,7 @@ async def test_get_current_user_direct_happy_path(db_session, create_jwt, persis
 
 @pytest.mark.asyncio
 async def test_get_current_user_direct_user_none(db_session, create_jwt):
-    """Directly calls get_current_user with a non-existent user ID to cover if user is None."""
+    """Directly calls get_current_user with a non-existent user ID."""
     token = create_jwt(user_id=uuid.uuid4())
 
     with pytest.raises(CredentialsExceptionError):
@@ -132,7 +133,7 @@ async def test_get_current_user_direct_user_none(db_session, create_jwt):
 
 @pytest.mark.asyncio
 async def test_get_current_workspace_user_direct_success(db_session, persisted_user):
-    """Directly calls get_current_workspace_user to reliably cover return workspace_user."""
+    """Directly calls get_current_workspace_user to cover return workspace_user."""
     workspace = Workspace(name="Direct WS", email="direct@test.com")
     db_session.add(workspace)
     await db_session.flush()
@@ -159,7 +160,7 @@ async def test_get_current_workspace_user_direct_success(db_session, persisted_u
 
 @pytest.mark.asyncio
 async def test_get_current_workspace_user_raises_when_missing(db_session, persisted_user):
-    """Direct unit test ensuring WorkspaceUserNotFoundError is raised when tenancy record is missing."""
+    """Ensures WorkspaceUserNotFoundError is raised when tenancy record is missing."""
     with pytest.raises(WorkspaceUserNotFoundError):
         await get_current_workspace_user(
             workspace_id=uuid.uuid4(),
@@ -213,12 +214,12 @@ async def test_get_current_user_no_token(test_client):
     assert response.status_code == 401
 
 
-async def test_get_current_user_invalid_signature(test_client):
+async def test_get_current_user_invalid_signature(test_client, settings: Settings):
     """Tokens signed with an incorrect key fail authentication."""
     bad_token = jwt.encode(
         {"sub": str(uuid.uuid4()), "type": "access"},
         "WRONG_SECRET_KEY_WRONG_SECRET_KEY_WRONG_SECRET_KEY",
-        algorithm=ALGORITHM,
+        algorithm=settings.AUTH_ALGORITHM or "HS256",
     )
     test_client.cookies.set("access_token", bad_token)
 
@@ -233,23 +234,31 @@ async def test_get_current_user_malformed_token(test_client):
     assert response.status_code == 401
 
 
-async def test_get_current_user_missing_sub_claim(test_client):
+async def test_get_current_user_missing_sub_claim(test_client, settings: Settings):
     """Tokens missing the 'sub' claim are rejected."""
     payload = {"type": "access", "exp": datetime.now(UTC) + timedelta(minutes=15)}
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(
+        payload,
+        settings.AUTH_SECRET_KEY,
+        algorithm=settings.AUTH_ALGORITHM or "HS256",
+    )
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get("/test-user")
     assert response.status_code == 401
 
 
-async def test_get_current_user_missing_token_type(test_client, persisted_user):
+async def test_get_current_user_missing_token_type(test_client, settings: Settings, persisted_user):
     """Tokens missing the 'type' claim are rejected."""
     payload = {
         "sub": str(persisted_user.id),
         "exp": datetime.now(UTC) + timedelta(minutes=15),
     }
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode(
+        payload,
+        settings.AUTH_SECRET_KEY,
+        algorithm=settings.AUTH_ALGORITHM or "HS256",
+    )
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get("/test-user")

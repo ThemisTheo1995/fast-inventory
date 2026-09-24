@@ -3,11 +3,11 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
+from erp.services.ai.embedding import generate_embedding
 from src.erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 from src.erp.api.search.enums import EntityTypeEnum
 from src.erp.api.search.models import GlobalSearchIndex
 from src.erp.database.base import AsyncSessionLocal
-from src.erp.services.embedding import generate_embedding
 
 
 async def process_sell_order_search_index(sell_order_id: uuid.UUID) -> None:

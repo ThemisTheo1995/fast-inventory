@@ -1,0 +1,62 @@
+{% extends "base.html.j2" %}
+
+{% block subject %}You've been invited to join {{ workspace_name | default('an Aegis workspace') }}{% endblock %}
+
+{% block preheader %}Accept your invitation to collaborate, manage inventory, and access operations on Aegis.{% endblock %}
+
+{% block content %}
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+  <!-- Header -->
+  <tr>
+    <td class="theme-text-main" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 20px; font-weight: 800; color: #0f172a; padding-bottom: 12px; letter-spacing: -0.025em;">
+      You're invited to join {{ workspace_name }}!
+    </td>
+  </tr>
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; color: #475569; line-height: 1.6; padding-bottom: 24px;">
+      <strong class="theme-strong" style="color: #0f172a; font-weight: 600;">{{ inviter_name | default('An administrator') }}</strong> has invited you to join the workspace <strong class="theme-strong" style="color: #0f172a; font-weight: 600;">{{ workspace_name }}</strong> on Aegis. Click the button below to set up your credentials, activate your account, and jump right into operations.
+    </td>
+  </tr>
+
+  <!-- Primary CTA Button -->
+  <tr>
+    <td align="center" style="padding-bottom: 24px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="mobile-btn">
+        <tr>
+          <td align="center" style="border-radius: 8px; background-color: #3b82f6;">
+            <a href="{{ action_url }}" target="_blank" class="mobile-btn" style="display: inline-block; padding: 14px 28px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
+              Accept Invitation & Activate
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Fallback Link Note -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #64748b; line-height: 1.6; padding-bottom: 24px;">
+      Alternatively, you can copy and paste this link into your browser to complete your setup:<br />
+      <span style="color: #3b82f6; word-break: break-all;">{{ action_url }}</span>
+    </td>
+  </tr>
+
+  <!-- Divider -->
+  <tr>
+    <td style="padding-bottom: 20px;">
+      <hr class="theme-divider" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;" />
+    </td>
+  </tr>
+
+  <!-- Support Section -->
+  <tr>
+    <td class="theme-text-muted" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #64748b; line-height: 1.6;">
+      <strong class="theme-strong" style="color: #0f172a;">Was this unexpected?</strong><br />
+      If you were not expecting this invitation, you can safely ignore this email. Reach out to our team at 
+      <a href="mailto:{{ support_email }}" style="color: #3b82f6; text-decoration: underline;">
+        {{ support_email }}
+      </a> if you have any questions.
+    </td>
+  </tr>
+</table>
+{% endblock %}

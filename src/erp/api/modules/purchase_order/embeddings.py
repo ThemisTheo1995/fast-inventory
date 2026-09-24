@@ -3,11 +3,11 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
+from erp.services.ai.embedding import generate_embedding
 from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
 from src.erp.api.search.enums import EntityTypeEnum
 from src.erp.api.search.models import GlobalSearchIndex
 from src.erp.database.base import AsyncSessionLocal
-from src.erp.services.embedding import generate_embedding
 
 
 async def process_purchase_order_search_index(purchase_order_id: uuid.UUID) -> None:
@@ -22,8 +22,6 @@ async def process_purchase_order_search_index(purchase_order_id: uuid.UUID) -> N
             .where(PurchaseOrder.id == purchase_order_id)
         )
         purchase_order = result.scalar_one_or_none()
-
-        print(purchase_order.purchase_order_lines)
 
         if not purchase_order or getattr(purchase_order, "is_deleted", False):
             return

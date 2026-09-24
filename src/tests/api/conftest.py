@@ -71,10 +71,15 @@ async def active_subscription(
 
 
 @pytest_asyncio.fixture
-async def test_user(db_session: AsyncSession) -> User:
+async def tst_user(db_session: AsyncSession) -> User:
     """Seeds a fully verified active user account using native UUID formatting."""
     user = User(
-        id=uuid.uuid4(), email="test-integrations@company.com", first_name="Test", last_name="User", is_deleted=False
+        id=uuid.uuid4(),
+        email="test-integrations@company.com",
+        first_name="Test",
+        last_name="User",
+        is_deleted=False,
+        is_whitelisted=True,
     )
     db_session.add(user)
     await db_session.commit()
@@ -83,11 +88,11 @@ async def test_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def active_workspace_user(db_session: AsyncSession, seed_workspace: uuid.UUID, test_user: User) -> WorkspaceUser:
+async def active_workspace_user(db_session: AsyncSession, seed_workspace: uuid.UUID, tst_user: User) -> WorkspaceUser:
     """Binds the user to the workspace with maximum administrative authorization."""
     ws_user = WorkspaceUser(
         id=uuid.uuid4(),
-        user_id=test_user.id,
+        user_id=tst_user.id,
         workspace_id=seed_workspace,
         status=InvitationStatusEnum.ACTIVE,
         is_deleted=False,
@@ -99,9 +104,9 @@ async def active_workspace_user(db_session: AsyncSession, seed_workspace: uuid.U
 
 
 @pytest.fixture
-def access_token(test_user: User) -> str:
+def access_token(tst_user: User) -> str:
     """Standard sync fixture because token generation doesn't require DB access."""
-    return create_access_token(subject=str(test_user.id))
+    return create_access_token(subject=str(tst_user.id))
 
 
 @pytest_asyncio.fixture

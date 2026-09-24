@@ -1,29 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
-from src.erp.core.config import Settings, get_settings
-
-
-@pytest.fixture(autouse=True)
-def clear_settings_cache():
-    """Automatically clear the lru_cache before and after every single test.
-
-    Without this, once get_settings() runs once, subsequent tests will receive
-    the cached object and ignore any newly mocked environment variables.
-    """
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+from src.erp.core.config import get_settings
 
 
 @pytest.fixture
 def _mock_env_vars(monkeypatch):
-    """A helper fixture providing a baseline set of valid environment variables.
-
-    This prevents Pydantic from reading real local `.env` file during tests.
-    """
-    monkeypatch.setitem(Settings.model_config, "env_file", None)
-
+    """Provides a baseline set of valid environment variables in memory."""
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/db")
     monkeypatch.setenv("TEST_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/test_db")
     monkeypatch.setenv("AUTH_SECRET_KEY", "super-secret-key-for-testing")
@@ -34,12 +17,16 @@ def _mock_env_vars(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "Fake-key")
     monkeypatch.setenv("GEMINI_API_KEY_NAME", "Fake-Name")
 
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
 
 def test_settings_load_successfully(_mock_env_vars):
     """Verifies that with correct environment variables, settings load and type-cast correctly."""
     settings = get_settings()
 
-    assert settings.ENVIRONMENT in ("development", "test", "staging")
+    assert settings.ENVIRONMENT in ("development", "testing", "staging")
     assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
     assert settings.TEST_DATABASE_URL.startswith("postgresql+asyncpg://")
     assert settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES == 5
@@ -47,7 +34,7 @@ def test_settings_load_successfully(_mock_env_vars):
 
 
 def test_settings_override_environment(_mock_env_vars, monkeypatch):
-    """Verifies that explicitly defining the ENVIRONMENT variable overrides the 'dev' default."""
+    """Verifies that explicitly defining the ENVIRONMENT variable overrides the default."""
     monkeypatch.setenv("ENVIRONMENT", "test")
 
     settings = get_settings()
@@ -64,14 +51,19 @@ def test_missing_required_variables_raises_validation_error(_mock_env_vars, monk
     """Verifies that if any required field is missing, Pydantic raises a ValidationError."""
     monkeypatch.delenv(missing_var, raising=False)
 
-    with pytest.raises(ValidationError) as exc_info:
-        get_settings()
+    get_settings.cache_clear()
 
-    assert missing_var in str(exc_info.value)
+    try:
+        with pytest.raises(ValidationError) as exc_info:
+            get_settings()
+
+        assert missing_var in str(exc_info.value)
+    finally:
+        get_settings.cache_clear()
 
 
 def test_invalid_data_types_raises_validation_error(_mock_env_vars, monkeypatch):
-    """Verifies that feeding bad data types (e.g., text instead of an int) throws errors."""
+    """Verifies that feeding bad data types throws validation errors."""
     monkeypatch.setenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "not-a-number")
 
     with pytest.raises(ValidationError) as exc_info:
