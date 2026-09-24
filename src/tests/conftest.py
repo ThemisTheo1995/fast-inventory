@@ -14,10 +14,18 @@ if TEST_ENV_FILE.exists():
 fallback_db = "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
 db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or fallback_db
 
+os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("TESTING", "true")
 os.environ.setdefault("TEST_DATABASE_URL", db_url)
 os.environ.setdefault("DATABASE_URL", db_url)
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+
+os.environ.setdefault("AUTH_SECRET_KEY", "testing")
+os.environ.setdefault("AUTH_ALGORITHM", "HS256")
+os.environ.setdefault("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
+os.environ.setdefault("AUTH_REFRESH_TOKEN_EXPIRE_DAYS", "7")
+os.environ.setdefault("COOKIE_SECURE", "1")
+
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
 os.environ.setdefault("AWS_SECURITY_TOKEN", "testing")
@@ -26,6 +34,8 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "eu-west-1")
 os.environ.setdefault("AWS_REGION", "eu-west-1")
 os.environ.setdefault("DEFAULT_FROM_EMAIL", "sender@example.com")
 os.environ.setdefault("EMAIL_PROVIDER", "ses")
+os.environ.setdefault("SUPPORT_EMAIL", "sender@example.com")
+
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
@@ -102,7 +112,7 @@ def initialize_test_db() -> Generator[None]:
 
     database_url = make_url(test_db_url)
     sync_database_url = database_url.set(drivername="postgresql+psycopg")
-    sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=utc"})
+    sync_engine = create_engine(sync_database_url, connect_args={"options": "-c timezone=UTC"})
 
     with sync_engine.begin() as connection:
         target_metadata.drop_all(bind=connection)
@@ -122,11 +132,15 @@ def initialize_test_db() -> Generator[None]:
 
 
 @pytest.fixture(scope="session")
-def db_engine(initialize_test_db) -> Generator[AsyncEngine, None, None]:  # noqa
+def db_engine(initialize_test_db) -> Generator[AsyncEngine]:  # noqa
     """Created ONCE globally, but safely used by function-scoped async tests."""
+    url = _get_test_database_url()
+
+    connect_args = {"options": "-c timezone=UTC"} if "psycopg" in url else {"server_settings": {"timezone": "UTC"}}
+
     engine = create_async_engine(
-        _get_test_database_url(),
-        connect_args={"server_settings": {"timezone": "UTC"}},
+        url,
+        connect_args=connect_args,
         poolclass=NullPool,
     )
     yield engine

@@ -5,6 +5,7 @@ on:
     branches:
       - master
 
+# Cancel in-progress runs if you push new commits to the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TEST_DATABASE_URL: postgresql+psycopg://postgres:temp_password@localhost:5432/temp_db
+      DATABASE_URL: postgresql+asyncpg://postgres:temp_password@localhost:5432/temp_db
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:temp_password@localhost:5432/temp_db
 
     services:
       postgres:
@@ -54,6 +56,9 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
+
+      - name: Run Alembic migrations
+        run: uv run alembic upgrade head
 
       - name: Run tests with Pytest
         run: |
