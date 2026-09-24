@@ -15,7 +15,6 @@
   <img src="https://img.shields.io/badge/Pydantic-V2-E92063.svg?logo=pydantic&logoColor=white" alt="Pydantic">
 </p>
 
-
 ---
 
 # ERP FastAPI Project
