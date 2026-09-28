@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 
-from fastapi import BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +48,6 @@ class AuthService:
 
     async def verify(self, token: str) -> None:
         """Verifies the token and flips is_whitelisted to True."""
-
         user_id = decode_whitelist_user_token(token)
 
         result = await self.db.execute(select(User).where(User.id == user_id))
@@ -58,46 +56,46 @@ class AuthService:
         if not user:
             raise UserNotFoundError()
 
-        if user.is_whitelisted:
-            return
+        if not user.is_whitelisted:
+            user.is_whitelisted = True
+            await self.db.commit()
 
-        user.is_whitelisted = True
-        await self.db.commit()
-
-    async def register(self, data: RegisterRequest, background_tasks: BackgroundTasks | None = None) -> RegisterResult:
+    async def register(self, data: RegisterRequest) -> RegisterResult:
         """Registers a new user with is_whitelisted=False and returns activation details."""
-        whitelist_token: str | None = None
-
-        # User check
+        # 1. User check
         existing_user_result = await self.db.execute(select(User).where(User.email == data.user.email))
         if existing_user_result.scalar_one_or_none():
             raise UserExistsExceptionError()
 
-        # Pricing Plan check
+        # 2. Pricing Plan check
         plan_result = await self.db.execute(select(PricingPlan).where(PricingPlan.name == data.plan))
         selected_plan = plan_result.scalar_one_or_none()
         if not selected_plan:
             raise PricingPlanDoesNotExistError()
 
-        # Workspace check
+        # 3. Workspace check
         existing_workspace_result = await self.db.execute(
             select(Workspace).where(Workspace.email == data.workspace.email)
         )
         if existing_workspace_result.scalar_one_or_none():
             raise WorkspaceAlreadyExistsError()
+
         try:
-            # 1. Create Workspace
+            # 4. Create Workspace
             workspace = Workspace(name=data.workspace.name, email=data.workspace.email)
             self.db.add(workspace)
             await self.db.flush()
 
-            # 2. Create Subscription
+            # 5. Create Subscription
             subscription = PricingSubscription(
-                workspace_id=workspace.id, plan_id=selected_plan.id, is_active=True, is_paused=False
+                workspace_id=workspace.id,
+                plan_id=selected_plan.id,
+                is_active=True,
+                is_paused=False,
             )
             self.db.add(subscription)
 
-            # 3. Create blacklisted User
+            # 6. Create User
             hashed_pw = get_password_hash(data.user.password)
             user = User(
                 email=data.user.email,
@@ -109,7 +107,7 @@ class AuthService:
             self.db.add(user)
             await self.db.flush()
 
-            # 4. Link User to Workspace
+            # 7. Link User to Workspace
             workspace_user = WorkspaceUser(
                 user_id=user.id,
                 workspace_id=workspace.id,
@@ -117,15 +115,18 @@ class AuthService:
                 status=InvitationStatusEnum.ACTIVE,
             )
             self.db.add(workspace_user)
-            await self.db.flush()
 
-            # 5. Generate JWT tokens
+            # 8. Generate JWT tokens
             tokens = generate_token_pair(user.id)
             refresh_payload = decode_token(tokens["refresh_token"])
 
-            # 6. Track the session in the DB
+            # 9. Track session in DB
             expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
-            user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
+            user_session = UserSession(
+                user_id=user.id,
+                session_id=refresh_payload["jti"],
+                expires_at=expires_at,
+            )
             self.db.add(user_session)
 
             await self.db.commit()
@@ -135,21 +136,16 @@ class AuthService:
             raise OnboardingFailedExceptionError() from e
 
         # --- Side Effects (Post-Commit) ---
+        whitelist_token = generate_whitelist_token(user.id)
 
-        if background_tasks:
-            # 7. Generate Whitelist Token
-            whitelist_token = generate_whitelist_token(user.id)
+        verification_message = build_welcome_email(
+            recipient=user.email,
+            whitelisted_token=whitelist_token,
+            user_name=user.first_name or "there",
+        )
 
-            # 8. Build message
-            verification_message = build_welcome_email(
-                recipient=user.email,
-                whitelisted_token=whitelist_token,
-                user_name=user.first_name or "there",
-            )
-
-            # 9. Queue email task
-            email_provider = get_email_provider()
-            background_tasks.add_task(email_provider.send_email, verification_message)
+        email_provider = get_email_provider()
+        await email_provider.send_email(verification_message)
 
         return RegisterResult(
             whitelisted_token=whitelist_token,
@@ -159,19 +155,15 @@ class AuthService:
             is_whitelisted=user.is_whitelisted,
         )
 
-    async def onboard(self, data: UserCreate, background_tasks: BackgroundTasks | None = None) -> OnboardResult:
+    async def onboard(self, data: UserCreate) -> OnboardResult:
         """Service to fully onboard and activate an invited workspace user."""
 
-        whitelist_token: str | None = None
-
-        # 1. Locate the pre-seeded user record from invite_member step
         user_result = await self.db.execute(select(User).where(User.email == data.email))
         user = user_result.scalar_one_or_none()
 
         if not user:
             raise InvitationNotFoundExceptionError()
 
-        # 2. Locate the pending workspace invitation for this user
         ws_user_result = await self.db.execute(
             select(WorkspaceUser).where(
                 WorkspaceUser.is_deleted.is_(False),
@@ -187,24 +179,23 @@ class AuthService:
             raise InvitationNotFoundExceptionError()
 
         try:
-            # 3. Finalise User account details
             user.hashed_password = get_password_hash(data.password)
             user.first_name = data.first_name
             user.last_name = data.last_name
 
-            # 4. Promote status to active
             workspace_user.status = InvitationStatusEnum.ACTIVE
 
-            # 5. Issue Auth Token Infrastructure payload
             tokens = generate_token_pair(user.id)
             refresh_payload = decode_token(tokens["refresh_token"])
 
-            # 6. Save tracking session
             expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
-            user_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
+            user_session = UserSession(
+                user_id=user.id,
+                session_id=refresh_payload["jti"],
+                expires_at=expires_at,
+            )
             self.db.add(user_session)
 
-            # Commit database transaction
             await self.db.commit()
 
         except Exception as e:
@@ -212,9 +203,8 @@ class AuthService:
             raise OnboardingFailedExceptionError() from e
 
         # --- Side Effects & Output (Post-Commit) ---
-
-        # 7. Construct and send verification email if user is not whitelisted
-        if not user.is_whitelisted and background_tasks:
+        whitelist_token: str | None = None
+        if not user.is_whitelisted:
             whitelist_token = generate_whitelist_token(user.id)
             verification_message = build_welcome_email(
                 recipient=user.email,
@@ -222,9 +212,8 @@ class AuthService:
                 user_name=user.first_name or "there",
             )
             email_provider = get_email_provider()
-            background_tasks.add_task(email_provider.send_email, verification_message)
+            await email_provider.send_email(verification_message)
 
-        # 8. Construct response schema
         return OnboardResult(
             is_whitelisted=user.is_whitelisted,
             workspace_id=workspace_user.workspace_id,
@@ -234,35 +223,30 @@ class AuthService:
 
     async def login(self, data: OAuth2PasswordRequestForm) -> LoginResult:
         """Service to login users via OAuth2 Form Data."""
-
-        # 1. Find user by email (eagerly load workspaces to prevent MissingGreenlet lazy-load crashes)
         user_result = await self.db.execute(
             select(User).options(selectinload(User.workspaces)).where(User.email == data.username)
         )
         user = user_result.scalar_one_or_none()
 
-        # 2. Verify password
-        if not user or not verify_password(data.password, user.hashed_password):
+        if not user or not user.hashed_password or not verify_password(data.password, user.hashed_password):
             raise CredentialsExceptionError()
 
-        # 3. Is Whitelisted
         if not user.is_whitelisted:
             raise UserNotWhitelistedError()
 
-        # 4. Generate tokens
+        if not user.workspaces:
+            raise CredentialsExceptionError()
+        workspace_user = user.workspaces[0]
+
         tokens = generate_token_pair(user.id)
         refresh_payload = decode_token(tokens["refresh_token"])
 
-        # 5. Create new UserSession record (Stateful auth)
         await self.db.execute(delete(UserSession).where(UserSession.user_id == user.id))
 
-        # 6. Create new single active UserSession record
         expires_at = datetime.fromtimestamp(refresh_payload["exp"], tz=UTC)
         new_session = UserSession(user_id=user.id, session_id=refresh_payload["jti"], expires_at=expires_at)
         self.db.add(new_session)
         await self.db.commit()
-
-        workspace_user = user.workspaces[0]
 
         return LoginResult(
             workspace_id=workspace_user.workspace_id,
@@ -271,24 +255,28 @@ class AuthService:
             is_whitelisted=user.is_whitelisted,
         )
 
-    async def logout(self, refresh_token: str) -> None:
-        """Service to logout user."""
+    async def logout(self, refresh_token: str, revoke_all: bool = True) -> None:
+        """Service to logout user. Option to revoke current session or all active sessions."""
         try:
-            # 1. Decode the refresh token to extract the user (sub) and session ID (jti)
             payload = decode_token(refresh_token)
-
             user_id = payload.get("sub")
             session_id = payload.get("jti")
 
-            if not user_id or not session_id:
+            if not user_id:
                 return
 
-            # 2. Delete the specific session from the database using SQLAlchemy 2.0 delete()
-            result = await self.db.execute(
-                delete(UserSession).where(UserSession.user_id == user_id, UserSession.session_id == session_id)
-            )
+            print(revoke_all)
 
-            # 3. Commit the transaction if a session was found and deleted
+            if revoke_all or not session_id:
+                print(342343)
+                stmt = delete(UserSession).where(UserSession.user_id == user_id)
+            else:
+                stmt = delete(UserSession).where(
+                    UserSession.user_id == user_id,
+                    UserSession.session_id == session_id,
+                )
+
+            result = await self.db.execute(stmt)
             if result.rowcount > 0:
                 await self.db.commit()
 
@@ -296,10 +284,14 @@ class AuthService:
             await self.db.rollback()
 
     async def refresh_token(self, refresh_token: str | None) -> str:
+        """Refreshes access token if the refresh token is valid and session exists."""
         if not refresh_token:
             raise TokenInvalidError()
 
-        payload = decode_token(refresh_token)
+        try:
+            payload = decode_token(refresh_token)
+        except Exception as e:
+            raise TokenInvalidError() from e
 
         if payload.get("type") != "refresh":
             raise TokenInvalidError()
@@ -311,11 +303,19 @@ class AuthService:
             raise TokenInvalidError()
 
         session_result = await self.db.execute(
-            select(UserSession).where(UserSession.user_id == user_id, UserSession.session_id == session_id)
+            select(UserSession).where(
+                UserSession.user_id == user_id,
+                UserSession.session_id == session_id,
+            )
         )
         active_session = session_result.scalar_one_or_none()
 
         if not active_session:
+            raise TokenInvalidError()
+
+        if active_session.expires_at and active_session.expires_at < datetime.now(UTC):
+            await self.db.delete(active_session)
+            await self.db.commit()
             raise TokenInvalidError()
 
         return create_access_token(subject=user_id)

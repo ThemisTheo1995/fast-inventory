@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,13 +37,12 @@ async def verify(
 async def register(
     data: RegisterRequest,
     response: Response,
-    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RegisterResponse:
 
     service = AuthService(db)
 
-    result = await service.register(data, background_tasks=background_tasks)
+    result = await service.register(data)
 
     response.set_cookie(
         key="access_token",

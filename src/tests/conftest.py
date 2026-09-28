@@ -11,8 +11,14 @@ TEST_ENV_FILE = ROOT_DIR / ".env.test"
 if TEST_ENV_FILE.exists():
     load_dotenv(TEST_ENV_FILE, override=True)
 
-fallback_db = "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
-db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or fallback_db
+test_db_url = os.environ.get("TEST_DATABASE_URL")
+
+if not test_db_url:
+    msg = "TEST_DATABASE_URL must be explicitly configured for tests. Refusing to run tests against DATABASE_URL."
+    raise RuntimeError(msg)
+
+db_url = test_db_url
+
 
 os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault("TESTING", "true")
@@ -39,6 +45,7 @@ os.environ.setdefault("SUPPORT_EMAIL", "sender@example.com")
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
@@ -193,8 +200,12 @@ def event_bus() -> EventBus:
 
 
 @pytest.fixture(autouse=True)
-def mock_generate_embedding(monkeypatch):
-    def fake_embed(text: str) -> list[float]:  # noqa
-        return [0.123] * 768
+def mock_genai_sdk(monkeypatch):
+    """Mocks the underlying Gemini SDK globally."""
 
-    monkeypatch.setattr("src.erp.services.ai.embedding.generate_embedding", fake_embed)
+    mock_client = MagicMock()
+    mock_embedding = MagicMock()
+    mock_embedding.values = [0.123] * 768
+    mock_client.models.embed_content.return_value = MagicMock(embeddings=[mock_embedding])
+
+    monkeypatch.setattr("google.genai.Client", lambda **_kwargs: mock_client)

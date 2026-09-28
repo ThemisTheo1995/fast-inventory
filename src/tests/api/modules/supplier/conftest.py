@@ -1,8 +1,18 @@
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.erp.api.modules.supplier.models import Supplier
+
+
+@pytest.fixture
+def mock_process_supplier_search_index():
+    with patch(
+        "src.erp.api.modules.supplier.handlers.process_supplier_search_index",
+        new_callable=AsyncMock,
+    ) as mock:
+        yield mock
 
 
 @pytest.fixture

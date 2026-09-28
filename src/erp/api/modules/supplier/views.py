@@ -30,16 +30,10 @@ async def create_supplier(
 ) -> SupplierResponse:
 
     service = SupplierService(db)
-
     supplier = await service.create_supplier(workspace_id, data)
 
-    background_tasks.add_task(
-        global_event_bus.publish,
-        SupplierCreatedEvent(
-            workspace_id=workspace_id,
-            supplier=supplier,
-        ),
-    )
+    event = SupplierCreatedEvent(workspace_id=workspace_id, supplier=supplier)
+    background_tasks.add_task(global_event_bus.publish, event)
 
     return supplier
 
@@ -54,7 +48,6 @@ async def get_suppliers(
 ) -> SupplierPaginatedResponse:
 
     service = SupplierService(db)
-
     return await service.get_suppliers(workspace_id, search, page, limit)
 
 
@@ -66,7 +59,6 @@ async def get_supplier(
 ) -> SupplierResponse:
 
     service = SupplierService(db)
-
     return await service.get_supplier(workspace_id, supplier_id)
 
 
@@ -80,16 +72,10 @@ async def update_supplier(
 ) -> SupplierResponse:
 
     service = SupplierService(db)
-
     supplier = await service.update_supplier(workspace_id, supplier_id, data)
 
-    background_tasks.add_task(
-        global_event_bus.publish,
-        SupplierUpdatedEvent(
-            workspace_id=workspace_id,
-            supplier=supplier,
-        ),
-    )
+    event = SupplierUpdatedEvent(workspace_id=workspace_id, supplier=supplier)
+    background_tasks.add_task(global_event_bus.publish, event)
 
     return supplier
 
@@ -102,5 +88,4 @@ async def delete_supplier(
 ) -> None:
 
     service = SupplierService(db)
-
     await service.delete_supplier(workspace_id, supplier_id)
