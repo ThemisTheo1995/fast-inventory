@@ -25,7 +25,6 @@ TEST_ENV_VARS = {
     "AUTH_ACCESS_TOKEN_EXPIRE_MINUTES": "5",
     "AUTH_REFRESH_TOKEN_EXPIRE_DAYS": "7",
     "COOKIE_SECURE": "1",
-    "AWS_SECURITY_TOKEN": "testing",
     "AWS_SESSION_TOKEN": "testing",
     "AWS_DEFAULT_REGION": "eu-west-1",
     "AWS_REGION": "eu-west-1",
