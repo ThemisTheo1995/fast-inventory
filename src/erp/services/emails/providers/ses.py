@@ -36,11 +36,7 @@ def is_transient_aws_error(exception: BaseException) -> bool:
 
 
 class SESEmailProvider(BaseEmailProvider):
-    def __init__(
-        self,
-        aws_region: str,
-        default_sender: str
-    ) -> None:
+    def __init__(self, aws_region: str, default_sender: str) -> None:
         if not aws_region or not default_sender:
             msg = "AWS region and default sender must be provided."
             raise EmailConfigurationError(msg)

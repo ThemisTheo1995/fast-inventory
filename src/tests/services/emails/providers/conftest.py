@@ -7,7 +7,4 @@ from src.erp.services.emails.providers.ses import SESEmailProvider
 @pytest.fixture
 def ses_provider(ses_client) -> SESEmailProvider:  # noqa
     """Instantiates SESEmailProvider pointing to the moto mock client."""
-    return SESEmailProvider(
-        aws_region="eu-west-1",
-        default_sender="sender@example.com"
-    )
+    return SESEmailProvider(aws_region="eu-west-1", default_sender="sender@example.com")
