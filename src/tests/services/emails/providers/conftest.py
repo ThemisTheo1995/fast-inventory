@@ -9,7 +9,5 @@ def ses_provider(ses_client) -> SESEmailProvider:  # noqa
     """Instantiates SESEmailProvider pointing to the moto mock client."""
     return SESEmailProvider(
         aws_region="eu-west-1",
-        default_sender="sender@example.com",
-        aws_access_key_id="testing",
-        aws_secret_access_key="testing",
+        default_sender="sender@example.com"
     )

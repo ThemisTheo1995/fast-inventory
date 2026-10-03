@@ -15,6 +15,14 @@ Parameters:
     - production
     Description: Target deployment environment.
 
+  BarcodeQueueArn:
+    Type: String
+    Description: ARN of the Barcode SQS Queue managed by the microservice.
+
+  BarcodeQueueUrl:
+    Type: String
+    Description: URL of the Barcode SQS Queue managed by the microservice.
+
   DatabaseUrlSecretArn:
     Type: String
     Description: AWS Secrets Manager ARN containing the PostgreSQL connection string.
@@ -58,6 +66,7 @@ Globals:
     Environment:
       Variables:
         ENVIRONMENT: !Ref Environment
+        BARCODE_GENERATION_SQS_QUEUE_URL: !Ref BarcodeQueueUrl
         LOG_LEVEL: !FindInMap [ EnvironmentConfig, !Ref Environment, LogLevel ]
         DATABASE_URL_SECRET_ARN: !Ref DatabaseUrlSecretArn
         POWERTOOLS_SERVICE_NAME: "erp-core-api"
@@ -122,6 +131,8 @@ Resources:
       Policies:
       - AWSSecretsManagerGetSecretValuePolicy:
           SecretArn: !Ref DatabaseUrlSecretArn
+      - SQSSendMessagePolicy:
+          QueueArn: !Ref BarcodeQueueArn
       Events:
         ApiRouteAny:
           Type: HttpApi

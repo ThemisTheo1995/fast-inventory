@@ -19,12 +19,10 @@ if TYPE_CHECKING:
 
 def test_init_missing_configuration_raises_error():
     """Verifies that missing any required credential parameter raises EmailConfigurationError."""
-    with pytest.raises(EmailConfigurationError, match="AWS region, keys and default sender"):
+    with pytest.raises(EmailConfigurationError, match="AWS region and default sender must be provided"):
         SESEmailProvider(
             aws_region="",
-            default_sender="sender@example.com",
-            aws_access_key_id="key",
-            aws_secret_access_key="secret",
+            default_sender="sender@example.com"
         )
 
 

@@ -45,8 +45,6 @@ class Settings(BaseSettings):
 
     # AWS
     AWS_REGION: str = "eu-west-1"
-    AWS_ACCESS_KEY_ID: str | None = None
-    AWS_SECRET_ACCESS_KEY: str | None = None
     BARCODE_GENERATION_SQS_QUEUE_URL: str | None = None
 
     model_config = SettingsConfigDict(
