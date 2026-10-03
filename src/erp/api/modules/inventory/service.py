@@ -4,18 +4,18 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.base.service import BaseService
-from src.erp.api.modules.inventory.exceptions import InsufficientInventoryError
-from src.erp.api.modules.inventory.filters.inventory import InventoryFilter
-from src.erp.api.modules.inventory.models import Inventory, StockMovement
-from src.erp.api.modules.inventory.schemas.inventory import (
+from erp.api.base.service import BaseService
+from erp.api.modules.inventory.exceptions import InsufficientInventoryError
+from erp.api.modules.inventory.filters.inventory import InventoryFilter
+from erp.api.modules.inventory.models import Inventory, StockMovement
+from erp.api.modules.inventory.schemas.inventory import (
     InventoryPaginatedResponse,
 )
-from src.erp.api.modules.inventory.schemas.stock_movement import (
+from erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
 )
-from src.erp.api.modules.item.models import Item
+from erp.api.modules.item.models import Item
 
 
 class InventoryService(BaseService[Inventory]):

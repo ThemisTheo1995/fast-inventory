@@ -1,6 +1,6 @@
 # tests/services/emails/test_exceptions.py
 
-from src.erp.services.emails.exceptions import (
+from erp.services.emails.exceptions import (
     EmailConfigurationError,
     EmailSendError,
     EmailServiceError,

@@ -1,6 +1,7 @@
 import pytest
-from src.erp.services.emails.providers.console import ConsoleEmailProvider
-from src.erp.services.emails.schemas import EmailAttachment, EmailMessage
+
+from erp.services.emails.providers.console import ConsoleEmailProvider
+from erp.services.emails.schemas import EmailAttachment, EmailMessage
 
 
 @pytest.mark.asyncio

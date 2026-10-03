@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.item.schemas import (
+from erp.api.modules.item.schemas import (
     ItemCreate,
     ItemPaginatedResponse,
     ItemResponse,
@@ -128,6 +128,7 @@ def test_item_response_valid():
         "title": "Ergonomic Chair",
         "sku": "CHAIR-01",
         "base_price": 25000,
+        "barcode_id": "1234567890123",
         "created_at": now,
         "updated_at": now,
         "is_deleted": False,
@@ -151,6 +152,7 @@ def test_item_paginated_response():
         title="Test Item",
         sku="TEST-01",
         base_price=100,
+        barcode_id="1234567890123",
         created_at=now,
         updated_at=now,
         is_deleted=False,
@@ -173,6 +175,7 @@ def test_item_response_from_attributes():
             self.title = "ORM Title"
             self.sku = "ORM-SKU"
             self.base_price = 100
+            self.barcode_id = "1234567890123"
             self.created_at = datetime.now(UTC)
             self.updated_at = datetime.now(UTC)
             self.is_deleted = False

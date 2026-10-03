@@ -5,11 +5,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType
-from src.erp.api.pricing.models import PricingPlan, PricingUsage
-from src.erp.api.pricing.schemas import PricingUsageCreate, WorkspaceUsageResponse
-from src.erp.api.pricing.service import PricingUsageService
-from src.erp.core.utils import get_start_of_month
+from erp.api.pricing.enums import HttpMethod, MetricType
+from erp.api.pricing.models import PricingPlan, PricingUsage
+from erp.api.pricing.schemas import PricingUsageCreate, WorkspaceUsageResponse
+from erp.api.pricing.service import PricingUsageService
+from erp.core.utils import get_start_of_month
 
 # ============================================================================
 # add_usage Tests
@@ -32,6 +32,7 @@ async def test_add_usage_success(
     pricing_plan: PricingPlan,
     metric_type: MetricType,
     http_method: HttpMethod,
+    tst_user: uuid.UUID,
 ):
     """Verifies add_usage successfully records usage using global workspace and plan fixtures."""
     usage_data = PricingUsageCreate(
@@ -39,6 +40,7 @@ async def test_add_usage_success(
         plan_id=pricing_plan.id,
         metric_name=metric_type,
         http_method=http_method,
+        user_id=tst_user.id,
     )
 
     await service.add_usage(usage_data)
@@ -72,6 +74,7 @@ async def test_get_workspace_usage_metric_limit_routing(
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
+    tst_user: uuid.UUID,
 ):
     """Verifies API_REQUEST routes to api_limit and LISTING routes to listings_limit."""
     now = datetime.now(UTC)
@@ -84,6 +87,7 @@ async def test_get_workspace_usage_metric_limit_routing(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -91,6 +95,7 @@ async def test_get_workspace_usage_metric_limit_routing(
                 metric_type=MetricType.LISTING,
                 request_type=HttpMethod.POST,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -113,6 +118,7 @@ async def test_get_workspace_usage_http_method_aggregation(
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
+    tst_user: uuid.UUID,
 ):
     """Verifies distinct HTTP verbs for the same metric type aggregate into a single metric count."""
     now = datetime.now(UTC)
@@ -125,6 +131,7 @@ async def test_get_workspace_usage_http_method_aggregation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -132,6 +139,7 @@ async def test_get_workspace_usage_http_method_aggregation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.POST,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -139,6 +147,7 @@ async def test_get_workspace_usage_http_method_aggregation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.DELETE,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -156,6 +165,7 @@ async def test_get_workspace_usage_multiple_plans(
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
     enterprise_plan: PricingPlan,
+    tst_user: uuid.UUID,
 ):
     """Verifies that usage under different plans is segregated correctly by plan_name."""
     now = datetime.now(UTC)
@@ -168,6 +178,7 @@ async def test_get_workspace_usage_multiple_plans(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -175,6 +186,7 @@ async def test_get_workspace_usage_multiple_plans(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -193,6 +205,7 @@ async def test_get_workspace_usage_exact_date_boundaries(
     service: PricingUsageService,
     seed_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
+    tst_user: uuid.UUID,
 ):
     """Verifies inclusive boundary filtering (>= start_dt and <= end_dt)."""
     start_dt = datetime(2026, 3, 10, 0, 0, 0, tzinfo=UTC)
@@ -207,6 +220,7 @@ async def test_get_workspace_usage_exact_date_boundaries(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=start_dt,
+                user_id=tst_user.id,
             ),
             # Exactly on end_dt (Included)
             PricingUsage(
@@ -215,6 +229,7 @@ async def test_get_workspace_usage_exact_date_boundaries(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=end_dt,
+                user_id=tst_user.id,
             ),
             # 1 second before start_dt (Excluded)
             PricingUsage(
@@ -223,6 +238,7 @@ async def test_get_workspace_usage_exact_date_boundaries(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=start_dt - timedelta(seconds=1),
+                user_id=tst_user.id,
             ),
             # 1 second after end_dt (Excluded)
             PricingUsage(
@@ -231,6 +247,7 @@ async def test_get_workspace_usage_exact_date_boundaries(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=end_dt + timedelta(seconds=1),
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -261,6 +278,7 @@ async def test_get_workspace_usage_partial_or_missing_dates_triggers_default_mon
     pricing_plan: PricingPlan,
     start_dt_arg: datetime | None,
     end_dt_arg: datetime | None,
+    tst_user: uuid.UUID,
 ):
     """Verifies that if either date parameter is None, current month start/end defaults are used."""
     start_of_month = get_start_of_month()
@@ -273,6 +291,7 @@ async def test_get_workspace_usage_partial_or_missing_dates_triggers_default_mon
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=start_of_month + timedelta(days=2),
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -280,6 +299,7 @@ async def test_get_workspace_usage_partial_or_missing_dates_triggers_default_mon
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=start_of_month - timedelta(days=2),
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -301,6 +321,7 @@ async def test_get_workspace_usage_workspace_isolation(
     seed_workspace: uuid.UUID,
     alt_workspace: uuid.UUID,
     pricing_plan: PricingPlan,
+    tst_user: uuid.UUID,
 ):
     """Verifies workspace isolation using seed_workspace and alt_workspace fixtures."""
     now = datetime.now(UTC)
@@ -313,6 +334,7 @@ async def test_get_workspace_usage_workspace_isolation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=alt_workspace,
@@ -320,6 +342,7 @@ async def test_get_workspace_usage_workspace_isolation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )

@@ -1,6 +1,6 @@
 import pytest
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.enums import POStatusEnum
 
 
 @pytest.mark.parametrize(

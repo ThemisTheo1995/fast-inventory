@@ -36,23 +36,14 @@ def is_transient_aws_error(exception: BaseException) -> bool:
 
 
 class SESEmailProvider(BaseEmailProvider):
-    def __init__(
-        self,
-        aws_region: str,
-        default_sender: str,
-        aws_access_key_id: str,
-        aws_secret_access_key: str,
-    ) -> None:
-        if not aws_region or not default_sender or not aws_access_key_id or not aws_secret_access_key:
-            msg = "AWS region, keys and default sender must be provided."
+    def __init__(self, aws_region: str, default_sender: str) -> None:
+        if not aws_region or not default_sender:
+            msg = "AWS region and default sender must be provided."
             raise EmailConfigurationError(msg)
 
         self.default_sender = default_sender
 
         client_kwargs = {"region_name": aws_region}
-        if aws_access_key_id and aws_secret_access_key:
-            client_kwargs["aws_access_key_id"] = aws_access_key_id
-            client_kwargs["aws_secret_access_key"] = aws_secret_access_key
 
         self.client = boto3.client("ses", **client_kwargs)
 

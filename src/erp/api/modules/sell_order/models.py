@@ -3,8 +3,8 @@ import uuid
 from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.erp.api.base.models import BaseModel
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.base.models import BaseModel
+from erp.api.modules.sell_order.enums import SOStatusEnum
 
 
 class SellOrder(BaseModel):

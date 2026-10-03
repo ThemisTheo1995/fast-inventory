@@ -4,8 +4,8 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import Enum, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.erp.api.base.models import BaseModel
-from src.erp.api.search.enums import EntityTypeEnum
+from erp.api.base.models import BaseModel
+from erp.api.search.enums import EntityTypeEnum
 
 
 class GlobalSearchIndex(BaseModel):

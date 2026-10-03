@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.customer.exceptions import CustomerNameMustNotContainNumbersError
-from src.erp.api.modules.customer.schemas import (
+from erp.api.modules.customer.exceptions import CustomerNameMustNotContainNumbersError
+from erp.api.modules.customer.schemas import (
     CustomerCreate,
     CustomerPaginatedResponse,
     CustomerResponse,

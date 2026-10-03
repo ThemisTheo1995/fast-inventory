@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.erp.services.emails.schemas import EmailAttachment, EmailMessage
+from erp.services.emails.schemas import EmailAttachment, EmailMessage
 
 # ============================================================================
 # EmailAttachment Tests

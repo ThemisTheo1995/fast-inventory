@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.sell_order.schemas import (
+from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
     SellOrderLineResponse,
@@ -29,6 +29,7 @@ class MockItemORM:
         title: str = "Widget Pro",
         sku: str = "WDG-PRO-001",
         base_price: int | None = 1500,
+        barcode_id: str | None = None,
         is_deleted: bool = False,
     ):
         self.id = item_id or uuid.uuid4()
@@ -36,6 +37,7 @@ class MockItemORM:
         self.title = title
         self.sku = sku
         self.base_price = base_price
+        self.barcode_id = barcode_id
         self.created_at = datetime.now(UTC)
         self.updated_at = datetime.now(UTC)
         self.is_deleted = is_deleted
@@ -227,6 +229,7 @@ def test_sell_order_line_response_dictionary_deserialization():
         "title": "Industrial Bolt",
         "sku": "BLT-009",
         "base_price": 50,
+        "barcode_id": "1234567890123",
         "created_at": now,
         "updated_at": now,
         "is_deleted": False,
@@ -241,6 +244,7 @@ def test_sell_order_line_response_dictionary_deserialization():
     assert schema_with_item.item.id == item_id
     assert schema_with_item.item.title == "Industrial Bolt"
     assert schema_with_item.item.sku == "BLT-009"
+    assert schema_with_item.item.barcode_id == "1234567890123"
     assert schema_with_item.item.base_price == 50
 
 
@@ -253,6 +257,7 @@ def test_sell_order_line_response_item_base_price_can_be_none():
         "title": "Custom Service",
         "sku": "SRV-001",
         "base_price": None,  # Optional int
+        "barcode_id": None,
         "created_at": now,
         "updated_at": now,
         "is_deleted": False,
@@ -267,12 +272,13 @@ def test_sell_order_line_response_item_base_price_can_be_none():
     }
     schema = SellOrderLineResponse(**payload)
     assert schema.item is not None
+    assert schema.item.barcode_id is None
     assert schema.item.base_price is None
 
 
 def test_sell_order_line_response_from_orm():
     """Verifies SellOrderLineResponse maps correctly from database ORM objects using model_validate."""
-    item_orm = MockItemORM(title="Gearbox", sku="GBX-100", base_price=2500)
+    item_orm = MockItemORM(title="Gearbox", sku="GBX-100", base_price=2500, barcode_id="9876543210987")
     line_orm = MockLineORM(quantity=3, unit_cost=2400, item=item_orm, item_id=item_orm.id)
 
     schema = SellOrderLineResponse.model_validate(line_orm)
@@ -283,6 +289,7 @@ def test_sell_order_line_response_from_orm():
     assert schema.unit_cost == 2400
     assert schema.item is not None
     assert schema.item.id == item_orm.id
+    assert schema.item.barcode_id == "9876543210987"
     assert schema.item.title == "Gearbox"
     assert schema.item.sku == "GBX-100"
 
@@ -527,7 +534,7 @@ def test_sell_order_response_missing_required_core_fields():
 
 def test_sell_order_response_full_orm_mapping():
     """Verifies model_validate on a deeply nested mock ORM tree (Order -> Customer, Lines -> Item)."""
-    item_orm = MockItemORM(title="Precision Screw", sku="SCR-01", base_price=10)
+    item_orm = MockItemORM(title="Precision Screw", sku="SCR-01", base_price=10, barcode_id="1234567890123")
     line_orm = MockLineORM(quantity=100, unit_cost=10, item=item_orm, item_id=item_orm.id)
     cust_orm = MockCustomerORM(first_name="bruce", last_name="wayne", email="bruce@wayne.com")
 
@@ -561,6 +568,7 @@ def test_sell_order_response_full_orm_mapping():
     assert line_schema.item is not None
     assert line_schema.item.title == "Precision Screw"
     assert line_schema.item.sku == "SCR-01"
+    assert line_schema.item.barcode_id == "1234567890123"
     assert line_schema.item.base_price == 10
 
 

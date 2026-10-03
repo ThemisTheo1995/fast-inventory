@@ -1,6 +1,6 @@
 from fastapi import status
 
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 
 class TokenError(Exception):
@@ -24,6 +24,11 @@ class TokenInvalidError(TokenError):
 class VerificationFailedError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="Email verification failed.")
+
+
+class PasswordResetFailedError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="Password reset failed.")
 
 
 class UserNotFoundError(BaseAppError):

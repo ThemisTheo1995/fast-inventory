@@ -1,5 +1,4 @@
 # ruff: noqa: E402
-
 import os
 from pathlib import Path
 
@@ -11,34 +10,36 @@ TEST_ENV_FILE = ROOT_DIR / ".env.test"
 if TEST_ENV_FILE.exists():
     load_dotenv(TEST_ENV_FILE, override=True)
 
-fallback_db = "postgresql+psycopg://postgres:postgres@localhost:5432/test_db"
-db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or fallback_db
+test_db_url = os.environ.get("TEST_DATABASE_URL")
+if not test_db_url:
+    msg = "TEST_DATABASE_URL must be explicitly configured for tests. Refusing to run tests."
+    raise RuntimeError(msg)
 
-os.environ.setdefault("ENVIRONMENT", "testing")
-os.environ.setdefault("TESTING", "true")
-os.environ.setdefault("TEST_DATABASE_URL", db_url)
-os.environ.setdefault("DATABASE_URL", db_url)
-os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+TEST_ENV_VARS = {
+    "ENVIRONMENT": "testing",
+    "TESTING": "true",
+    "DATABASE_URL": test_db_url,
+    "TEST_DATABASE_URL": test_db_url,
+    "AUTH_SECRET_KEY": "testing-secret-key-at-least-32-bytes-long",
+    "AUTH_ALGORITHM": "HS256",
+    "AUTH_ACCESS_TOKEN_EXPIRE_MINUTES": "5",
+    "AUTH_REFRESH_TOKEN_EXPIRE_DAYS": "7",
+    "COOKIE_SECURE": "1",
+    "AWS_SESSION_TOKEN": "testing",
+    "AWS_DEFAULT_REGION": "eu-west-1",
+    "AWS_REGION": "eu-west-1",
+    "DEFAULT_FROM_EMAIL": "sender@example.com",
+    "EMAIL_PROVIDER": "ses",
+    "SUPPORT_EMAIL": "sender@example.com",
+    "BARCODE_GENERATION_SQS_QUEUE_URL": "https://sqs.eu-west-1.amazonaws.com/123456789012/test-barcode-queue",
+}
 
-os.environ.setdefault("AUTH_SECRET_KEY", "testing")
-os.environ.setdefault("AUTH_ALGORITHM", "HS256")
-os.environ.setdefault("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "5")
-os.environ.setdefault("AUTH_REFRESH_TOKEN_EXPIRE_DAYS", "7")
-os.environ.setdefault("COOKIE_SECURE", "1")
-
-os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
-os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
-os.environ.setdefault("AWS_SECURITY_TOKEN", "testing")
-os.environ.setdefault("AWS_SESSION_TOKEN", "testing")
-os.environ.setdefault("AWS_DEFAULT_REGION", "eu-west-1")
-os.environ.setdefault("AWS_REGION", "eu-west-1")
-os.environ.setdefault("DEFAULT_FROM_EMAIL", "sender@example.com")
-os.environ.setdefault("EMAIL_PROVIDER", "ses")
-os.environ.setdefault("SUPPORT_EMAIL", "sender@example.com")
-
+for key, value in TEST_ENV_VARS.items():
+    os.environ.setdefault(key, value)
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
@@ -57,15 +58,12 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from src.erp.api.modules.inventory.handlers import register_inventory_handlers
-from src.erp.core.config import Settings, get_settings
-from src.erp.core.event_bus import EventBus
-from src.erp.database.base import get_db
-from src.erp.main import app
-from src.erp.model_registry import metadata as target_metadata
-
-get_settings.cache_clear()
-
+from erp.api.modules.inventory.handlers import register_inventory_handlers
+from erp.core.config import Settings, get_settings
+from erp.core.event_bus import EventBus
+from erp.database.base import get_db
+from erp.main import app
+from erp.model_registry import metadata as target_metadata
 
 # ==============================================================================
 # 2. FIXTURES
@@ -74,30 +72,34 @@ get_settings.cache_clear()
 
 @pytest.fixture(scope="session", autouse=True)
 def global_mock_aws() -> Generator[None]:
-    """Session-scoped AWS mock intercepting all boto3/botocore calls globally.
-
-    Verifies default sender email ONCE at startup to avoid per-test Moto initialization.
-    """
+    """Session-scoped AWS mock intercepting all boto3/botocore calls globally."""
     with mock_aws():
-        client = boto3.client("ses", region_name="eu-west-1")
-        client.verify_email_identity(EmailAddress=os.environ.get("DEFAULT_FROM_EMAIL", "sender@example.com"))
+        # Setup SES
+        ses = boto3.client("ses", region_name="eu-west-1")
+        ses.verify_email_identity(EmailAddress=os.environ.get("DEFAULT_FROM_EMAIL", "sender@example.com"))
+
+        # Setup SQS
+        sqs = boto3.client("sqs", region_name="eu-west-1")
+        queue = sqs.create_queue(QueueName="test-barcode-queue")
+        # Barcode queue url
+        os.environ["BARCODE_GENERATION_SQS_QUEUE_URL"] = queue["QueueUrl"]
+
+        get_settings.cache_clear()
+
         yield
 
 
 @pytest.fixture(scope="session")
 def ses_client() -> boto3.client:
-    """Session-scoped boto3 client. Prevents botocore from re-parsing JSON specs per test."""
     return boto3.client("ses", region_name="eu-west-1")
 
 
 @pytest.fixture
 def settings() -> Settings:
-    """Provides cached Settings instance to tests."""
     return get_settings()
 
 
 def _get_test_database_url() -> str:
-    """Helper to fetch and validate TEST_DATABASE_URL dynamically at runtime."""
     test_url = get_settings().TEST_DATABASE_URL
     if not test_url:
         msg = "CRITICAL: TEST_DATABASE_URL is missing from your environment configuration!"
@@ -135,7 +137,6 @@ def initialize_test_db() -> Generator[None]:
 def db_engine(initialize_test_db) -> Generator[AsyncEngine]:  # noqa
     """Created ONCE globally, but safely used by function-scoped async tests."""
     url = _get_test_database_url()
-
     connect_args = {"options": "-c timezone=UTC"} if "psycopg" in url else {"server_settings": {"timezone": "UTC"}}
 
     engine = create_async_engine(
@@ -144,14 +145,13 @@ def db_engine(initialize_test_db) -> Generator[AsyncEngine]:  # noqa
         poolclass=NullPool,
     )
     yield engine
+
     asyncio.run(engine.dispose())
 
 
 @pytest_asyncio.fixture
-async def db_session(
-    db_engine: AsyncEngine,
-) -> AsyncGenerator[AsyncSession]:
-    """Function-scoped session with rollback isolation per test."""
+async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession]:
+    """Function-scoped session with rollback isolation per test. (Perfectly implemented)."""
     async with db_engine.connect() as connection:
         transaction = await connection.begin()
 
@@ -169,9 +169,7 @@ async def db_session(
 
 
 @pytest_asyncio.fixture
-async def client(
-    db_session: AsyncSession,
-) -> AsyncGenerator[AsyncClient]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     async def override_get_db() -> AsyncGenerator[AsyncSession]:
         yield db_session
 
@@ -186,15 +184,16 @@ async def client(
 
 @pytest.fixture(scope="session")
 def event_bus() -> EventBus:
-    """Session-scoped EventBus with pre-registered handlers."""
     bus = EventBus()
     register_inventory_handlers(bus)
     return bus
 
 
 @pytest.fixture(autouse=True)
-def mock_generate_embedding(monkeypatch):
-    def fake_embed(text: str) -> list[float]:  # noqa
-        return [0.123] * 768
+def mock_genai_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_client = MagicMock()
+    mock_embedding = MagicMock()
+    mock_embedding.values = [0.123] * 768
+    mock_client.models.embed_content.return_value = MagicMock(embeddings=[mock_embedding])
 
-    monkeypatch.setattr("src.erp.services.ai.embedding.generate_embedding", fake_embed)
+    monkeypatch.setattr("google.genai.Client", lambda **_kwargs: mock_client)

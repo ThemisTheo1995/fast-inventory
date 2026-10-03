@@ -2,7 +2,7 @@ import uuid
 
 import pytest_asyncio
 
-from src.erp.api.modules.item.models import Item
+from erp.api.modules.item.models import Item
 
 
 @pytest_asyncio.fixture

@@ -5,8 +5,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-import src.erp.services.emails as emails_module
-from src.erp.core.config import get_settings
+import erp.services.emails as emails_module
+from erp.core.config import get_settings
 
 settings = get_settings()
 router = APIRouter()

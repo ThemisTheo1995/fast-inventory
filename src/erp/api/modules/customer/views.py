@@ -4,19 +4,19 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.customer.events import (
+from erp.api.modules.customer.events import (
     CustomerCreatedEvent,
     CustomerUpdatedEvent,
 )
-from src.erp.api.modules.customer.schemas import (
+from erp.api.modules.customer.schemas import (
     CustomerCreate,
     CustomerPaginatedResponse,
     CustomerResponse,
     CustomerUpdate,
 )
-from src.erp.api.modules.customer.service import CustomerService
-from src.erp.core.event_bus import global_event_bus
-from src.erp.database.base import get_db
+from erp.api.modules.customer.service import CustomerService
+from erp.core.event_bus import global_event_bus
+from erp.database.base import get_db
 
 router = APIRouter()
 

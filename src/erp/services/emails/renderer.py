@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from src.erp.core.config import get_settings
+from erp.core.config import get_settings
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -23,8 +23,8 @@ class EmailTemplateRenderer:
         settings = get_settings()
 
         full_context = {
-            "base_url": getattr(settings, "DOMAIN_URL", "http://localhost:5173").rstrip("/"),
-            "support_email": getattr(settings, "SUPPORT_EMAIL", "support@aegis-erp.com"),
+            "base_url": getattr(settings, "DOMAIN_URL", "").rstrip("/"),
+            "support_email": getattr(settings, "SUPPORT_EMAIL", "erp.aegis@gmail.com"),
             "current_year": datetime.now(UTC).year,
             **context,
         }

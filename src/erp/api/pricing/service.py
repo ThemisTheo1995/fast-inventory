@@ -4,15 +4,15 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import MetricType
-from src.erp.api.pricing.models import PricingPlan, PricingUsage
-from src.erp.api.pricing.schemas import (
+from erp.api.pricing.enums import MetricType
+from erp.api.pricing.models import PricingPlan, PricingUsage
+from erp.api.pricing.schemas import (
     MetricTypeUsage,
     PlanNameUsage,
     PricingUsageCreate,
     WorkspaceUsageResponse,
 )
-from src.erp.core.utils import get_end_of_month, get_start_of_month
+from erp.core.utils import get_end_of_month, get_start_of_month
 
 
 class PricingUsageService:
@@ -69,6 +69,7 @@ class PricingUsageService:
             plan_id=data.plan_id,
             metric_type=data.metric_name,
             request_type=data.http_method,
+            user_id=data.user_id,
         )
 
         self.db.add(new_event)

@@ -4,8 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
-from src.erp.core.filter import TableFilter
+from erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
+from erp.core.filter import TableFilter
 
 Title = Annotated[str | None, Field(default=None, max_length=255)]
 Sku = Annotated[str | None, Field(default=None, max_length=100)]
@@ -51,6 +51,7 @@ class ItemResponse(BaseModel):
     workspace_id: UUID
     title: str
     sku: str
+    barcode_id: str | None
     base_price: int | None
     created_at: datetime
     updated_at: datetime
@@ -77,6 +78,13 @@ class ItemCreate(ItemBase):
     """Payload for creating a new item."""
 
     pass
+
+
+class ItemBarcode(BaseModel):
+    """Payload for creating a new item barcode."""
+
+    barcode_id: str = Field(..., description="Barcode ID")
+    workspace_id: UUID = Field(..., description="Workspace ID")
 
 
 # =======================================================

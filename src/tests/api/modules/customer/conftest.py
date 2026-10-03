@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.customer.models import Customer
+from erp.api.modules.customer.models import Customer
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def silence_event_bus(monkeypatch):
     Prevents router tests from triggering background tasks that spawn
     independent database sessions, keeping our SAVEPOINT transactions safe.
     """
-    from src.erp.core.event_bus import global_event_bus
+    from erp.core.event_bus import global_event_bus
 
     mock_publish = AsyncMock()
     monkeypatch.setattr(global_event_bus, "publish", mock_publish)

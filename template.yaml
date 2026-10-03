@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Production-Grade ERP Core API & Serverless Microservice Stack. Optimized for high-throughput, low-latency FastAPI execution on ARM64 Graviton.
+
+# ==============================================================================
+# PARAMETERS
+# ==============================================================================
+Parameters:
+  Environment:
+    Type: String
+    Default: staging
+    AllowedValues:
+    - staging
+    - production
+    Description: Target deployment environment (dictates scaling and limits).
+
+  BarcodeQueueName:
+    Type: String
+    Description: Literal name of the Barcode SQS Queue managed by the microservice (e.g., erp-barcode-queue-staging).
+
+  BwsAccessToken:
+    Type: String
+    NoEcho: true
+    Description: Bitwarden Secrets Manager Machine Account Access Token.
+
+  BwsProjectId:
+    Type: String
+    Description: Bitwarden Secrets Manager Project ID.
+
+  BwsOrgId:
+    Type: String
+    Description: Bitwarden Secrets Manager Organization ID.
+
+  CorsAllowedOrigins:
+    Type: String
+    Default: "https://vue-inventory-six.vercel.app"
+    Description: Comma-separated list of allowed CORS origins.
+
+# ==============================================================================
+# CONDITIONS & MAPPINGS
+# ==============================================================================
+Conditions:
+  IsProduction: !Equals [ !Ref Environment, "production" ]
+
+Mappings:
+  EnvironmentConfig:
+    staging:
+      LambdaMemory: 256
+      LambdaTimeout: 15
+      LogLevel: "DEBUG"
+      ApiBurstLimit: 10
+      ApiRateLimit: 5
+    production:
+      LambdaMemory: 2048
+      LambdaTimeout: 30
+      LogLevel: "INFO"
+      ApiBurstLimit: 500
+      ApiRateLimit: 1000
+
+# ==============================================================================
+# GLOBALS
+# ==============================================================================
+Globals:
+  Function:
+    Timeout: !FindInMap [ EnvironmentConfig, !Ref Environment, LambdaTimeout ]
+    MemorySize: !FindInMap [ EnvironmentConfig, !Ref Environment, LambdaMemory ]
+    Architectures:
+    - arm64
+    Runtime: python3.13
+    Environment:
+      Variables:
+        LOG_LEVEL: !FindInMap [ EnvironmentConfig, !Ref Environment, LogLevel ]
+
+        BWS_ACCESS_TOKEN: !Ref BwsAccessToken
+        BWS_PROJECT_ID: !Ref BwsProjectId
+        BWS_ORG_ID: !Ref BwsOrgId
+
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
+Resources:
+
+  # ----------------------------------------------------------------------------
+  # 1. API GATEWAY (HTTP API v2)
+  # ----------------------------------------------------------------------------
+  ErpHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: "$default"
+      CorsConfiguration:
+        AllowOrigins: !Split [ ",", !Ref CorsAllowedOrigins ]
+        AllowHeaders:
+        - Authorization
+        - Content-Type
+        - X-Amz-Date
+        - X-Api-Key
+        - X-Amz-Security-Token
+        AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !FindInMap [ EnvironmentConfig, !Ref Environment, ApiBurstLimit ]
+        ThrottlingRateLimit: !FindInMap [ EnvironmentConfig, !Ref Environment, ApiRateLimit ]
+      AccessLogSettings: !If
+        - IsProduction
+        - DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+          Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","latency":"$context.responseLatency"}'
+        - !Ref "AWS::NoValue"
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProduction
+    Properties:
+      LogGroupName: !Sub "/aws/http-api/erp-core-${Environment}"
+      RetentionInDays: 90
+
+  # ----------------------------------------------------------------------------
+  # 2. FASTAPI MONOLITH LAMBDA FUNCTION
+  # ----------------------------------------------------------------------------
+  ErpApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: erp.main.handler
+      CodeUri: src/
+      Description: Core ERP FastAPI Web Handler managed by Mangum.
+      Policies:
+      - SQSSendMessagePolicy:
+          QueueName: !Ref BarcodeQueueName
+      Events:
+        ApiRouteAny:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ErpHttpApi
+            Path: /{proxy+}
+            Method: ANY
+        ApiRouteRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ErpHttpApi
+            Path: /
+            Method: ANY
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: !FindInMap [ EnvironmentConfig, !Ref Environment, LogLevel ]
+        LogGroup: !Ref ErpApiLogGroup
+
+  ErpApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/erp-api-${Environment}"
+      RetentionInDays: !If [ IsProduction, 90, 14 ]
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  ApiEndpoint:
+    Description: Base URL for HTTP API Endpoint
+    Value: !Sub "https://${ErpHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+    Export:
+      Name: !Sub "ErpApiEndpoint-${Environment}"
+
+  ApiFunctionArn:
+    Description: ERP Core API Lambda Function ARN
+    Value: !GetAtt ErpApiFunction.Arn
+    Export:
+      Name: !Sub "ErpApiFunctionArn-${Environment}"

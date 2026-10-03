@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 
-from src.erp.api.modules.supplier.models import Supplier
+from erp.api.modules.supplier.models import Supplier
 
 
 @dataclass

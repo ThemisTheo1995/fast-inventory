@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.schemas.purchase_order import (
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineResponse,

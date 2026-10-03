@@ -3,7 +3,7 @@ import re
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from src.erp.api.base.models import BaseModel
+from erp.api.base.models import BaseModel
 
 
 class Workspace(BaseModel):

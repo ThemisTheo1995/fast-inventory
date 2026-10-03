@@ -1,12 +1,14 @@
 import uuid
+from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 
-from src.erp.api.auth.models import User
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
-from src.erp.api.workspace_user.exceptions import (
+from erp.api.auth.models import User
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import WorkspaceRoleEnum
+from erp.api.workspace_user.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,
@@ -14,14 +16,14 @@ from src.erp.api.workspace_user.exceptions import (
     WorkspaceUserAlreadyInWorkspaceError,
     WorkspaceUserNotFoundError,
 )
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.api.workspace_user.schemas import (
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.api.workspace_user.schemas import (
     UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
 )
-from src.erp.api.workspace_user.service import WorkspaceUserService
+from erp.api.workspace_user.service import WorkspaceUserService
 
 # ============================================================================
 # LOOKUP HELPER TESTS (`_get_active_workspace_user`)
@@ -818,3 +820,53 @@ async def test_update_user_happy_path(db_session):
     await db_session.refresh(user)
     assert user.first_name == "NewFirst"
     assert user.last_name == "NewLast"
+
+
+async def test_invite_workspace_user_queues_background_email_task(db_session):
+    """Verifies that providing background_tasks correctly queues the invitation email."""
+    service = WorkspaceUserService(db_session)
+    workspace = Workspace(name="WS Background", email="bg_ws@t.com")
+    db_session.add(workspace)
+    await db_session.flush()
+
+    user = User(
+        id=uuid.uuid4(),
+        email="actor_bg@test.com",
+        is_deleted=False,
+        hashed_password="",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    actor = WorkspaceUser(
+        workspace_id=str(workspace.id),
+        user_id=str(user.id),
+        role=WorkspaceRoleEnum.FULL_ADMIN,
+        status="active",
+        is_deleted=False,
+    )
+    db_session.add(actor)
+    await db_session.flush()
+
+    data = WorkspaceUserInviteRequest(email="bg_invitee@test.com", role=WorkspaceRoleEnum.EDIT_ONLY)
+    bg_tasks = BackgroundTasks()
+
+    with (
+        patch("erp.api.workspace_user.service.build_invite_email") as mock_build_email,
+        patch("erp.api.workspace_user.service.get_email_provider") as mock_get_provider,
+    ):
+        mock_provider_instance = MagicMock()
+        mock_get_provider.return_value = mock_provider_instance
+        mock_build_email.return_value = "mocked_email_object"
+
+        response = await service.invite_workspace_user(
+            data=data,
+            actor=actor,
+            background_tasks=bg_tasks,
+        )
+
+        assert response.email == "bg_invitee@test.com"
+        assert len(bg_tasks.tasks) == 1
+        assert bg_tasks.tasks[0].func == mock_provider_instance.send_email
+        assert bg_tasks.tasks[0].args == ("mocked_email_object",)
+        mock_build_email.assert_called_once()

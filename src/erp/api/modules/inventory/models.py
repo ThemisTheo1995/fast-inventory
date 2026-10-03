@@ -4,8 +4,8 @@ from sqlalchemy import CheckConstraint, Enum as SQLAlchemyEnum, ForeignKey, Inte
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.erp.api.base.models import BaseModel
-from src.erp.api.modules.inventory.enums import OrderType
+from erp.api.base.models import BaseModel
+from erp.api.modules.inventory.enums import OrderType
 
 
 class Inventory(BaseModel):

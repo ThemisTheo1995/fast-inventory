@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.erp.api.base.models import BaseModel
+from erp.api.base.models import BaseModel
 
 
 class Item(BaseModel):
@@ -14,6 +14,7 @@ class Item(BaseModel):
     sku: Mapped[str] = mapped_column(String(100), index=True)
     title: Mapped[str] = mapped_column(String(255))
     base_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    barcode_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="items")

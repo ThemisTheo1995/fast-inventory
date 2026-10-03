@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType
-from src.erp.api.pricing.models import PricingUsage
+from erp.api.pricing.enums import HttpMethod, MetricType
+from erp.api.pricing.models import PricingUsage
 
 
 async def test_router_get_workspace_usage_empty(client, seed_workspace):
@@ -18,7 +18,9 @@ async def test_router_get_workspace_usage_empty(client, seed_workspace):
     assert data["plans"] == {}
 
 
-async def test_router_get_workspace_usage_success(client, db_session: AsyncSession, seed_workspace, pricing_plan):
+async def test_router_get_workspace_usage_success(
+    client, db_session: AsyncSession, seed_workspace, pricing_plan, tst_user
+):
     """Verifies retrieval of aggregated usage metrics for a specific workspace."""
     now = datetime.now(UTC)
     db_session.add_all(
@@ -29,6 +31,7 @@ async def test_router_get_workspace_usage_success(client, db_session: AsyncSessi
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=seed_workspace,
@@ -36,6 +39,7 @@ async def test_router_get_workspace_usage_success(client, db_session: AsyncSessi
                 metric_type=MetricType.LISTING,
                 request_type=HttpMethod.POST,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )
@@ -57,7 +61,7 @@ async def test_router_get_workspace_usage_success(client, db_session: AsyncSessi
 
 
 async def test_router_get_workspace_usage_isolation(
-    client, db_session: AsyncSession, seed_workspace, alt_workspace, pricing_plan
+    client, db_session: AsyncSession, seed_workspace, alt_workspace, pricing_plan, tst_user
 ):
     """Verifies usage metrics are isolated to the requested workspace route parameter."""
     now = datetime.now(UTC)
@@ -69,6 +73,7 @@ async def test_router_get_workspace_usage_isolation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.GET,
                 created_at=now,
+                user_id=tst_user.id,
             ),
             PricingUsage(
                 workspace_id=alt_workspace,
@@ -76,6 +81,7 @@ async def test_router_get_workspace_usage_isolation(
                 metric_type=MetricType.API_REQUEST,
                 request_type=HttpMethod.POST,
                 created_at=now,
+                user_id=tst_user.id,
             ),
         ]
     )

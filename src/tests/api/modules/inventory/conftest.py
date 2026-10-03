@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest_asyncio
 
-from src.erp.api.modules.inventory.models import Inventory
-from src.erp.api.modules.item.models import Item
+from erp.api.modules.inventory.models import Inventory
+from erp.api.modules.item.models import Item
 
 # ==============================================================================
 # FIXTURES & HELPERS

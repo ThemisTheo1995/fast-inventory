@@ -557,8 +557,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "bitwarden-sdk" },
-    { name = "boto3" },
-    { name = "fastapi", extra = ["standard"] },
+    { name = "fastapi" },
     { name = "google-genai" },
     { name = "greenlet" },
     { name = "jinja2" },
@@ -575,6 +574,8 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
+    { name = "boto3" },
+    { name = "fastapi", extra = ["standard"] },
     { name = "freezegun" },
     { name = "httpx" },
     { name = "moto" },
@@ -592,8 +593,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "bcrypt", specifier = "<=4.0.1" },
     { name = "bitwarden-sdk", specifier = ">=2.1.0" },
-    { name = "boto3", specifier = ">=1.43.99" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.135.1" },
+    { name = "fastapi", specifier = ">=0.135.1" },
     { name = "google-genai", specifier = ">=2.22.0" },
     { name = "greenlet", specifier = ">=3.4.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
@@ -610,6 +610,8 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=26.3.0" },
+    { name = "boto3", specifier = ">=1.43.99" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.135.1" },
     { name = "freezegun", specifier = ">=1.5.5" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "moto", extras = ["ses"], specifier = ">=5.0.0" },

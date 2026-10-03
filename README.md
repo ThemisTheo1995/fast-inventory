@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/coverage-91%25-green" alt="Coverage">
+  <img src="https://img.shields.io/badge/coverage-92%25-green" alt="Coverage">
   <img src="https://img.shields.io/badge/License-Apache_2.0-D22128.svg?logo=apache" alt="License">
 </p>
 
@@ -122,7 +122,7 @@ Make sure:
 **`alembic/env.py`**
 
 ```python
-from src.erp.db.base import Base  # Adjust your project's path.
+from erp.db.base import Base  # Adjust your project's path.
 target_metadata = Base.metadata
 ```
 

@@ -4,9 +4,9 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import PlanName
-from src.erp.api.pricing.models import PricingPlan
-from src.erp.api.pricing.service import PricingUsageService
+from erp.api.pricing.enums import PlanName
+from erp.api.pricing.models import PricingPlan
+from erp.api.pricing.service import PricingUsageService
 
 
 @pytest.fixture

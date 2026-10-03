@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Boolean, Column, Integer, String, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import declarative_base
 
-from src.erp.core.filter import BaseFilter, FilterOption, FilterSpec
+from erp.core.filter import BaseFilter, FilterOption, FilterSpec
 
 # ==============================================================================
 # 1. SETUP & MOCKS
@@ -27,6 +27,7 @@ class MockModel(Base):
     status = Column(String)
     age = Column(Integer)
     price = Column(Integer)
+    is_active = Column(Boolean)
 
 
 class MockStatusEnum(enum.Enum):
@@ -67,6 +68,7 @@ class MockFilter(BaseFilter):
     age_lte: int | None = None
     price_between_str: str | None = None
     price_between_tuple: tuple[int, int] | None = None
+    is_active_eq: str | bool | None = None
 
     unmapped_field: str | None = None
 
@@ -84,6 +86,7 @@ class MockFilter(BaseFilter):
         ),
         "sync_options": FilterSpec(column_name="name", operator="eq", options_fn=sync_mock_options),
         "async_options": FilterSpec(column_name="name", operator="eq", options_fn=async_mock_options),
+        "is_active_eq": FilterSpec(column_name="is_active", operator="eq"),
     }
 
 
@@ -221,3 +224,44 @@ def test_apply_skips_nonexistent_model_column():
 
     compiled = str(filtered_query.compile(compile_kwargs={"literal_binds": True}))
     assert "WHERE" not in compiled
+
+
+@pytest.mark.parametrize(
+    "input_val, expected_bool",
+    [
+        ("true", True),
+        ("1", True),
+        ("yes", True),
+        ("t", True),
+        ("True", True),
+        ("false", False),
+        ("0", False),
+        ("no", False),
+        ("f", False),
+        ("False", False),
+        ("unrecognized", "unrecognized"),
+    ],
+)
+def test_apply_boolean_coercion(input_val, expected_bool):
+    """Verifies string values mapped to Boolean columns are correctly coerced."""
+    base_query = select(MockModel)
+
+    filt = MockFilter(is_active_eq=input_val)
+    filtered_query = filt.apply(base_query, MockModel)
+
+    where_clause = filtered_query.whereclause
+
+    assert where_clause is not None, "Query missing WHERE clause. Verify MockModel and MockFilter setup."
+
+    right_node = where_clause.right
+
+    if hasattr(right_node, "value"):
+        actual_bound_value = right_node.value
+    elif right_node.__class__.__name__ == "True_":
+        actual_bound_value = True
+    elif right_node.__class__.__name__ == "False_":
+        actual_bound_value = False
+    else:
+        actual_bound_value = str(right_node)
+
+    assert actual_bound_value == expected_bool, f"Expected {expected_bool!r} but got {actual_bound_value!r}"

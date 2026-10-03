@@ -3,8 +3,8 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
-from src.erp.api.pricing.schemas import (
+from erp.api.pricing.enums import HttpMethod, MetricType, PlanName
+from erp.api.pricing.schemas import (
     MetricTypeUsage,
     PlanNameUsage,
     PricingUsageCreate,
@@ -20,12 +20,14 @@ def test_pricing_usage_create_valid_with_enums():
     """Verifies creation using explicit Enum instances."""
     workspace_id = uuid.uuid4()
     plan_id = uuid.uuid4()
+    user_id = uuid.uuid4()
 
     schema = PricingUsageCreate(
         workspace_id=workspace_id,
         plan_id=plan_id,
         metric_name=MetricType.API_REQUEST,
         http_method=HttpMethod.POST,
+        user_id=user_id,
     )
 
     assert schema.workspace_id == workspace_id
@@ -49,6 +51,7 @@ def test_pricing_usage_create_accepts_enum_and_string_values(metric_input, metho
         plan_id=uuid.uuid4(),
         metric_name=metric_input,
         http_method=method_input,
+        user_id=uuid.uuid4(),
     )
 
     assert schema.metric_name == metric_input
@@ -66,6 +69,7 @@ def test_pricing_usage_create_missing_required_fields(field_name):
         "plan_id": uuid.uuid4(),
         "metric_name": MetricType.API_REQUEST,
         "http_method": HttpMethod.GET,
+        "user_id": uuid.uuid4(),
     }
     del data[field_name]
 
@@ -84,6 +88,7 @@ def test_pricing_usage_create_invalid_enum_values():
             plan_id=uuid.uuid4(),
             metric_name="INVALID_METRIC",
             http_method="OPTIONS",
+            user_id=uuid.uuid4(),
         )
 
     errors = exc_info.value.errors()
@@ -100,6 +105,7 @@ def test_pricing_usage_create_invalid_uuid():
             plan_id=uuid.uuid4(),
             metric_name=MetricType.API_REQUEST,
             http_method=HttpMethod.POST,
+            user_id=uuid.uuid4(),
         )
 
     assert exc_info.value.errors()[0]["loc"][0] == "workspace_id"

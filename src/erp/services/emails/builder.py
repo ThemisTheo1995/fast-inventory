@@ -1,7 +1,7 @@
 # src/erp/services/emails/builders.py
-from src.erp.core.config import get_settings
-from src.erp.services.emails.renderer import renderer
-from src.erp.services.emails.schemas import EmailMessage
+from erp.core.config import get_settings
+from erp.services.emails.renderer import renderer
+from erp.services.emails.schemas import EmailMessage
 
 
 def build_welcome_email(
@@ -48,6 +48,22 @@ def build_invite_email(recipient: str, workspace_name: str, inviter_name: str, a
 
     return EmailMessage(
         subject=f"You've been invited to join {workspace_name}",
+        recipients=[recipient],
+        body_text=body_text,
+        body_html=body_html,
+    )
+
+
+def build_password_reset_email(recipient: str, reset_token: str, user_name: str = "there") -> EmailMessage:
+    base_url = getattr(get_settings(), "DOMAIN_URL", "")
+    action_url = f"{base_url.rstrip('/')}/auth/reset-password?token={reset_token}"
+
+    context = {"user_name": user_name, "action_url": action_url}
+
+    body_text, body_html = renderer.render("password_reset", context)
+
+    return EmailMessage(
+        subject="Reset your Aegis account password",
         recipients=[recipient],
         body_text=body_text,
         body_html=body_html,

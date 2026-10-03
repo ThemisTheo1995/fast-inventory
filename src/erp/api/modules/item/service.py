@@ -3,17 +3,23 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
-from src.erp.api.modules.item.filters.item import ItemFilter
-from src.erp.api.modules.item.models import Item
-from src.erp.api.modules.item.schemas import ItemCreate, ItemPaginatedResponse, ItemUpdate
+from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
+from erp.api.modules.item.filters.item import ItemFilter
+from erp.api.modules.item.models import Item
+from erp.api.modules.item.schemas import ItemBarcode, ItemCreate, ItemPaginatedResponse, ItemUpdate
+from erp.services.barcode.events import send_barcode_generation_event
 
 
 class ItemService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.inventory_service = InventoryService(db)
+
+    @staticmethod
+    def _generate_barcode_id(workspace_id: UUID, sku: str) -> str:
+        """Constructs the unique barcode identifier."""
+        return f"{workspace_id}_{sku}"
 
     async def _get_active_item(self, workspace_id: UUID, item_id: UUID, include_deleted: bool = False) -> Item:
         """Securely fetch an item enforcing workspace isolation."""
@@ -44,11 +50,14 @@ class ItemService:
             raise ItemExistsError()
 
     async def create_item(self, workspace_id: UUID, data: ItemCreate) -> Item:
-        """Creates an item and initialises its inventory record atomically."""
+        """Creates an item, generates barcode_id, and initialises its inventory record."""
         await self._check_sku_unique(workspace_id, data.sku)
+
+        barcode_id = self._generate_barcode_id(workspace_id, data.sku)
 
         item = Item(
             workspace_id=workspace_id,
+            barcode_id=barcode_id,
             **data.model_dump(),
         )
 
@@ -62,6 +71,13 @@ class ItemService:
 
         await self.db.commit()
         await self.db.refresh(item)
+
+        send_barcode_generation_event(
+            ItemBarcode(
+                barcode_id=item.barcode_id,
+                workspace_id=workspace_id,
+            )
+        )
 
         return item
 
@@ -122,13 +138,18 @@ class ItemService:
 
     async def update_item(self, workspace_id: UUID, item_id: UUID, data: ItemUpdate) -> Item:
         """Applies partial updates, validating uniqueness if the SKU changes."""
-        update_data = data.model_dump(exclude_unset=True)
 
+        update_data = data.model_dump(exclude_unset=True)
         include_deleted = "is_deleted" in update_data
+
         item = await self._get_active_item(workspace_id, item_id, include_deleted=include_deleted)
 
-        if "sku" in update_data and update_data["sku"] != item.sku:
-            await self._check_sku_unique(workspace_id, update_data["sku"], exclude_item_id=item_id)
+        sku_changed = "sku" in update_data and update_data["sku"] != item.sku
+
+        if sku_changed:
+            new_sku = update_data["sku"]
+            await self._check_sku_unique(workspace_id, new_sku, exclude_item_id=item_id)
+            update_data["barcode_id"] = self._generate_barcode_id(workspace_id, new_sku)
 
         for key, value in update_data.items():
             setattr(item, key, value)
@@ -136,6 +157,15 @@ class ItemService:
         self.db.add(item)
         await self.db.commit()
         await self.db.refresh(item)
+
+        if sku_changed and item.barcode_id:
+            send_barcode_generation_event(
+                ItemBarcode(
+                    barcode_id=item.barcode_id,
+                    workspace_id=workspace_id,
+                )
+            )
+
         return item
 
     async def delete_item(self, workspace_id: UUID, item_id: UUID) -> None:

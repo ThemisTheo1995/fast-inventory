@@ -1,8 +1,8 @@
-from src.erp.api.modules.sell_order.embeddings import (
+from erp.api.modules.sell_order.embeddings import (
     process_sell_order_search_index,
 )
-from src.erp.api.modules.sell_order.events import SellOrderCreatedEvent, SellOrderUpdatedEvent
-from src.erp.core.event_bus import EventBus
+from erp.api.modules.sell_order.events import SellOrderCreatedEvent, SellOrderUpdatedEvent
+from erp.core.event_bus import EventBus
 
 
 async def _handle_sell_order_created(

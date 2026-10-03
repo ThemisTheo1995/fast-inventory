@@ -1,8 +1,8 @@
-from src.erp.api.modules.purchase_order.embeddings import (
+from erp.api.modules.purchase_order.embeddings import (
     process_purchase_order_search_index,
 )
-from src.erp.api.modules.purchase_order.events import PurchaseOrderCreatedEvent, PurchaseOrderUpdatedEvent
-from src.erp.core.event_bus import EventBus
+from erp.api.modules.purchase_order.events import PurchaseOrderCreatedEvent, PurchaseOrderUpdatedEvent
+from erp.core.event_bus import EventBus
 
 
 async def _handle_purchase_order_created(
