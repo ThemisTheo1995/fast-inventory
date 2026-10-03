@@ -18,6 +18,7 @@ async def log_usage(
 
     data = PricingUsageCreate(
         workspace_id=request.state.workspace_user.workspace_id,
+        user_id=request.state.workspace_user.user_id,
         plan_id=request.state.subscription_id,
         metric_name=metric_name,
         http_method=http_method,

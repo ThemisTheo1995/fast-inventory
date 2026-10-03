@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
@@ -26,8 +26,10 @@ from src.erp.api.auth.schemas.user import (
 )
 from src.erp.api.auth.utils import (
     create_access_token,
+    decode_password_reset_token,
     decode_token,
     decode_whitelist_user_token,
+    generate_password_reset_token,
     generate_token_pair,
     generate_whitelist_token,
     get_password_hash,
@@ -38,11 +40,13 @@ from src.erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
 from src.erp.api.workspace.models import Workspace
 from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.services.emails.builder import build_welcome_email
+from src.erp.services.emails.builder import build_password_reset_email, build_welcome_email
 from src.erp.services.emails.factory import get_email_provider
 
 
 class AuthService:
+    PASSWORD_RESET_COOLDOWN_MINUTES = 5
+
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
@@ -265,10 +269,7 @@ class AuthService:
             if not user_id:
                 return
 
-            print(revoke_all)
-
             if revoke_all or not session_id:
-                print(342343)
                 stmt = delete(UserSession).where(UserSession.user_id == user_id)
             else:
                 stmt = delete(UserSession).where(
@@ -319,3 +320,59 @@ class AuthService:
             raise TokenInvalidError()
 
         return create_access_token(subject=user_id)
+
+    async def request_password_reset(self, email: str) -> None:
+        """
+        Initiates password reset by generating a token and dispatching an email.
+        Includes guards for anti-enumeration and email rate-limiting.
+        """
+        now = datetime.now(UTC)
+
+        result = await self.db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+
+        # Anti-enumeration guard: Exit silently if user doesn't exist
+        if not user:
+            return
+
+        # Rate-limiting guard: Exit silently if within cooldown window
+        if user.last_password_reset_sent_at:
+            cooldown = user.last_password_reset_sent_at + timedelta(minutes=self.PASSWORD_RESET_COOLDOWN_MINUTES)
+            if now < cooldown:
+                return
+
+        # 3. Update timestamp and persist
+        user.last_password_reset_sent_at = now
+        await self.db.commit()
+
+        # 4. Generate token and send email
+        reset_token = generate_password_reset_token(user.id)
+
+        reset_message = build_password_reset_email(
+            recipient=user.email,
+            reset_token=reset_token,
+            user_name=user.first_name or "there",
+        )
+
+        email_provider = get_email_provider()
+        await email_provider.send_email(reset_message)
+
+    async def confirm_password_reset(self, token: str, new_password: str) -> None:
+        """
+        Verifies reset token, updates hashed password, and revokes all active user sessions.
+        """
+        user_id = decode_password_reset_token(token)
+
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise UserNotFoundError()
+
+        # Update password
+        user.hashed_password = get_password_hash(new_password)
+
+        # Revoke all active sessions across devices
+        await self.db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+
+        await self.db.commit()

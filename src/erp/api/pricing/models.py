@@ -51,6 +51,7 @@ class PricingUsage(BaseModel):
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pricing_plans.id"), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     metric_type: Mapped[MetricType] = mapped_column(SQLAlchemyEnum(MetricType), nullable=False)
     request_type: Mapped[HttpMethod] = mapped_column(SQLAlchemyEnum(HttpMethod), nullable=False)

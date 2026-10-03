@@ -8,6 +8,7 @@ from src.erp.api.pricing.enums import HttpMethod, MetricType
 class PricingUsageCreate(BaseModel):
     workspace_id: UUID
     plan_id: UUID
+    user_id: UUID
     metric_name: MetricType
     http_method: HttpMethod
 

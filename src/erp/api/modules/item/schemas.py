@@ -51,6 +51,7 @@ class ItemResponse(BaseModel):
     workspace_id: UUID
     title: str
     sku: str
+    barcode_id: str | None
     base_price: int | None
     created_at: datetime
     updated_at: datetime
@@ -77,6 +78,13 @@ class ItemCreate(ItemBase):
     """Payload for creating a new item."""
 
     pass
+
+
+class ItemBarcode(BaseModel):
+    """Payload for creating a new item barcode."""
+
+    barcode_id: str = Field(..., description="Barcode ID")
+    workspace_id: UUID = Field(..., description="Workspace ID")
 
 
 # =======================================================

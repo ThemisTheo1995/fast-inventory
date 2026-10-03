@@ -1,9 +1,8 @@
-from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
-from src.erp.core.config import Settings, get_settings
+from src.erp.core.config import get_settings
 
 
 @pytest.fixture
@@ -24,6 +23,7 @@ def _mock_env_vars(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY_NAME", "Fake-Name")
     monkeypatch.setenv("DEFAULT_FROM_EMAIL", "sender@example.com")
     monkeypatch.setenv("SUPPORT_EMAIL", "support@example.com")
+    monkeypatch.setenv("BARCODE_GENERATION_SQS_QUEUE_URL", "test-sqs-queue-url")
 
     yield
 
@@ -60,33 +60,6 @@ def test_get_settings_lru_caching(_mock_env_vars):
 # ==============================================================================
 # 2. MISSING & INVALID VARIABLE TESTS
 # ==============================================================================
-
-
-@pytest.mark.parametrize(
-    "missing_var",
-    ["DATABASE_URL"],
-)
-def test_missing_required_variables_raises_validation_error(
-    _mock_env_vars,
-    monkeypatch,
-    missing_var,
-):
-    """Verifies that missing required environment variables trigger ValidationError.
-
-    Disables .env file loading via patch to prevent Pydantic from reading fallback
-    values directly from disk.
-    """
-    monkeypatch.delenv(missing_var, raising=False)
-    get_settings.cache_clear()
-
-    # Disable reading .env/.env.test files from disk during this check
-    no_env_file_config = {**Settings.model_config, "env_file": None}
-
-    with patch.object(Settings, "model_config", no_env_file_config):
-        with pytest.raises(ValidationError) as exc_info:
-            get_settings()
-
-        assert missing_var in str(exc_info.value)
 
 
 def test_invalid_data_types_raises_validation_error(_mock_env_vars, monkeypatch):

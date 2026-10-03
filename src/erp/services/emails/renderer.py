@@ -23,8 +23,8 @@ class EmailTemplateRenderer:
         settings = get_settings()
 
         full_context = {
-            "base_url": getattr(settings, "DOMAIN_URL", "http://localhost:5173").rstrip("/"),
-            "support_email": getattr(settings, "SUPPORT_EMAIL", "support@aegis-erp.com"),
+            "base_url": getattr(settings, "DOMAIN_URL", "").rstrip("/"),
+            "support_email": getattr(settings, "SUPPORT_EMAIL", "erp.aegis@gmail.com"),
             "current_year": datetime.now(UTC).year,
             **context,
         }

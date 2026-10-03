@@ -69,6 +69,7 @@ class PricingUsageService:
             plan_id=data.plan_id,
             metric_type=data.metric_name,
             request_type=data.http_method,
+            user_id=data.user_id,
         )
 
         self.db.add(new_event)

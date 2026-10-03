@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.erp.api.pricing.enums import PlanName
 from src.erp.api.workspace.schemas import WorkspaceCreate
@@ -75,3 +75,17 @@ class LoginResult(AuthResult):
 class LoginResponse(BaseModel):
     workspace_id: uuid.UUID
     is_whitelisted: bool
+
+
+# =======================================================
+# USER PASSWORD RESET
+# =======================================================
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)

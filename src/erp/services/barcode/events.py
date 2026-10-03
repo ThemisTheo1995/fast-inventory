@@ -1,0 +1,18 @@
+from typing import Any
+
+import boto3
+
+from src.erp.api.modules.item.schemas import ItemBarcode
+from src.erp.core.config import get_settings
+
+settings = get_settings()
+
+sqs_client = boto3.client("sqs", region_name=settings.AWS_REGION)
+
+
+def send_barcode_generation_event(data: ItemBarcode) -> dict[str, Any]:
+
+    return sqs_client.send_message(
+        QueueUrl=settings.BARCODE_GENERATION_SQS_QUEUE_URL,
+        MessageBody=data.model_dump_json(),
+    )

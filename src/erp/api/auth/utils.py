@@ -5,7 +5,12 @@ from typing import Any
 import bcrypt
 import jwt
 
-from src.erp.api.auth.exceptions import TokenExpiredError, TokenInvalidError, VerificationFailedError
+from src.erp.api.auth.exceptions import (
+    PasswordResetFailedError,
+    TokenExpiredError,
+    TokenInvalidError,
+    VerificationFailedError,
+)
 from src.erp.core.config import get_settings
 
 settings = get_settings()
@@ -129,3 +134,30 @@ def decode_whitelist_user_token(token: str) -> uuid.UUID:
         return uuid.UUID(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError) as err:
         raise VerificationFailedError() from err
+
+
+def generate_password_reset_token(user_id: uuid.UUID) -> str:
+    """Generates a signed JWT token for password reset (valid for 5 minutes)."""
+    expire = datetime.now(UTC) + timedelta(minutes=5)
+    payload = {
+        "sub": str(user_id),
+        "type": "password_reset",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.AUTH_SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
+
+
+def decode_password_reset_token(token: str) -> uuid.UUID:
+    """Decodes and validates a password reset token."""
+    try:
+        payload = jwt.decode(
+            token,
+            settings.AUTH_SECRET_KEY,
+            algorithms=[settings.AUTH_ALGORITHM],
+        )
+        if payload.get("type") != "password_reset":
+            raise TokenInvalidError()
+
+        return uuid.UUID(payload["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError) as err:
+        raise PasswordResetFailedError() from err

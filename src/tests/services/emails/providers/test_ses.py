@@ -7,6 +7,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from src.erp.services.emails.exceptions import EmailConfigurationError, EmailSendError
 from src.erp.services.emails.providers.ses import SESEmailProvider, is_transient_aws_error
 from src.erp.services.emails.schemas import EmailAttachment, EmailMessage
+from tenacity import wait_none
 
 if TYPE_CHECKING:
     from email.message import Message
@@ -208,9 +209,10 @@ async def test_send_email_deduplicates_destinations_and_formats_tags(ses_provide
 
 
 @pytest.mark.asyncio
-@patch("tenacity.nap.sleep", return_value=None)  # Avoid actual sleeping during retry delay
-async def test_retry_on_transient_error_recovers_and_succeeds(_mock_sleep, ses_provider: SESEmailProvider):
+async def test_retry_on_transient_error_recovers_and_succeeds(ses_provider: SESEmailProvider):
     """Verifies that transient errors (Throttling) trigger retries and return success if a retry succeeds."""
+    ses_provider._send_raw_sync.retry.wait = wait_none()
+
     throttling_error = ClientError({"Error": {"Code": "Throttling", "Message": "Rate exceeded"}}, "SendRawEmail")
     success_response = {"MessageId": "retried-msg-999"}
 
@@ -231,9 +233,10 @@ async def test_retry_on_transient_error_recovers_and_succeeds(_mock_sleep, ses_p
 
 
 @pytest.mark.asyncio
-@patch("tenacity.nap.sleep", return_value=None)
-async def test_retry_exhausted_raises_email_send_error(_mock_sleep, ses_provider: SESEmailProvider):
+async def test_retry_exhausted_raises_email_send_error(ses_provider: SESEmailProvider):
     """Verifies that exhausting all retry attempts on persistent transient errors raises EmailSendError."""
+    ses_provider._send_raw_sync.retry.wait = wait_none()
+
     service_error = ClientError({"Error": {"Code": "ServiceUnavailable", "Message": "Outage"}}, "SendRawEmail")
 
     mock_client = MagicMock()

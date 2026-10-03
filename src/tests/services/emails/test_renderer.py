@@ -92,8 +92,8 @@ def test_render_default_fallback_settings(
     text_output, _html_output = mock_renderer.render("welcome", {"user_name": "Bob"})
 
     # Assert
-    assert "Welcome to http://localhost:5173!" in text_output
-    assert "Contact us at support@aegis-erp.com." in text_output
+    assert "Welcome to !" in text_output
+    assert "Contact us at erp.aegis@gmail.com." in text_output
 
 
 def test_context_override_defaults(

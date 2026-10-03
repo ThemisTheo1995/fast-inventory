@@ -26,6 +26,11 @@ class VerificationFailedError(BaseAppError):
         super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="Email verification failed.")
 
 
+class PasswordResetFailedError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail="Password reset failed.")
+
+
 class UserNotFoundError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")

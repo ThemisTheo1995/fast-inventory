@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.erp.api.auth.schemas.user import (
     LoginResponse,
     OnboardResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RegisterRequest,
     RegisterResponse,
     UserCreate,
@@ -164,3 +166,34 @@ async def refresh_token(
     )
 
     return {"detail": "Access token refreshed"}
+
+
+@router.post("/request-password-reset", status_code=status.HTTP_200_OK)
+async def request_password_reset(
+    data: PasswordResetRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Sends a password reset link to the email provided if an account exists."""
+    service = AuthService(db)
+
+    await service.request_password_reset(data.email)
+
+    return {"detail": "If an account with that email exists, a password reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    data: PasswordResetConfirm,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Resets user password using the token sent via email and clears current session cookies."""
+    service = AuthService(db)
+
+    await service.confirm_password_reset(token=data.token, new_password=data.new_password)
+
+    # Invalidate active browser cookies if any existed
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+
+    return {"detail": "Password successfully reset. You may now log in with your new password."}
