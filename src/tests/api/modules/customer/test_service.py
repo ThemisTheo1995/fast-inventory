@@ -3,12 +3,12 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.customer.exceptions import (
+from erp.api.modules.customer.exceptions import (
     CustomerEmailExistsError,
     CustomerNotFoundError,
 )
-from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerUpdate
-from src.erp.api.modules.customer.service import CustomerService
+from erp.api.modules.customer.schemas import CustomerCreate, CustomerUpdate
+from erp.api.modules.customer.service import CustomerService
 
 # ==============================================================================
 # 1. CREATE CUSTOMER & SOFT-DELETE RESTORATION

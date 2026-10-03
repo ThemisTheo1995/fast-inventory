@@ -4,11 +4,11 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     UserNotFoundError,
 )
-from src.erp.api.auth.models import User
-from src.erp.api.auth.service import AuthService
+from erp.api.auth.models import User
+from erp.api.auth.service import AuthService
 
 
 async def test_verify_happy_path(db_session: AsyncSession):
@@ -17,7 +17,7 @@ async def test_verify_happy_path(db_session: AsyncSession):
     db_session.add(user)
     await db_session.commit()
 
-    with patch("src.erp.api.auth.service.decode_whitelist_user_token", return_value=user.id):
+    with patch("erp.api.auth.service.decode_whitelist_user_token", return_value=user.id):
         await auth_service.verify("valid-token")
 
     await db_session.refresh(user)
@@ -30,7 +30,7 @@ async def test_verify_already_whitelisted_is_noop(db_session: AsyncSession):
     db_session.add(user)
     await db_session.commit()
 
-    with patch("src.erp.api.auth.service.decode_whitelist_user_token", return_value=user.id):
+    with patch("erp.api.auth.service.decode_whitelist_user_token", return_value=user.id):
         await auth_service.verify("valid-token")
 
     await db_session.refresh(user)
@@ -41,7 +41,7 @@ async def test_verify_user_not_found(db_session: AsyncSession):
     auth_service = AuthService(db_session)
     fake_id = str(uuid.uuid4())
     with (
-        patch("src.erp.api.auth.service.decode_whitelist_user_token", return_value=fake_id),
+        patch("erp.api.auth.service.decode_whitelist_user_token", return_value=fake_id),
         pytest.raises(UserNotFoundError),
     ):
         await auth_service.verify("valid-token")

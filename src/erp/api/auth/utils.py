@@ -5,13 +5,13 @@ from typing import Any
 import bcrypt
 import jwt
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     PasswordResetFailedError,
     TokenExpiredError,
     TokenInvalidError,
     VerificationFailedError,
 )
-from src.erp.core.config import get_settings
+from erp.core.config import get_settings
 
 settings = get_settings()
 

@@ -1,15 +1,15 @@
 import pytest
 
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.exceptions import (
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderExistsError,
     PurchaseOrderNotEditableError,
 )
-from src.erp.api.modules.purchase_order.schemas.purchase_order import (
+from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
 )
-from src.erp.api.modules.purchase_order.service import PurchaseOrderService
+from erp.api.modules.purchase_order.service import PurchaseOrderService
 
 
 @pytest.mark.asyncio

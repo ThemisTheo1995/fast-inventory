@@ -1,8 +1,8 @@
 import pytest
 
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
-from src.erp.api.modules.sell_order.schemas import SellOrderCreate
-from src.erp.api.modules.sell_order.service import SellOrderService
+from erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.modules.sell_order.schemas import SellOrderCreate
+from erp.api.modules.sell_order.service import SellOrderService
 
 
 @pytest.mark.asyncio

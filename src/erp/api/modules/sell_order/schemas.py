@@ -4,9 +4,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.erp.api.modules.customer.schemas import CustomerResponse
-from src.erp.api.modules.item.schemas import ItemResponse
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.modules.customer.schemas import CustomerResponse
+from erp.api.modules.item.schemas import ItemResponse
+from erp.api.modules.sell_order.enums import SOStatusEnum
 
 # =======================================================
 # Common Types

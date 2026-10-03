@@ -4,20 +4,20 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
     InvitationNotFoundExceptionError,
     OnboardingFailedExceptionError,
 )
-from src.erp.api.auth.models import User
-from src.erp.api.auth.schemas.user import UserCreate
-from src.erp.api.auth.service import AuthService
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
+from erp.api.auth.models import User
+from erp.api.auth.schemas.user import UserCreate
+from erp.api.auth.service import AuthService
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
 
 
-@patch("src.erp.api.auth.service.get_email_provider")
+@patch("erp.api.auth.service.get_email_provider")
 async def test_onboard_happy_path(mock_get_email, db_session: AsyncSession):
     auth_service = AuthService(db_session)
     mock_email_provider = AsyncMock()
@@ -56,7 +56,7 @@ async def test_onboard_happy_path(mock_get_email, db_session: AsyncSession):
     mock_email_provider.send_email.assert_not_called()
 
 
-@patch("src.erp.api.auth.service.get_email_provider")
+@patch("erp.api.auth.service.get_email_provider")
 async def test_onboard_unwhitelisted_user_sends_email(mock_get_email, db_session: AsyncSession):
     mock_email_provider = AsyncMock()
     mock_get_email.return_value = mock_email_provider
@@ -147,7 +147,7 @@ async def test_onboard_exception_database_failure_triggers_rollback(db_session: 
     data = UserCreate(email="fail@test.com", password="pw", first_name="Should", last_name="Fail")
 
     with (
-        patch("src.erp.api.auth.service.generate_token_pair", side_effect=Exception("Crypto Error")),
+        patch("erp.api.auth.service.generate_token_pair", side_effect=Exception("Crypto Error")),
         pytest.raises(OnboardingFailedExceptionError),
     ):
         await auth_service.onboard(data)

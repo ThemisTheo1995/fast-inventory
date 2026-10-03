@@ -1,7 +1,7 @@
 import pytest
 
-from src.erp.services.emails.base import BaseEmailProvider
-from src.erp.services.emails.schemas import EmailMessage
+from erp.services.emails.base import BaseEmailProvider
+from erp.services.emails.schemas import EmailMessage
 
 
 class DummyEmailProvider(BaseEmailProvider):

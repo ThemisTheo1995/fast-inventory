@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import ClassVar
 
-from src.erp.core.filter import BaseFilter, FilterSpec
+from erp.core.filter import BaseFilter, FilterSpec
 
 
 class StatusFilterEnum(Enum):

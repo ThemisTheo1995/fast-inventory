@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from fastapi import status
 
-from src.erp.api.modules.supplier.views import (
+from erp.api.modules.supplier.views import (
     create_supplier,
     global_event_bus,
     update_supplier,
@@ -13,7 +13,7 @@ from src.erp.api.modules.supplier.views import (
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.views.global_event_bus.publish")
+@patch("erp.api.modules.supplier.views.global_event_bus.publish")
 async def test_router_create_supplier(mock_publish, client, seed_workspace):
     """Verifies an authorized admin can create a supplier within their workspace."""
     response = await client.post(
@@ -80,7 +80,7 @@ async def test_router_get_suppliers_search_and_pagination(client, seed_workspace
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.views.global_event_bus.publish")
+@patch("erp.api.modules.supplier.views.global_event_bus.publish")
 async def test_router_patch_supplier(mock_publish, client, seed_workspace, active_supplier):
     """Verifies atomic fields on a supplier record can be partially updated."""
     response = await client.patch(
@@ -123,7 +123,7 @@ async def test_router_supplier_tenant_isolation(client, alt_workspace, active_su
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.views.SupplierService")
+@patch("erp.api.modules.supplier.views.SupplierService")
 async def test_create_supplier_enqueues_created_event(
     mock_service_class,
     seed_workspace,
@@ -166,7 +166,7 @@ async def test_create_supplier_enqueues_created_event(
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.views.SupplierService")
+@patch("erp.api.modules.supplier.views.SupplierService")
 async def test_update_supplier_enqueues_updated_event(
     mock_service_class,
     seed_workspace,

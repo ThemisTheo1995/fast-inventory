@@ -3,7 +3,7 @@ import uuid
 import pytest
 from fastapi import status
 
-from src.erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.enums import OrderType
 
 # ==============================================================================
 # INVENTORY ENDPOINTS

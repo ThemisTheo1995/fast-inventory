@@ -1,7 +1,7 @@
 # src/erp/services/emails/builders.py
-from src.erp.core.config import get_settings
-from src.erp.services.emails.renderer import renderer
-from src.erp.services.emails.schemas import EmailMessage
+from erp.core.config import get_settings
+from erp.services.emails.renderer import renderer
+from erp.services.emails.schemas import EmailMessage
 
 
 def build_welcome_email(

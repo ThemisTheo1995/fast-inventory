@@ -2,11 +2,11 @@
 
 import pytest
 
-from src.erp.core.config import get_settings
-from src.erp.services.emails.exceptions import EmailConfigurationError
-from src.erp.services.emails.factory import get_email_provider
-from src.erp.services.emails.providers.console import ConsoleEmailProvider
-from src.erp.services.emails.providers.ses import SESEmailProvider
+from erp.core.config import get_settings
+from erp.services.emails.exceptions import EmailConfigurationError
+from erp.services.emails.factory import get_email_provider
+from erp.services.emails.providers.console import ConsoleEmailProvider
+from erp.services.emails.providers.ses import SESEmailProvider
 
 
 @pytest.fixture(autouse=True)

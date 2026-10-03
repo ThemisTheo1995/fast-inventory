@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from jinja2.exceptions import TemplateNotFound
 
-from src.erp.services.emails.renderer import EmailTemplateRenderer, renderer
+from erp.services.emails.renderer import EmailTemplateRenderer, renderer
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_render_success_and_context_injection(
         },
     )()
     monkeypatch.setattr(
-        "src.erp.services.emails.renderer.get_settings",
+        "erp.services.emails.renderer.get_settings",
         lambda: fake_settings,
     )
 
@@ -84,7 +84,7 @@ def test_render_default_fallback_settings(
     # Arrange: empty settings object lacking optional attributes
     fake_settings = type("Settings", (), {})()
     monkeypatch.setattr(
-        "src.erp.services.emails.renderer.get_settings",
+        "erp.services.emails.renderer.get_settings",
         lambda: fake_settings,
     )
 
@@ -104,7 +104,7 @@ def test_context_override_defaults(
     # Arrange
     fake_settings = type("Settings", (), {"DOMAIN_URL": "http://localhost:5173"})()
     monkeypatch.setattr(
-        "src.erp.services.emails.renderer.get_settings",
+        "erp.services.emails.renderer.get_settings",
         lambda: fake_settings,
     )
 

@@ -3,9 +3,9 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.customer.exceptions import CustomerEmailExistsError, CustomerNotFoundError
-from src.erp.api.modules.customer.models import Customer
-from src.erp.api.modules.customer.schemas import CustomerCreate, CustomerPaginatedResponse, CustomerUpdate
+from erp.api.modules.customer.exceptions import CustomerEmailExistsError, CustomerNotFoundError
+from erp.api.modules.customer.models import Customer
+from erp.api.modules.customer.schemas import CustomerCreate, CustomerPaginatedResponse, CustomerUpdate
 
 
 class CustomerService:

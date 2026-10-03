@@ -5,10 +5,10 @@ import pytest
 from fastapi import BackgroundTasks
 from sqlalchemy import select
 
-from src.erp.api.auth.models import User
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import WorkspaceRoleEnum
-from src.erp.api.workspace_user.exceptions import (
+from erp.api.auth.models import User
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import WorkspaceRoleEnum
+from erp.api.workspace_user.exceptions import (
     PrivilegeEscalationBlockedError,
     RankImmunityViolationError,
     SelfEvictionBlockedError,
@@ -16,14 +16,14 @@ from src.erp.api.workspace_user.exceptions import (
     WorkspaceUserAlreadyInWorkspaceError,
     WorkspaceUserNotFoundError,
 )
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.api.workspace_user.schemas import (
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.api.workspace_user.schemas import (
     UserUpdateRequest,
     WorkspaceUserInviteRequest,
     WorkspaceUserResponse,
     WorkspaceUserUpdateRequest,
 )
-from src.erp.api.workspace_user.service import WorkspaceUserService
+from erp.api.workspace_user.service import WorkspaceUserService
 
 # ============================================================================
 # LOOKUP HELPER TESTS (`_get_active_workspace_user`)
@@ -852,8 +852,8 @@ async def test_invite_workspace_user_queues_background_email_task(db_session):
     bg_tasks = BackgroundTasks()
 
     with (
-        patch("src.erp.api.workspace_user.service.build_invite_email") as mock_build_email,
-        patch("src.erp.api.workspace_user.service.get_email_provider") as mock_get_provider,
+        patch("erp.api.workspace_user.service.build_invite_email") as mock_build_email,
+        patch("erp.api.workspace_user.service.get_email_provider") as mock_get_provider,
     ):
         mock_provider_instance = MagicMock()
         mock_get_provider.return_value = mock_provider_instance

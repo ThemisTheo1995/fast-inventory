@@ -3,8 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from src.erp.api.modules.item.schemas import ItemResponse
-from src.erp.core.filter import TableFilter
+from erp.api.modules.item.schemas import ItemResponse
+from erp.core.filter import TableFilter
 
 
 class InventoryResponse(BaseModel):

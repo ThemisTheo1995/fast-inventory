@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.erp.core.config import get_settings
+from erp.core.config import get_settings
 
 
 @pytest.fixture

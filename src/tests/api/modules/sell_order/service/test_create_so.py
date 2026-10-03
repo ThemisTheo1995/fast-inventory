@@ -1,9 +1,9 @@
 import pytest
 
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
-from src.erp.api.modules.sell_order.exceptions import SellOrderExistsError
-from src.erp.api.modules.sell_order.schemas import SellOrderCreate, SellOrderLineCreate
-from src.erp.api.modules.sell_order.service import SellOrderService
+from erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.modules.sell_order.exceptions import SellOrderExistsError
+from erp.api.modules.sell_order.schemas import SellOrderCreate, SellOrderLineCreate
+from erp.api.modules.sell_order.service import SellOrderService
 
 
 @pytest.mark.asyncio

@@ -4,8 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
-from src.erp.core.filter import TableFilter
+from erp.api.modules.inventory.schemas.stock_movement import StockMovementResponse
+from erp.core.filter import TableFilter
 
 Title = Annotated[str | None, Field(default=None, max_length=255)]
 Sku = Annotated[str | None, Field(default=None, max_length=100)]

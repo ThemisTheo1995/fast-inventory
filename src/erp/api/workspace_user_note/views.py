@@ -3,14 +3,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.erp.api.workspace_user_note.schemas import (
+
+from erp.api.workspace_user_note.schemas import (
     WorkspaceUserNoteCreate,
     WorkspaceUserNotePaginatedResponse,
     WorkspaceUserNoteResponse,
     WorkspaceUserNoteUpdate,
 )
-from src.erp.api.workspace_user_note.service import WorkspaceUserNoteService
-from src.erp.database.base import get_db
+from erp.api.workspace_user_note.service import WorkspaceUserNoteService
+from erp.database.base import get_db
 
 router = APIRouter(prefix="/notes")
 

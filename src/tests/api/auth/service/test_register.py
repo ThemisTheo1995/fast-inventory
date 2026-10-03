@@ -6,24 +6,24 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     OnboardingFailedExceptionError,
     PricingPlanDoesNotExistError,
     UserExistsExceptionError,
 )
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.schemas.user import RegisterRequest, UserCreate
-from src.erp.api.auth.service import AuthService
-from src.erp.api.pricing.enums import PlanName
-from src.erp.api.pricing.models import PricingPlan
-from src.erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace.schemas import WorkspaceCreate
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.schemas.user import RegisterRequest, UserCreate
+from erp.api.auth.service import AuthService
+from erp.api.pricing.enums import PlanName
+from erp.api.pricing.models import PricingPlan
+from erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
+from erp.api.workspace.models import Workspace
+from erp.api.workspace.schemas import WorkspaceCreate
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
 
 
-@patch("src.erp.api.auth.service.get_email_provider")
+@patch("erp.api.auth.service.get_email_provider")
 async def test_register_happy_path(mock_get_email, db_session: AsyncSession):
     mock_email_provider = AsyncMock()
     mock_get_email.return_value = mock_email_provider
@@ -118,7 +118,7 @@ async def test_register_exception_database_failure_triggers_rollback(db_session:
 
     # Force an internal failure mid-flight
     with (
-        patch("src.erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")),
+        patch("erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")),
         pytest.raises(OnboardingFailedExceptionError),
     ):
         await auth_service.register(request_data)

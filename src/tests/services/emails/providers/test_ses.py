@@ -4,10 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
-from src.erp.services.emails.exceptions import EmailConfigurationError, EmailSendError
-from src.erp.services.emails.providers.ses import SESEmailProvider, is_transient_aws_error
-from src.erp.services.emails.schemas import EmailAttachment, EmailMessage
 from tenacity import wait_none
+
+from erp.services.emails.exceptions import EmailConfigurationError, EmailSendError
+from erp.services.emails.providers.ses import SESEmailProvider, is_transient_aws_error
+from erp.services.emails.schemas import EmailAttachment, EmailMessage
 
 if TYPE_CHECKING:
     from email.message import Message

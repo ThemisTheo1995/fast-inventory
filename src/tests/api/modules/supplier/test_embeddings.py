@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy import select
 
-from src.erp.api.modules.supplier.embeddings import process_supplier_search_index
-from src.erp.api.modules.supplier.models import Supplier
-from src.erp.api.search.enums import EntityTypeEnum
-from src.erp.api.search.models import GlobalSearchIndex
+from erp.api.modules.supplier.embeddings import process_supplier_search_index
+from erp.api.modules.supplier.models import Supplier
+from erp.api.search.enums import EntityTypeEnum
+from erp.api.search.models import GlobalSearchIndex
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.embeddings.AsyncSessionLocal")
-@patch("src.erp.api.modules.supplier.embeddings.generate_embedding")
+@patch("erp.api.modules.supplier.embeddings.AsyncSessionLocal")
+@patch("erp.api.modules.supplier.embeddings.generate_embedding")
 async def test_process_supplier_search_index_creates_new(
     mock_generate_embedding, mock_async_session_local, db_session, active_supplier
 ):
@@ -43,8 +43,8 @@ async def test_process_supplier_search_index_creates_new(
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.embeddings.AsyncSessionLocal")
-@patch("src.erp.api.modules.supplier.embeddings.generate_embedding")
+@patch("erp.api.modules.supplier.embeddings.AsyncSessionLocal")
+@patch("erp.api.modules.supplier.embeddings.generate_embedding")
 async def test_process_supplier_search_index_updates_existing(
     mock_generate_embedding, mock_async_session_local, db_session, active_supplier
 ):
@@ -82,8 +82,8 @@ async def test_process_supplier_search_index_updates_existing(
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.embeddings.AsyncSessionLocal")
-@patch("src.erp.api.modules.supplier.embeddings.generate_embedding")
+@patch("erp.api.modules.supplier.embeddings.AsyncSessionLocal")
+@patch("erp.api.modules.supplier.embeddings.generate_embedding")
 async def test_process_supplier_search_index_skips_nonexistent(
     mock_generate_embedding, mock_async_session_local, db_session
 ):
@@ -100,8 +100,8 @@ async def test_process_supplier_search_index_skips_nonexistent(
 
 
 @pytest.mark.asyncio
-@patch("src.erp.api.modules.supplier.embeddings.AsyncSessionLocal")
-@patch("src.erp.api.modules.supplier.embeddings.generate_embedding")
+@patch("erp.api.modules.supplier.embeddings.AsyncSessionLocal")
+@patch("erp.api.modules.supplier.embeddings.generate_embedding")
 async def test_process_supplier_search_index_skips_deleted(
     mock_generate_embedding, mock_async_session_local, db_session, seed_workspace
 ):

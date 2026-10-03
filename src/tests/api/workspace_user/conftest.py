@@ -2,9 +2,9 @@ import uuid
 
 import pytest
 
-from src.erp.api.auth.models import User
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
+from erp.api.auth.models import User
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
 
 
 @pytest.fixture

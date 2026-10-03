@@ -2,10 +2,10 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.purchase_order.exceptions import (
+from erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderNotFoundError,
 )
-from src.erp.api.modules.purchase_order.service import PurchaseOrderService
+from erp.api.modules.purchase_order.service import PurchaseOrderService
 
 
 @pytest.mark.asyncio

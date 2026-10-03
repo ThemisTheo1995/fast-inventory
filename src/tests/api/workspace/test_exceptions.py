@@ -1,6 +1,6 @@
 from fastapi import status
 
-from src.erp.api.workspace.exceptions import (
+from erp.api.workspace.exceptions import (
     WorkspaceAlreadyExistsError,
     WorkspaceNotFoundError,
 )

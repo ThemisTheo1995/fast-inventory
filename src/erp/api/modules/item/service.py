@@ -3,12 +3,12 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
+from erp.api.modules.item.filters.item import ItemFilter
+from erp.api.modules.item.models import Item
+from erp.api.modules.item.schemas import ItemBarcode, ItemCreate, ItemPaginatedResponse, ItemUpdate
 from erp.services.barcode.events import send_barcode_generation_event
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
-from src.erp.api.modules.item.filters.item import ItemFilter
-from src.erp.api.modules.item.models import Item
-from src.erp.api.modules.item.schemas import ItemBarcode, ItemCreate, ItemPaginatedResponse, ItemUpdate
 
 
 class ItemService:

@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
-from src.erp.api.modules.supplier.models import Supplier
+from erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
+from erp.api.modules.supplier.models import Supplier
 
 # --- SUPPLIER FIXTURES ---
 

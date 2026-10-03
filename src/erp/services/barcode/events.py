@@ -2,8 +2,8 @@ from typing import Any
 
 import boto3
 
-from src.erp.api.modules.item.schemas import ItemBarcode
-from src.erp.core.config import get_settings
+from erp.api.modules.item.schemas import ItemBarcode
+from erp.core.config import get_settings
 
 
 def send_barcode_generation_event(data: ItemBarcode) -> dict[str, Any]:

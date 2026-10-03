@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
-from src.erp.api.modules.customer.exceptions import (
+from erp.api.modules.customer.exceptions import (
     CustomerNameMustNotContainNumbersError,
 )
 

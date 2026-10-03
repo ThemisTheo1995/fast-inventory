@@ -2,20 +2,20 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.api.modules.item.models import Item
-from src.erp.api.modules.purchase_order.enums import POStatusEnum
-from src.erp.api.modules.purchase_order.exceptions import (
+from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.item.models import Item
+from erp.api.modules.purchase_order.enums import POStatusEnum
+from erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderExistsError,
     PurchaseOrderStatusTransitionError,
 )
-from src.erp.api.modules.purchase_order.schemas.purchase_order import (
+from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderUpdate,
 )
-from src.erp.api.modules.purchase_order.service import PurchaseOrderService
+from erp.api.modules.purchase_order.service import PurchaseOrderService
 
 
 @pytest.mark.asyncio

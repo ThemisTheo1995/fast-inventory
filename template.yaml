@@ -13,19 +13,24 @@ Parameters:
     AllowedValues:
     - staging
     - production
-    Description: Target deployment environment.
+    Description: Target deployment environment (dictates scaling and limits).
 
-  BarcodeQueueArn:
+  BarcodeQueueName:
     Type: String
-    Description: ARN of the Barcode SQS Queue managed by the microservice.
+    Description: Literal name of the Barcode SQS Queue managed by the microservice (e.g., erp-barcode-queue-staging).
 
-  BarcodeQueueUrl:
+  BwsAccessToken:
     Type: String
-    Description: URL of the Barcode SQS Queue managed by the microservice.
+    NoEcho: true
+    Description: Bitwarden Secrets Manager Machine Account Access Token.
 
-  DatabaseUrlSecretArn:
+  BwsProjectId:
     Type: String
-    Description: AWS Secrets Manager ARN containing the PostgreSQL connection string.
+    Description: Bitwarden Secrets Manager Project ID.
+
+  BwsOrgId:
+    Type: String
+    Description: Bitwarden Secrets Manager Organization ID.
 
   CorsAllowedOrigins:
     Type: String
@@ -65,11 +70,11 @@ Globals:
     Runtime: python3.13
     Environment:
       Variables:
-        ENVIRONMENT: !Ref Environment
-        BARCODE_GENERATION_SQS_QUEUE_URL: !Ref BarcodeQueueUrl
         LOG_LEVEL: !FindInMap [ EnvironmentConfig, !Ref Environment, LogLevel ]
-        DATABASE_URL_SECRET_ARN: !Ref DatabaseUrlSecretArn
-        POWERTOOLS_SERVICE_NAME: "erp-core-api"
+
+        BWS_ACCESS_TOKEN: !Ref BwsAccessToken
+        BWS_PROJECT_ID: !Ref BwsProjectId
+        BWS_ORG_ID: !Ref BwsOrgId
 
 # ==============================================================================
 # RESOURCES
@@ -82,10 +87,9 @@ Resources:
   ErpHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: !Ref Environment
+      StageName: "$default"
       CorsConfiguration:
-        AllowOrigins:
-        - !Ref CorsAllowedOrigins
+        AllowOrigins: !Split [ ",", !Ref CorsAllowedOrigins ]
         AllowHeaders:
         - Authorization
         - Content-Type
@@ -106,33 +110,28 @@ Resources:
       AccessLogSettings: !If
         - IsProduction
         - DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-          Format: >-
-            {"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","latency":"$context.responseLatency"}
+          Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","latency":"$context.responseLatency"}'
         - !Ref "AWS::NoValue"
 
-  # Only create the API Access Log Group in production
   ApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Condition: IsProduction
     Properties:
       LogGroupName: !Sub "/aws/http-api/erp-core-${Environment}"
-      # Omit RetentionInDays to default to "Never Expire"
+      RetentionInDays: 90
 
-      # ----------------------------------------------------------------------------
-      # 2. FASTAPI MONOLITH LAMBDA FUNCTION
-      # ----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
+  # 2. FASTAPI MONOLITH LAMBDA FUNCTION
+  # ----------------------------------------------------------------------------
   ErpApiFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: erp.main.handler
-      CodeUri: .
+      CodeUri: src/
       Description: Core ERP FastAPI Web Handler managed by Mangum.
-      ReservedConcurrentExecutions: !If [ IsProduction, !Ref "AWS::NoValue", 5 ]
       Policies:
-      - AWSSecretsManagerGetSecretValuePolicy:
-          SecretArn: !Ref DatabaseUrlSecretArn
       - SQSSendMessagePolicy:
-          QueueArn: !Ref BarcodeQueueArn
+          QueueName: !Ref BarcodeQueueName
       Events:
         ApiRouteAny:
           Type: HttpApi
@@ -155,7 +154,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/erp-api-${Environment}"
-      RetentionInDays: !If [ IsProduction, !Ref "AWS::NoValue", 90 ]
+      RetentionInDays: !If [ IsProduction, 90, 14 ]
 
 # ==============================================================================
 # OUTPUTS
@@ -163,7 +162,7 @@ Resources:
 Outputs:
   ApiEndpoint:
     Description: Base URL for HTTP API Endpoint
-    Value: !Sub "https://${ErpHttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Value: !Sub "https://${ErpHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
     Export:
       Name: !Sub "ErpApiEndpoint-${Environment}"
 

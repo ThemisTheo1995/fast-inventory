@@ -6,16 +6,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     CredentialsExceptionError,
     UserNotWhitelistedError,
 )
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.service import AuthService
-from src.erp.api.auth.utils import get_password_hash
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.service import AuthService
+from erp.api.auth.utils import get_password_hash
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
 
 
 async def test_login_happy_path(db_session: AsyncSession):

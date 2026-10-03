@@ -3,11 +3,11 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
+from erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
+from erp.api.search.enums import EntityTypeEnum
+from erp.api.search.models import GlobalSearchIndex
+from erp.database.base import AsyncSessionLocal
 from erp.services.ai.embedding import generate_embedding
-from src.erp.api.modules.purchase_order.models import PurchaseOrder, PurchaseOrderLine
-from src.erp.api.search.enums import EntityTypeEnum
-from src.erp.api.search.models import GlobalSearchIndex
-from src.erp.database.base import AsyncSessionLocal
 
 
 async def process_purchase_order_search_index(purchase_order_id: uuid.UUID) -> None:

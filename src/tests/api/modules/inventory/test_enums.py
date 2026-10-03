@@ -1,4 +1,4 @@
-from src.erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.enums import OrderType
 
 
 def test_order_type_enum_values():

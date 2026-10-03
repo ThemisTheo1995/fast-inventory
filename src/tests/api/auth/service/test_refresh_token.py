@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     TokenInvalidError,
 )
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.service import AuthService
-from src.erp.api.auth.utils import create_access_token, decode_token, generate_token_pair
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.service import AuthService
+from erp.api.auth.utils import create_access_token, decode_token, generate_token_pair
 
 
 async def test_refresh_token_happy_path(db_session: AsyncSession):
@@ -42,7 +42,7 @@ async def test_refresh_token_decode_exception(db_session: AsyncSession):
     """NEW LOGIC: Explicit wrap around JWT decode failure."""
     auth_service = AuthService(db_session)
     with (
-        patch("src.erp.api.auth.service.decode_token", side_effect=ValueError("Bad token data")),
+        patch("erp.api.auth.service.decode_token", side_effect=ValueError("Bad token data")),
         pytest.raises(TokenInvalidError),
     ):
         await auth_service.refresh_token("bad_token_string")
@@ -66,7 +66,7 @@ async def test_refresh_token_exception_wrong_token_type(db_session: AsyncSession
 async def test_refresh_token_exception_missing_required_claims(db_session: AsyncSession, mock_payload):
     auth_service = AuthService(db_session)
     with (
-        patch("src.erp.api.auth.service.decode_token", return_value=mock_payload),
+        patch("erp.api.auth.service.decode_token", return_value=mock_payload),
         pytest.raises(TokenInvalidError),
     ):
         await auth_service.refresh_token("valid.token.payload")
@@ -99,9 +99,7 @@ async def test_refresh_token_session_expired_in_db(db_session: AsyncSession):
     await db_session.commit()
 
     with (
-        patch(
-            "src.erp.api.auth.service.decode_token", return_value={"type": "refresh", "sub": str(user.id), "jti": "s1"}
-        ),
+        patch("erp.api.auth.service.decode_token", return_value={"type": "refresh", "sub": str(user.id), "jti": "s1"}),
         pytest.raises(TokenInvalidError),
     ):
         await auth_service.refresh_token("token")

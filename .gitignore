@@ -30,3 +30,11 @@ coverage.json
 htmlcov/
 coverage.xml
 
+requirements.txt
+.requirements.txt
+
+# AWS SAM
+.aws-sam/
+packaged.yaml
+
+samconfig.toml

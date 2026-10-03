@@ -1,11 +1,11 @@
-from src.erp.api.modules.supplier.embeddings import (
+from erp.api.modules.supplier.embeddings import (
     process_supplier_search_index,
 )
-from src.erp.api.modules.supplier.events import (
+from erp.api.modules.supplier.events import (
     SupplierCreatedEvent,
     SupplierUpdatedEvent,
 )
-from src.erp.core.event_bus import EventBus
+from erp.core.event_bus import EventBus
 
 
 async def _handle_supplier_created(

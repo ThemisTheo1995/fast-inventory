@@ -6,9 +6,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.service import AuthService
-from src.erp.api.auth.utils import decode_token, generate_token_pair
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.service import AuthService
+from erp.api.auth.utils import decode_token, generate_token_pair
 
 
 async def test_logout_happy_path(db_session: AsyncSession):
@@ -53,7 +53,7 @@ async def test_logout_revoke_all_or_missing_session_id(db_session: AsyncSession)
     db_session.add_all([s1, s2])
     await db_session.commit()
 
-    with patch("src.erp.api.auth.service.decode_token", return_value={"sub": str(user.id)}):
+    with patch("erp.api.auth.service.decode_token", return_value={"sub": str(user.id)}):
         await auth_service.logout("token")
 
     res = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
@@ -63,7 +63,7 @@ async def test_logout_revoke_all_or_missing_session_id(db_session: AsyncSession)
 async def test_logout_edge_case_token_missing_claims(db_session: AsyncSession):
     """RESTORED ORIGINAL TEST."""
     auth_service = AuthService(db_session)
-    with patch("src.erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
+    with patch("erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
         # Should not raise (missing sub -> early return)
         await auth_service.logout("invalid-token-missing-claims")
 
@@ -71,7 +71,7 @@ async def test_logout_edge_case_token_missing_claims(db_session: AsyncSession):
 async def test_logout_silently_swallows_decoding_exceptions(db_session: AsyncSession):
     """RESTORED ORIGINAL TEST."""
     auth_service = AuthService(db_session)
-    with patch("src.erp.api.auth.service.decode_token", side_effect=Exception("Invalid token")):
+    with patch("erp.api.auth.service.decode_token", side_effect=Exception("Invalid token")):
         try:
             await auth_service.logout("complete-garbage-token-string")
         except Exception as e:
@@ -82,7 +82,7 @@ async def test_logout_silently_swallows_decoding_exceptions(db_session: AsyncSes
 async def test_logout_db_exception_triggers_rollback(_mock_execute, db_session: AsyncSession):
     """NEW LOGIC: Covers the internal DB try/except rollback block."""
     auth_service = AuthService(db_session)
-    with patch("src.erp.api.auth.service.decode_token", return_value={"sub": "u1", "jti": "s1"}):
+    with patch("erp.api.auth.service.decode_token", return_value={"sub": "u1", "jti": "s1"}):
         try:
             await auth_service.logout("token")
         except Exception:

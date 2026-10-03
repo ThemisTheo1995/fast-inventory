@@ -3,7 +3,7 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.workspace.schemas import (
+from erp.api.workspace.schemas import (
     WorkspaceCreate,
     WorkspaceResponse,
     WorkspaceUpdate,

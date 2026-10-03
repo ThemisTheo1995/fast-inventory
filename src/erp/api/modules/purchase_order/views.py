@@ -4,12 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.modules.purchase_order.events import (
+from erp.api.modules.purchase_order.events import (
     PurchaseOrderCreatedEvent,
     PurchaseOrderUpdatedEvent,
 )
-from src.erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
-from src.erp.api.modules.purchase_order.schemas.purchase_order import (
+from erp.api.modules.purchase_order.filters.purchase_order import PurchaseOrderFilter
+from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
     PurchaseOrderLineResponse,
@@ -18,10 +18,10 @@ from src.erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderResponse,
     PurchaseOrderUpdate,
 )
-from src.erp.api.modules.purchase_order.service import PurchaseOrderService
-from src.erp.core.dependencies import get_event_bus
-from src.erp.core.event_bus import EventBus, global_event_bus
-from src.erp.database.base import get_db
+from erp.api.modules.purchase_order.service import PurchaseOrderService
+from erp.core.dependencies import get_event_bus
+from erp.core.event_bus import EventBus, global_event_bus
+from erp.database.base import get_db
 
 router = APIRouter()
 

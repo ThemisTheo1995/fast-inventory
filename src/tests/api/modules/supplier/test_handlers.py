@@ -3,11 +3,11 @@ from uuid import uuid4
 
 import pytest
 
-from src.erp.api.modules.supplier.events import (
+from erp.api.modules.supplier.events import (
     SupplierCreatedEvent,
     SupplierUpdatedEvent,
 )
-from src.erp.api.modules.supplier.handlers import (
+from erp.api.modules.supplier.handlers import (
     _handle_supplier_created,
     _handle_supplier_updated,
     register_supplier_handlers,

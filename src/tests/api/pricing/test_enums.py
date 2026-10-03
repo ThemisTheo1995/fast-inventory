@@ -1,6 +1,6 @@
 import pytest
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
+from erp.api.pricing.enums import HttpMethod, MetricType, PlanName
 
 # ============================================================================
 # PlanName Enum Tests

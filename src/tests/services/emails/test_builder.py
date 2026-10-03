@@ -2,12 +2,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.erp.services.emails.builder import (
+from erp.services.emails.builder import (
     build_invite_email,
     build_onboard_email,
     build_welcome_email,
 )
-from src.erp.services.emails.schemas import EmailMessage
+from erp.services.emails.schemas import EmailMessage
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def mock_renderer(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Mocks renderer.render to avoid reading actual template files during unit tests."""
     mock = MagicMock()
     mock.render.return_value = ("rendered plain text", "<h1>rendered html</h1>")
-    monkeypatch.setattr("src.erp.services.emails.builder.renderer", mock)
+    monkeypatch.setattr("erp.services.emails.builder.renderer", mock)
     return mock
 
 
@@ -65,7 +65,7 @@ def test_build_welcome_email_defaults_from_settings(
     # Arrange
     fake_settings = type("Settings", (), {"DOMAIN_URL": "https://app.aegis.com"})()
     monkeypatch.setattr(
-        "src.erp.services.emails.builder.get_settings",
+        "erp.services.emails.builder.get_settings",
         lambda: fake_settings,
     )
 
@@ -92,7 +92,7 @@ def test_build_welcome_email_fallback_settings_when_domain_url_missing(
     # Arrange
     fake_settings = type("Settings", (), {})()
     monkeypatch.setattr(
-        "src.erp.services.emails.builder.get_settings",
+        "erp.services.emails.builder.get_settings",
         lambda: fake_settings,
     )
 

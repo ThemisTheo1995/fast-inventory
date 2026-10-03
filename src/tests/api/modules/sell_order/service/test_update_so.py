@@ -2,21 +2,21 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.inventory.enums import OrderType
-from src.erp.api.modules.inventory.service import InventoryService
-from src.erp.api.modules.item.models import Item
-from src.erp.api.modules.sell_order.enums import SOStatusEnum
-from src.erp.api.modules.sell_order.exceptions import (
+from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.item.models import Item
+from erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.api.modules.sell_order.exceptions import (
     SellOrderExistsError,
     SellOrderStatusTerminalError,
     SellOrderStatusTransitionError,
 )
-from src.erp.api.modules.sell_order.schemas import (
+from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
     SellOrderUpdate,
 )
-from src.erp.api.modules.sell_order.service import SellOrderService
+from erp.api.modules.sell_order.service import SellOrderService
 
 
 @pytest.mark.asyncio

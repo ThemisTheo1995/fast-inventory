@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType
-from src.erp.api.pricing.schemas import PricingUsageCreate
-from src.erp.api.pricing.service import PricingUsageService
-from src.erp.database.base import get_db
+from erp.api.pricing.enums import HttpMethod, MetricType
+from erp.api.pricing.schemas import PricingUsageCreate
+from erp.api.pricing.service import PricingUsageService
+from erp.database.base import get_db
 
 
 async def log_usage(

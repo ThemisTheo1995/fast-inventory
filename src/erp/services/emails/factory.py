@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from src.erp.core.config import get_settings
+from erp.core.config import get_settings
 
 from .base import BaseEmailProvider
 from .exceptions import EmailConfigurationError

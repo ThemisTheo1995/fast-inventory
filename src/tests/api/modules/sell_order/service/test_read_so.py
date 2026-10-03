@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from src.erp.api.modules.sell_order.exceptions import SellOrderNotFoundError
-from src.erp.api.modules.sell_order.service import SellOrderService
+from erp.api.modules.sell_order.exceptions import SellOrderNotFoundError
+from erp.api.modules.sell_order.service import SellOrderService
 
 
 @pytest.mark.asyncio

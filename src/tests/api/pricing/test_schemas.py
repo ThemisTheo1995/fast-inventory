@@ -3,8 +3,8 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from src.erp.api.pricing.enums import HttpMethod, MetricType, PlanName
-from src.erp.api.pricing.schemas import (
+from erp.api.pricing.enums import HttpMethod, MetricType, PlanName
+from erp.api.pricing.schemas import (
     MetricTypeUsage,
     PlanNameUsage,
     PricingUsageCreate,

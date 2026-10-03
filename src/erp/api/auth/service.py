@@ -5,7 +5,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.erp.api.auth.exceptions import (
+from erp.api.auth.exceptions import (
     AccountAlreadyOnboardedExceptionError,
     CredentialsExceptionError,
     InvitationNotFoundExceptionError,
@@ -16,15 +16,15 @@ from src.erp.api.auth.exceptions import (
     UserNotFoundError,
     UserNotWhitelistedError,
 )
-from src.erp.api.auth.models import User, UserSession
-from src.erp.api.auth.schemas.user import (
+from erp.api.auth.models import User, UserSession
+from erp.api.auth.schemas.user import (
     LoginResult,
     OnboardResult,
     RegisterRequest,
     RegisterResult,
     UserCreate,
 )
-from src.erp.api.auth.utils import (
+from erp.api.auth.utils import (
     create_access_token,
     decode_password_reset_token,
     decode_token,
@@ -35,13 +35,13 @@ from src.erp.api.auth.utils import (
     get_password_hash,
     verify_password,
 )
-from src.erp.api.pricing.models import PricingPlan, PricingSubscription
-from src.erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
-from src.erp.api.workspace.models import Workspace
-from src.erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
-from src.erp.api.workspace_user.models import WorkspaceUser
-from src.erp.services.emails.builder import build_password_reset_email, build_welcome_email
-from src.erp.services.emails.factory import get_email_provider
+from erp.api.pricing.models import PricingPlan, PricingSubscription
+from erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
+from erp.api.workspace.models import Workspace
+from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
+from erp.api.workspace_user.models import WorkspaceUser
+from erp.services.emails.builder import build_password_reset_email, build_welcome_email
+from erp.services.emails.factory import get_email_provider
 
 
 class AuthService:

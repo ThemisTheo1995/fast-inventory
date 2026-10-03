@@ -4,7 +4,7 @@ from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)

@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from src.erp.api.modules.purchase_order.exceptions import (
+from erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderCannotDeleteError,
     PurchaseOrderExistsError,
     PurchaseOrderLineItemChangeError,
@@ -11,7 +11,7 @@ from src.erp.api.modules.purchase_order.exceptions import (
     PurchaseOrderNotFoundError,
     PurchaseOrderStatusTransitionError,
 )
-from src.erp.core.exceptions import BaseAppError
+from erp.core.exceptions import BaseAppError
 
 # ============================================================================
 # BaseAppError Exception Subclass Tests

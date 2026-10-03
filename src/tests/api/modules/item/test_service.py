@@ -3,10 +3,10 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from src.erp.api.modules.inventory.models import Inventory
-from src.erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
-from src.erp.api.modules.item.schemas import ItemCreate, ItemUpdate
-from src.erp.api.modules.item.service import ItemService
+from erp.api.modules.inventory.models import Inventory
+from erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
+from erp.api.modules.item.schemas import ItemCreate, ItemUpdate
+from erp.api.modules.item.service import ItemService
 
 # ==============================================================================
 # 1. CREATE & TENANT ISOLATION

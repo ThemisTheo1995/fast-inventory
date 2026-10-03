@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from src.erp.api.workspace.models import Workspace
+from erp.api.workspace.models import Workspace
 
 # ============================================================================
 # Email Validation Tests

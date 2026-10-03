@@ -1,7 +1,8 @@
 # tests/services/emails/test_ses_provider.py
 
 import pytest
-from src.erp.services.emails.providers.ses import SESEmailProvider
+
+from erp.services.emails.providers.ses import SESEmailProvider
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.erp.api.search.service import GlobalSearchService
-from src.erp.database.base import get_db
+from erp.api.search.service import GlobalSearchService
+from erp.database.base import get_db
 
 router = APIRouter()
 
