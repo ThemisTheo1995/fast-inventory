@@ -1,4 +1,5 @@
 import uuid
+from typing import ClassVar
 
 from sqlalchemy import Boolean, Enum as SQLAlchemyEnum, ForeignKey, Index, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -48,6 +49,7 @@ class PricingSubscription(BaseModel):
 
 class PricingUsage(BaseModel):
     __tablename__ = "pricing_usage"
+    __audited__: ClassVar[bool] = False
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     plan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pricing_plans.id"), nullable=False)

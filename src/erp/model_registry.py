@@ -5,6 +5,9 @@ from erp.api.base.models import Base
 
 # Import every model explicitly to register them with Base.metadata
 
+# AuditLog
+from erp.api.base.models import AuditLog
+
 # Auth
 from erp.api.auth.models import User
 from erp.api.auth.models import UserSession
@@ -41,6 +44,7 @@ from erp.api.modules.supplier.models import Supplier
 from erp.api.search.models import GlobalSearchIndex
 
 __all__ = [
+    "AuditLog",
     "Base",
     "User",
     "UserSession",

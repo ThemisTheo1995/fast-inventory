@@ -11,7 +11,7 @@ def build_welcome_email(
     base_url: str | None = None,
 ) -> EmailMessage:
     if base_url is None:
-        base_url = getattr(get_settings(), "DOMAIN_URL", "http://localhost:5173")
+        base_url = getattr(get_settings(), "DOMAIN_URL", "")
 
     action_url = f"{base_url.rstrip('/')}/auth/verify?token={whitelisted_token}"
 
