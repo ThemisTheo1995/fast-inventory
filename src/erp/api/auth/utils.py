@@ -23,7 +23,7 @@ def get_password_hash(password: str) -> str:
     password_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
-    return hashed.decode("utf-8")  # Encoded as a clean string for database storage
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -112,13 +112,29 @@ def generate_token_pair(subject: str) -> dict[str, str]:
 
 def generate_whitelist_token(user_id: uuid.UUID) -> str:
     """Generates a signed JWT token for email verification / whitelisting (valid for 24h)."""
-    expire = datetime.now(UTC) + timedelta(hours=24)
+    expire = datetime.now(UTC) + timedelta(minutes=5)
     payload = {
         "sub": str(user_id),
         "type": "whitelist_verification",
         "exp": expire.timestamp(),
     }
     return jwt.encode(payload, settings.AUTH_SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
+
+
+def generate_email_change_token(user_id: uuid.UUID | str, new_email: str) -> str:
+    """Generates a signed JWT token for email change (valid for 5min)."""
+    expire = datetime.now(UTC) + timedelta(minutes=5)
+    payload = {
+        "sub": str(user_id),
+        "new_email": new_email,
+        "type": "email_change",
+        "exp": expire,
+    }
+    return jwt.encode(
+        payload,
+        settings.AUTH_SECRET_KEY,
+        algorithm=settings.AUTH_ALGORITHM,
+    )
 
 
 def decode_whitelist_user_token(token: str) -> uuid.UUID:

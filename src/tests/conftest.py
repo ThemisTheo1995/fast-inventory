@@ -189,11 +189,17 @@ def event_bus() -> EventBus:
     return bus
 
 
-@pytest.fixture(autouse=True)
-def mock_genai_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(scope="session", autouse=True)
+def mock_genai_sdk() -> Generator[None]:
+    mpatch = pytest.MonkeyPatch()
+
     mock_client = MagicMock()
     mock_embedding = MagicMock()
     mock_embedding.values = [0.123] * 768
     mock_client.models.embed_content.return_value = MagicMock(embeddings=[mock_embedding])
 
-    monkeypatch.setattr("google.genai.Client", lambda **_kwargs: mock_client)
+    mpatch.setattr("google.genai.Client", lambda **_kwargs: mock_client)
+
+    yield
+
+    mpatch.undo()

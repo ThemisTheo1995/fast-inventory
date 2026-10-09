@@ -68,3 +68,25 @@ def build_password_reset_email(recipient: str, reset_token: str, user_name: str 
         body_text=body_text,
         body_html=body_html,
     )
+
+
+def build_email_change_email(recipient: str, token: str, user_name: str = "there") -> EmailMessage:
+    """Builds the EmailMessage object for verifying a new email address change."""
+    base_url = getattr(get_settings(), "DOMAIN_URL", "")
+
+    action_url = f"{base_url.rstrip('/')}/auth/verify?token={token}&type=email_change"
+
+    context = {
+        "user_name": user_name,
+        "action_url": action_url,
+        "new_email": recipient,
+    }
+
+    body_text, body_html = renderer.render("email_change", context)
+
+    return EmailMessage(
+        subject="Confirm your new email address",
+        recipients=[recipient],
+        body_text=body_text,
+        body_html=body_html,
+    )

@@ -89,3 +89,23 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(min_length=8)
+
+
+# =======================================================
+# USER EMAIL RESET
+# =======================================================
+
+
+class RequestEmailChangeSchema(BaseModel):
+    new_email: EmailStr = Field(
+        ...,
+        description="The new email address to set for the user",
+        examples=["jane.doe.new@company.com"],
+    )
+
+
+class EmailChangeMessageResponse(BaseModel):
+    detail: str = Field(
+        ...,
+        examples=["Verification email sent to your new address."],
+    )

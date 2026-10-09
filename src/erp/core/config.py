@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     AUTH_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Tokens cooldown
+    PASSWORD_RESET_COOLDOWN_MINUTES: int = 5
+    CHANGE_EMAIL_COOLDOWN_MINUTES: int = 5
+
     # Cookies
     COOKIE_SECURE: int = 0
 
