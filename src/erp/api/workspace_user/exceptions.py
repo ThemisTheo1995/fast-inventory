@@ -49,3 +49,30 @@ class PrivilegeEscalationBlockedError(BaseAppError):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access Denied: You cannot escalate privileges beyond your own authorisation ceiling.",
         )
+
+
+class InvalidNameError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Invalid name: Names must contain at least 2 characters and can only include letters,"
+                "spaces, hyphens, and apostrophes."
+            ),
+        )
+
+
+class NameTooShortError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid name: First name and last name must contain at least 2 characters.",
+        )
+
+
+class NameTooLongError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Invalid name: First name and last name must not exceed 50 characters.",
+        )

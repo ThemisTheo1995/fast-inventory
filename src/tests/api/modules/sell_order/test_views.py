@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 import pytest
 from fastapi import status
@@ -11,8 +12,9 @@ from fastapi import status
 
 
 @pytest.mark.asyncio
-async def test_router_create_sell_order_success(client, seed_workspace, active_customer):
-    """Verifies creating a sell order with valid nested lines returns 201 Created."""
+@patch("erp.api.modules.sell_order.views.global_event_bus.publish")
+async def test_router_create_sell_order_success(mock_publish, client, seed_workspace, active_customer):
+    """Verifies creating a sell order with valid nested lines returns 201 Created and triggers event task."""
     payload = {
         "so_number": "SO-TEST-001",
         "customer_id": str(active_customer.id),
@@ -32,6 +34,11 @@ async def test_router_create_sell_order_success(client, seed_workspace, active_c
     assert data["customer_id"] == str(active_customer.id)
     assert len(data["sell_order_lines"]) == 2
     assert "total_amount" in data
+
+    mock_publish.assert_called_once()
+    event_arg = mock_publish.call_args[0][0]
+    assert str(event_arg.workspace_id) == str(seed_workspace)
+    assert str(event_arg.sell_order.id) == data["id"]
 
 
 @pytest.mark.asyncio
@@ -124,15 +131,39 @@ async def test_router_get_sell_order_invalid_uuid(client, seed_workspace):
 
 
 @pytest.mark.asyncio
-async def test_router_patch_sell_order_success(client, seed_workspace, active_sell_order):
-    """Verifies partial updates to a sell order return 200 OK and reflect changes."""
+@patch("erp.api.modules.sell_order.views.global_event_bus.publish")
+async def test_router_patch_sell_order_success(mock_publish, client, seed_workspace, active_sell_order):
+    """Verifies partial updates to a sell order return 200 OK and trigger transition and update events."""
     payload = {"status": "CONFIRMED"}
     response = await client.patch(f"/{seed_workspace}/sell-orders/{active_sell_order.id}", json=payload)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["status"] == "CONFIRMED"
-    # Ensure other fields weren't wiped out
     assert response.json()["so_number"] == active_sell_order.so_number
+    assert mock_publish.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_router_patch_sell_order_change_so_number(client, seed_workspace, active_sell_order):
+    """Hits the unique SO number check block in the Service layer."""
+    payload = {"so_number": "SO-CHANGED-001"}
+    response = await client.patch(f"/{seed_workspace}/sell-orders/{active_sell_order.id}", json=payload)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["so_number"] == "SO-CHANGED-001"
+
+
+@pytest.mark.asyncio
+async def test_router_patch_sell_order_invalid_transition(client, seed_workspace, active_sell_order):
+    """Hits the SellOrderStatusTransitionError branch in the Service layer."""
+    payload = {"status": "COMPLETED"}
+    response = await client.patch(f"/{seed_workspace}/sell-orders/{active_sell_order.id}", json=payload)
+
+    assert response.status_code in (
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
 
 
 @pytest.mark.asyncio
@@ -245,7 +276,6 @@ async def test_router_update_sell_order_line_wrong_parent(client, seed_workspace
     response = await client.patch(
         f"/{seed_workspace}/sell-orders/{wrong_so_id}/lines/{active_sell_order_line.id}", json=payload
     )
-    # The service layer should enforce that the line actually belongs to the given sell_order_id
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 

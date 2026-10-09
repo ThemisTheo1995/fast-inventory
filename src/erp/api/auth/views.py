@@ -1,16 +1,20 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from erp.api.auth.dependencies import get_current_user
+from erp.api.auth.models import User
 from erp.api.auth.schemas.user import (
+    EmailChangeMessageResponse,
     LoginResponse,
     OnboardResponse,
     PasswordResetConfirm,
     PasswordResetRequest,
     RegisterRequest,
     RegisterResponse,
+    RequestEmailChangeSchema,
     UserCreate,
 )
 from erp.api.auth.service import AuthService
@@ -150,7 +154,6 @@ async def refresh_token(
     db: Annotated[AsyncSession, Depends(get_db)],
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> dict:
-
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -197,3 +200,33 @@ async def reset_password(
     response.delete_cookie(key="refresh_token")
 
     return {"detail": "Password successfully reset. You may now log in with your new password."}
+
+
+@router.post("/request-email-change", response_model=EmailChangeMessageResponse, status_code=status.HTTP_200_OK)
+async def request_email_change(
+    payload: RequestEmailChangeSchema,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> EmailChangeMessageResponse:
+    """Sends a verification email link to the requested new address."""
+    service = AuthService(db)
+
+    await service.request_email_change(
+        user_id=current_user.id,
+        new_email=payload.new_email,
+    )
+
+    return EmailChangeMessageResponse(detail=f"Verification email sent to {payload.new_email}.")
+
+
+@router.post("/confirm-email-change", response_model=EmailChangeMessageResponse, status_code=status.HTTP_200_OK)
+async def confirm_email_change(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str = Query(..., description="Email change verification token"),
+) -> EmailChangeMessageResponse:
+    """Verifies the email change token and updates the user's email address."""
+    service = AuthService(db)
+
+    await service.confirm_email_change(token)
+
+    return EmailChangeMessageResponse(detail="Email address updated successfully.")

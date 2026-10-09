@@ -1,18 +1,70 @@
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from erp.api.pricing.enums import MetricType
+from erp.api.pricing.enums import MetricType, PlanName
 from erp.api.pricing.models import PricingPlan, PricingUsage
 from erp.api.pricing.schemas import (
     MetricTypeUsage,
+    PlanLimitsResponse,
     PlanNameUsage,
+    PricingPlanResponse,
     PricingUsageCreate,
     WorkspaceUsageResponse,
 )
 from erp.core.utils import get_end_of_month, get_start_of_month
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+PLAN_METADATA: dict[PlanName, dict[str, Any]] = {
+    PlanName.GROWTH: {
+        "display_name": "Growth",
+        "tagline": "Ideal for establishing side channels.",
+        "icon": "Store",
+        "features": [
+            "Standard automated sync rates",
+            "Email customer support response",
+            "Basic system analytics dashboards",
+        ],
+    },
+    PlanName.PRO: {
+        "display_name": "Pro",
+        "tagline": "Optimized for high-velocity merchants.",
+        "icon": "Zap",
+        "features": [
+            "Priority real-time instant webhooks",
+            "Dedicated 24/7 priority live support",
+            "Advanced financial ledger reports",
+            "Multi-currency processing matrices",
+        ],
+    },
+    PlanName.ENTERPRISE: {
+        "display_name": "Enterprise",
+        "tagline": "Built for high-volume operations.",
+        "icon": "Sparkles",
+        "features": [
+            "Custom tailored ingestion API endpoints",
+            "Personal account success engineer",
+            "SLA performance uptime guarantee",
+            "Custom white-label store reporting panels",
+        ],
+    },
+    PlanName.CUSTOM: {
+        "display_name": "Custom",
+        "tagline": "For high-volume global storefronts.",
+        "icon": "Headphones",
+        "features": [
+            "Dedicated backend infrastructure configuration",
+            "Custom sync clock parameters (down to 1 min)",
+            "Bespoke legal contracts & data NDAs",
+            "Direct developer Slack channel sync",
+        ],
+    },
+}
 
 
 class PricingUsageService:
@@ -74,3 +126,45 @@ class PricingUsageService:
 
         self.db.add(new_event)
         await self.db.commit()
+
+
+class PricingPlanService:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def get_available_plans(self) -> list[PricingPlanResponse]:
+        stmt = select(PricingPlan).order_by(PricingPlan.price_monthly.asc())
+        result = await self.db.execute(stmt)
+        plans: Sequence[PricingPlan] = result.scalars().all()
+
+        response_plans: list[PricingPlanResponse] = []
+
+        for plan in plans:
+            meta = PLAN_METADATA.get(
+                plan.name,
+                {
+                    "display_name": str(plan.name.value).title(),
+                    "tagline": "",
+                    "icon": "Store",
+                    "features": [],
+                },
+            )
+
+            price_val: int | str = "Custom" if plan.price_monthly <= 0 else plan.price_monthly
+
+            response_plans.append(
+                PricingPlanResponse(
+                    id=plan.id,
+                    name=meta["display_name"],
+                    tagline=meta["tagline"],
+                    price=price_val,
+                    icon=meta["icon"],
+                    limits=PlanLimitsResponse(
+                        listings=f"{plan.listings_limit:,}",
+                        api=f"{plan.api_limit:,}",
+                    ),
+                    features=meta["features"],
+                )
+            )
+
+        return response_plans

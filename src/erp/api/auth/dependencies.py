@@ -48,6 +48,8 @@ async def get_current_user(
     if not user.is_whitelisted:
         raise UserNotWhitelistedError()
 
+    db.info["user_id"] = user.id
+
     return user
 
 
@@ -69,5 +71,7 @@ async def get_current_workspace_user(
 
     if not workspace_user:
         raise WorkspaceUserNotFoundError()
+
+    db.info["workspace_id"] = workspace_id
 
     return workspace_user

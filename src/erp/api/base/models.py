@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
-from sqlalchemy import Boolean, DateTime, Uuid, func, inspect
+from sqlalchemy import Boolean, DateTime, String, Uuid, func, inspect
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Load, Mapped, mapped_column, selectinload
 
 from erp.api.base.exceptions import InvalidExpandError
@@ -12,6 +13,7 @@ from erp.database.base import Base
 
 class BaseModel(Base):
     __abstract__ = True
+    __audited__: ClassVar[bool] = True
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
 
@@ -30,6 +32,23 @@ class BaseModel(Base):
     def soft_delete(self) -> None:
         self.is_deleted = True
         self.deleted_at = utc_now()
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    __audited__: ClassVar[bool] = False
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    table_name: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True, nullable=False)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+
+    old_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    new_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 def build_expand_tree(

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
@@ -29,6 +30,7 @@ from erp.api.auth.utils import (
     decode_password_reset_token,
     decode_token,
     decode_whitelist_user_token,
+    generate_email_change_token,
     generate_password_reset_token,
     generate_token_pair,
     generate_whitelist_token,
@@ -40,13 +42,14 @@ from erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
 from erp.api.workspace.models import Workspace
 from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from erp.api.workspace_user.models import WorkspaceUser
-from erp.services.emails.builder import build_password_reset_email, build_welcome_email
+from erp.core.config import get_settings
+from erp.services.emails.builder import build_email_change_email, build_password_reset_email, build_welcome_email
 from erp.services.emails.factory import get_email_provider
+
+settings = get_settings()
 
 
 class AuthService:
-    PASSWORD_RESET_COOLDOWN_MINUTES = 5
-
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
@@ -337,7 +340,7 @@ class AuthService:
 
         # Rate-limiting guard: Exit silently if within cooldown window
         if user.last_password_reset_sent_at:
-            cooldown = user.last_password_reset_sent_at + timedelta(minutes=self.PASSWORD_RESET_COOLDOWN_MINUTES)
+            cooldown = user.last_password_reset_sent_at + timedelta(minutes=settings.PASSWORD_RESET_COOLDOWN_MINUTES)
             if now < cooldown:
                 return
 
@@ -375,4 +378,54 @@ class AuthService:
         # Revoke all active sessions across devices
         await self.db.execute(delete(UserSession).where(UserSession.user_id == user.id))
 
+        await self.db.commit()
+
+    async def request_email_change(self, user_id: UUID, new_email: str) -> None:
+        """Sends verification link containing encoded payload."""
+        now = datetime.now(UTC)
+
+        # Check User with proposed email does not exist
+        new_user = await self.db.execute(select(User).where(User.email == new_email))
+        if new_user.scalar_one_or_none():
+            raise UserExistsExceptionError()
+
+        # Rate-limiting guard: Exit silently if within cooldown window
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if user.last_email_change_sent_at:
+            cooldown = user.last_email_change_sent_at + timedelta(minutes=settings.CHANGE_EMAIL_COOLDOWN_MINUTES)
+            if now < cooldown:
+                return
+
+        user.last_email_change_sent_at = now
+        await self.db.commit()
+
+        # Send verification email
+        change_token = generate_email_change_token(user_id, new_email)
+
+        email_msg = build_email_change_email(recipient=new_email, token=change_token)
+        email_provider = get_email_provider()
+        await email_provider.send_email(email_msg)
+
+    async def confirm_email_change(self, token: str) -> None:
+        """Decodes the change token and commits the new email address."""
+        payload = decode_token(token)
+
+        if payload.get("type") != "email_change":
+            raise TokenInvalidError()
+
+        user_id = payload.get("sub")
+        new_email = payload.get("new_email")
+
+        if not user_id or not new_email:
+            raise TokenInvalidError()
+
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise UserNotFoundError()
+
+        user.email = new_email
         await self.db.commit()

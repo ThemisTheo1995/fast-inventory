@@ -24,7 +24,7 @@ METHOD_WEIGHTS = {
     "DELETE": 3,  # full_admin only
 }
 
-ELIGIBLE_ROUTES_EVEN_IF_READ_ONLY = ["create_note", "update_note"]
+ELIGIBLE_ROUTES_EVEN_IF_READ_ONLY = ["create_note", "update_note", "update_me"]
 
 
 async def verify_workspace_access(

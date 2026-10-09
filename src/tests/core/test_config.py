@@ -1,7 +1,9 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 from pydantic import ValidationError
 
-from erp.core.config import get_settings
+from erp.core.config import _fetch_bitwarden_secrets, get_settings
 
 
 @pytest.fixture
@@ -70,3 +72,76 @@ def test_invalid_data_types_raises_validation_error(_mock_env_vars, monkeypatch)
         get_settings()
 
     assert "AUTH_ACCESS_TOKEN_EXPIRE_MINUTES" in str(exc_info.value)
+
+
+# ==============================================================================
+# 2. BWS settings
+# ==============================================================================
+
+
+@pytest.fixture
+def mock_bws_env(monkeypatch: pytest.MonkeyPatch):
+    """Fixture to safely inject valid BWS environment variables."""
+    monkeypatch.setenv("BWS_ACCESS_TOKEN", "mock_token")
+    monkeypatch.setenv("BWS_PROJECT_ID", "mock_project_id")
+    monkeypatch.setenv("BWS_ORG_ID", "mock_org_id")
+
+
+def test_fetch_secrets_missing_env(monkeypatch: pytest.MonkeyPatch):
+    """Test that an empty dict is returned if BWS vars are missing."""
+    monkeypatch.delenv("BWS_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("BWS_PROJECT_ID", raising=False)
+    monkeypatch.delenv("BWS_ORG_ID", raising=False)
+
+    result = _fetch_bitwarden_secrets()
+    assert result == {}
+
+
+@patch("erp.core.config.BitwardenClient")
+@patch("erp.core.config.client_settings_from_dict")
+def test_fetch_secrets_success(mock_settings, mock_client_cls, mock_bws_env):  # noqa
+    """Test successful fetching and parsing of secrets."""
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+
+    # Mock secrets list response
+    mock_secret_identifier = MagicMock()
+    mock_secret_identifier.id = "secret-id-1"
+
+    mock_list_response = MagicMock()
+    mock_list_response.success = True
+    mock_list_response.data = [mock_secret_identifier]
+    mock_client.secrets.return_value.list.return_value = mock_list_response
+
+    # Mock secrets get_by_ids response
+    mock_secret_detail = MagicMock()
+    mock_secret_detail.key = "DATABASE_URL"
+    mock_secret_detail.value = "postgres://localhost/bws_db"
+
+    mock_get_response = MagicMock()
+    mock_get_response.success = True
+    mock_get_response.data = [mock_secret_detail]
+    mock_client.secrets.return_value.get_by_ids.return_value = mock_get_response
+
+    # Execute
+    result = _fetch_bitwarden_secrets()
+
+    # Assertions
+    assert result == {"DATABASE_URL": "postgres://localhost/bws_db"}
+    mock_client.auth.return_value.login_access_token.assert_called_once_with("mock_token")
+    mock_client.secrets.return_value.get_by_ids.assert_called_once_with(["secret-id-1"])
+
+
+@patch("erp.core.config.logger")
+@patch("erp.core.config.BitwardenClient")
+@patch("erp.core.config.client_settings_from_dict")
+def test_fetch_secrets_exception_handling(mock_settings, mock_client_cls, mock_logger, mock_bws_env):  # noqa
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    mock_client.secrets.return_value.list.side_effect = Exception("API connection failed")
+
+    result = _fetch_bitwarden_secrets()
+
+    assert result == {}
+    mock_logger.warning.assert_called_once()
+    assert "Bitwarden fetch skipped/failed" in mock_logger.warning.call_args[0][0]

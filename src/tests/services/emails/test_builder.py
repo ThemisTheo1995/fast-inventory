@@ -5,6 +5,7 @@ import pytest
 from erp.services.emails.builder import (
     build_invite_email,
     build_onboard_email,
+    build_password_reset_email,
     build_welcome_email,
 )
 from erp.services.emails.schemas import EmailMessage
@@ -100,7 +101,7 @@ def test_build_welcome_email_fallback_settings_when_domain_url_missing(
     build_welcome_email(recipient="charlie@example.com", whitelisted_token="token789")
 
     # Assert
-    expected_action_url = "http://localhost:5173/auth/verify?token=token789"
+    expected_action_url = "/auth/verify?token=token789"
     mock_renderer.render.assert_called_once_with(
         "welcome",
         {
@@ -173,3 +174,110 @@ def test_build_invite_email_success(mock_renderer: MagicMock):
     assert msg.recipients == ["newbie@acme.com"]
     assert msg.body_text == "rendered plain text"
     assert msg.body_html == "<h1>rendered html</h1>"
+
+
+# ==============================================================================
+# build_password_reset_email Tests
+# ==============================================================================
+
+
+def test_build_password_reset_email_success(
+    mock_renderer: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verifies password reset email construction and action URL."""
+    # Arrange
+    recipient = "alice@example.com"
+    reset_token = "reset-token-123"
+    user_name = "Alice"
+
+    fake_settings = type(
+        "Settings",
+        (),
+        {"DOMAIN_URL": "https://app.aegis.com/"},
+    )()
+
+    monkeypatch.setattr(
+        "erp.services.emails.builder.get_settings",
+        lambda: fake_settings,
+    )
+
+    # Act
+    msg = build_password_reset_email(
+        recipient=recipient,
+        reset_token=reset_token,
+        user_name=user_name,
+    )
+
+    # Assert
+    expected_action_url = "https://app.aegis.com/auth/reset-password?token=reset-token-123"
+
+    mock_renderer.render.assert_called_once_with(
+        "password_reset",
+        {
+            "user_name": "Alice",
+            "action_url": expected_action_url,
+        },
+    )
+
+    assert isinstance(msg, EmailMessage)
+    assert msg.subject == "Reset your Aegis account password"
+    assert msg.recipients == ["alice@example.com"]
+    assert msg.body_text == "rendered plain text"
+    assert msg.body_html == "<h1>rendered html</h1>"
+
+
+def test_build_password_reset_email_default_user_name(
+    mock_renderer: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verifies the default user name is used."""
+    fake_settings = type(
+        "Settings",
+        (),
+        {"DOMAIN_URL": "https://app.aegis.com"},
+    )()
+
+    monkeypatch.setattr(
+        "erp.services.emails.builder.get_settings",
+        lambda: fake_settings,
+    )
+
+    build_password_reset_email(
+        recipient="bob@example.com",
+        reset_token="token456",
+    )
+
+    mock_renderer.render.assert_called_once_with(
+        "password_reset",
+        {
+            "user_name": "there",
+            "action_url": ("https://app.aegis.com/auth/reset-password?token=token456"),
+        },
+    )
+
+
+def test_build_password_reset_email_missing_domain_url(
+    mock_renderer: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verifies empty base URL fallback when DOMAIN_URL is missing."""
+    fake_settings = type("Settings", (), {})()
+
+    monkeypatch.setattr(
+        "erp.services.emails.builder.get_settings",
+        lambda: fake_settings,
+    )
+
+    build_password_reset_email(
+        recipient="charlie@example.com",
+        reset_token="token789",
+    )
+
+    mock_renderer.render.assert_called_once_with(
+        "password_reset",
+        {
+            "user_name": "there",
+            "action_url": "/auth/reset-password?token=token789",
+        },
+    )

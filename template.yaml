@@ -132,6 +132,12 @@ Resources:
       Policies:
       - SQSSendMessagePolicy:
           QueueName: !Ref BarcodeQueueName
+      - Statement:
+        - Effect: Allow
+          Action:
+          - ses:SendEmail
+          - ses:SendRawEmail
+          Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/erp.aegis@gmail.com"
       Events:
         ApiRouteAny:
           Type: HttpApi

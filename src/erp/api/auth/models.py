@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 from sqlalchemy import Boolean, DateTime, False_, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,10 +10,12 @@ from erp.api.base.models import BaseModel
 
 class User(BaseModel):
     __tablename__ = "users"
+    __audited__: ClassVar[bool] = False
 
     hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
     is_whitelisted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=False_(), nullable=False)
     last_password_reset_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_email_change_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     first_name: Mapped[str | None] = mapped_column(String)
@@ -28,6 +31,7 @@ class User(BaseModel):
 
 class UserSession(BaseModel):
     __tablename__ = "user_sessions"
+    __audited__: ClassVar[bool] = False
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 

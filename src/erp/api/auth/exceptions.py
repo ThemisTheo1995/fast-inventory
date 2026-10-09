@@ -38,7 +38,7 @@ class UserNotFoundError(BaseAppError):
 
 class UserNotWhitelistedError(BaseAppError):
     def __init__(self) -> None:
-        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User requires to verify email.")
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail="User requires to verify email.")
 
 
 class UserExistsExceptionError(BaseAppError):
