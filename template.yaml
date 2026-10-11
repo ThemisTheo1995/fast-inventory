@@ -53,7 +53,7 @@ Globals:
     Timeout: !FindInMap [ EnvironmentConfig, !Ref Environment, LambdaTimeout ]
     MemorySize: !FindInMap [ EnvironmentConfig, !Ref Environment, LambdaMemory ]
     Architectures:
-    - arm64
+    - x86_64
     Runtime: python3.13
     Environment:
       Variables:
