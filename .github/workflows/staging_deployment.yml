@@ -125,7 +125,7 @@ jobs:
 
       - name: Build SAM Application
         run: |
-          sam build
+          sam build --use-container
 
       - name: Deploy SAM Application
         run: |
