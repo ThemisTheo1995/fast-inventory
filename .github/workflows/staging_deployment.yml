@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   lint-and-test:
-    name: Lint & Test (Local DB Container)
+    name: Lint & Test
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request_review' && 
@@ -114,6 +114,8 @@ jobs:
         run: uv sync --no-dev
 
       - name: Run Alembic Migrations (Staging RDS)
+        env :
+          DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
           uv run alembic upgrade head
 
