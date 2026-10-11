@@ -81,9 +81,7 @@ def _fetch_aws_secrets() -> dict[str, str]:
         if "SecretString" in response:
             return json.loads(response["SecretString"])
     except (ClientError, BotoCoreError, json.JSONDecodeError) as err:
-        logger.warning(
-            "AWS Secrets Manager fetch failed (%s). Falling back to environment/default values.", err
-        )
+        logger.warning("AWS Secrets Manager fetch failed (%s). Falling back to environment/default values.", err)
 
     return {}
 

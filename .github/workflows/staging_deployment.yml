@@ -137,5 +137,4 @@ jobs:
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
-              Environment=${{ vars.STAGING_ENVIRONMENT }} \
-              BarcodeQueueName=${{ vars.STAGING_BARCODE_QUEUE_NAME }}
+              Environment=${{ vars.STAGING_ENVIRONMENT }}

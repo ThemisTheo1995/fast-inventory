@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, Enum as SQLAlchemyEnum, ForeignKey, Integer
+from sqlalchemy import CheckConstraint, Enum as SQLAlchemyEnum, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,8 +46,9 @@ class StockMovement(BaseModel):
     quantity_change: Mapped[int] = mapped_column(Integer)
 
     reference_type: Mapped[OrderType] = mapped_column(SQLAlchemyEnum(OrderType), nullable=False)
-
     reference_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
+
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relationships
     item: Mapped["Item"] = relationship("Item", back_populates="stock_movements")
