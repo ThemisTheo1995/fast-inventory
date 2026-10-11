@@ -15,10 +15,6 @@ Parameters:
     - production
     Description: Target deployment environment (dictates scaling and limits).
 
-  BarcodeQueueName:
-    Type: String
-    Description: Literal name of the Barcode SQS Queue managed by the microservice (e.g., erp-barcode-queue-staging).
-
   CorsAllowedOrigins:
     Type: String
     Default: "https://vue-inventory-six.vercel.app"
@@ -115,7 +111,7 @@ Resources:
       Description: Core ERP FastAPI Web Handler managed by Mangum.
       Policies:
       - SQSSendMessagePolicy:
-          QueueName: !Ref BarcodeQueueName
+          QueueName: item-barcode-queue
       - Statement:
         - Effect: Allow
           Action:
