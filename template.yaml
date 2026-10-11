@@ -19,19 +19,6 @@ Parameters:
     Type: String
     Description: Literal name of the Barcode SQS Queue managed by the microservice (e.g., erp-barcode-queue-staging).
 
-  BwsAccessToken:
-    Type: String
-    NoEcho: true
-    Description: Bitwarden Secrets Manager Machine Account Access Token.
-
-  BwsProjectId:
-    Type: String
-    Description: Bitwarden Secrets Manager Project ID.
-
-  BwsOrgId:
-    Type: String
-    Description: Bitwarden Secrets Manager Organization ID.
-
   CorsAllowedOrigins:
     Type: String
     Default: "https://vue-inventory-six.vercel.app"
@@ -71,10 +58,7 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: !FindInMap [ EnvironmentConfig, !Ref Environment, LogLevel ]
-
-        BWS_ACCESS_TOKEN: !Ref BwsAccessToken
-        BWS_PROJECT_ID: !Ref BwsProjectId
-        BWS_ORG_ID: !Ref BwsOrgId
+        AWS_SECRET_NAME: !Sub "aegis/${Environment}/config"
 
 # ==============================================================================
 # RESOURCES
@@ -138,6 +122,11 @@ Resources:
           - ses:SendEmail
           - ses:SendRawEmail
           Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/erp.aegis@gmail.com"
+      - Statement:
+        - Effect: Allow
+          Action:
+          - secretsmanager:GetSecretValue
+          Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:aegis/${Environment}/config-*"
       Events:
         ApiRouteAny:
           Type: HttpApi

@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 from functools import lru_cache
 from pathlib import Path
 
-from bitwarden_sdk import BitwardenClient, DeviceType, client_settings_from_dict
+from boto3.session import Session
+from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -50,6 +52,7 @@ class Settings(BaseSettings):
     # AWS
     AWS_REGION: str = "eu-west-1"
     BARCODE_GENERATION_SQS_QUEUE_URL: str | None = None
+    AWS_SECRET_NAME: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -58,43 +61,29 @@ class Settings(BaseSettings):
     )
 
 
-def _fetch_bitwarden_secrets() -> dict[str, str]:
-    """Fetches secrets from Bitwarden Secrets Manager (BWS)."""
-    bws_token = os.getenv("BWS_ACCESS_TOKEN")
-    bws_project_id = os.getenv("BWS_PROJECT_ID")
-    bws_org_id = os.getenv("BWS_ORG_ID")
+def _fetch_aws_secrets() -> dict[str, str]:
+    """Fetches configuration secrets stored as a JSON string from AWS Secrets Manager."""
+    secret_name = os.getenv("AWS_SECRET_NAME", None)
 
-    if not (bws_token and bws_project_id and bws_org_id):
+    if not secret_name:
         return {}
 
+    region_name = os.getenv("AWS_REGION", "eu-west-1")
+
     try:
-        bws_api_url = os.getenv("BWS_API_URL", "https://api.bitwarden.eu")
-        bws_identity_url = os.getenv("BWS_IDENTITY_URL", "https://identity.bitwarden.eu")
-
-        client = BitwardenClient(
-            client_settings_from_dict(
-                {
-                    "apiUrl": bws_api_url,
-                    "deviceType": DeviceType.SDK,
-                    "identityUrl": bws_identity_url,
-                    "userAgent": "Python",
-                }
-            )
+        session = Session()
+        client = session.client(
+            service_name="secretsmanager",
+            region_name=region_name,
         )
-        client.auth().login_access_token(bws_token)
-        identifiers_response = client.secrets().list(bws_org_id)
+        response = client.get_secret_value(SecretId=secret_name)
 
-        if identifiers_response.success and identifiers_response.data:
-            identifiers = getattr(identifiers_response.data, "data", identifiers_response.data)
-            secret_ids = [s.id for s in identifiers]
-
-            if secret_ids:
-                secrets_response = client.secrets().get_by_ids(secret_ids)
-                if secrets_response.success and secrets_response.data:
-                    secrets = getattr(secrets_response.data, "data", secrets_response.data)
-                    return {secret.key: secret.value for secret in secrets if secret.key}
-    except Exception as err:
-        logger.warning("Bitwarden fetch skipped/failed (%s). Falling back to environment/default values.", err)
+        if "SecretString" in response:
+            return json.loads(response["SecretString"])
+    except (ClientError, BotoCoreError, json.JSONDecodeError) as err:
+        logger.warning(
+            "AWS Secrets Manager fetch failed (%s). Falling back to environment/default values.", err
+        )
 
     return {}
 
@@ -108,6 +97,6 @@ def get_settings() -> Settings:
     if ENV_FILE and ENV_FILE.exists():
         load_dotenv(ENV_FILE)
 
-    bws_kwargs = _fetch_bitwarden_secrets()
+    aws_secrets = _fetch_aws_secrets()
 
-    return Settings(**bws_kwargs)
+    return Settings(**aws_secrets)

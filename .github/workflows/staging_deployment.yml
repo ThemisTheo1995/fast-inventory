@@ -45,12 +45,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
           python-version: "3.13"
@@ -72,22 +72,21 @@ jobs:
             --junitxml=pytest.xml
 
   deploy-staging:
-    name: Deploy to Staging Lambda
+    name: Deploy to Staging Lambda via SAM
     needs: lint-and-test
     runs-on: ubuntu-latest
 
     env:
-      DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
       ENVIRONMENT: ${{ vars.STAGING_ENVIRONMENT }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
           python-version: "3.13"
@@ -98,6 +97,19 @@ jobs:
           role-to-assume: ${{ vars.AWS_STAGING_ROLE_ARN }}
           aws-region: eu-west-1
 
+      - name: Fetch Secrets from AWS Secrets Manager
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            , aegis/${{ vars.STAGING_ENVIRONMENT }}/config
+          parse-json-secrets: true
+
+      - name: Set up AWS SAM CLI
+        uses: aws-actions/setup-sam@v3
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install dependencies
         run: uv sync --no-dev
 
@@ -105,31 +117,24 @@ jobs:
         run: |
           uv run alembic upgrade head
 
-      - name: Build Lambda Package
+      - name: Export requirements for SAM build
         run: |
-          rm -rf build_pkg deployment.zip
-          mkdir build_pkg
+          uv export --no-dev -o src/requirements.txt --no-emit-project
 
-          uv export --no-dev -o requirements.txt
-          uv pip install \
-            -r requirements.txt \
-            --target ./build_pkg
-
-          uv pip install \
-            . \
-            --target ./build_pkg \
-            --no-deps
-
-          cp -r migrations ./build_pkg/migrations
-          cp alembic.ini ./build_pkg/alembic.ini
-
-          cd build_pkg
-          zip -r9 ../deployment.zip .
-
-      - name: Deploy to AWS Lambda
+      - name: Build SAM Application
         run: |
-          aws lambda update-function-code \
-            --function-name aegis-staging \
-            --zip-file fileb://deployment.zip \
-            --query 'LastUpdateStatus' \
-            --output text
+          sam build
+
+      - name: Deploy SAM Application
+        run: |
+          sam deploy \
+            --stack-name erp-core-api-${{ vars.STAGING_ENVIRONMENT }} \
+            --s3-bucket ${{ vars.STAGING_S3_BUCKET }} \
+            --s3-prefix erp-core-api-${{ vars.STAGING_ENVIRONMENT }} \
+            --region eu-west-1 \
+            --no-confirm-changeset \
+            --no-guided \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              Environment=${{ vars.STAGING_ENVIRONMENT }} \
+              BarcodeQueueName=${{ vars.STAGING_BARCODE_QUEUE_NAME }}
