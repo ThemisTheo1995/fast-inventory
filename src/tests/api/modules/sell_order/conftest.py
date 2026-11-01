@@ -2,10 +2,9 @@ import uuid
 
 import pytest
 
+from erp.api.modules.bin.models import Bin
 from erp.api.modules.customer.models import Customer
-from erp.api.modules.inventory.enums import OrderType
-from erp.api.modules.inventory.schemas.stock_movement import StockMovementCreate
-from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.inventory.models import Inventory
 from erp.api.modules.item.models import Item
 from erp.api.modules.sell_order.enums import SOStatusEnum
 from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
@@ -52,18 +51,28 @@ async def active_item(db_session, seed_workspace) -> Item:
 
 @pytest.fixture
 async def stocked_item(db_session, seed_workspace, active_item) -> Item:
-    """Seeds physical stock (100 units) so allocation checks pass in tests."""
-    inv_service = InventoryService(db_session)
-    await inv_service.create_stock_movement(
-        seed_workspace,
-        StockMovementCreate(
-            item_id=active_item.id,
-            quantity_change=100,
-            reference_type=OrderType.PURCHASE_ORDER,
-            reference_id=uuid.uuid4(),
-        ),
+    """Seeds physical stock (100 units) in a bin."""
+    bin_record = Bin(
+        id=uuid.uuid4(),
+        workspace_id=seed_workspace,
+        code=f"BIN-{uuid.uuid4().hex[:8].upper()}",
+        zone="A",
     )
+    db_session.add(bin_record)
     await db_session.flush()
+
+    inventory = Inventory(
+        id=uuid.uuid4(),
+        workspace_id=seed_workspace,
+        item_id=active_item.id,
+        bin_id=bin_record.id,
+        quantity_on_hand=100,
+    )
+    db_session.add(inventory)
+
+    await db_session.commit()
+    await db_session.refresh(active_item)
+
     return active_item
 
 

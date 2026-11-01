@@ -48,8 +48,11 @@ class WorkspaceUserNoteService:
             WorkspaceUserNote.is_deleted.is_(False),
         )
 
-        base_query = base_query.order_by(WorkspaceUserNote.is_pinned.desc(), WorkspaceUserNote.updated_at.desc())
-
+        base_query = base_query.order_by(
+            WorkspaceUserNote.is_pinned.desc(),
+            WorkspaceUserNote.updated_at.desc(),
+            WorkspaceUserNote.id.desc(),
+        )
         count_query = select(func.count()).select_from(base_query.subquery())
         total_result = await self.db.execute(count_query)
         total = total_result.scalar_one()

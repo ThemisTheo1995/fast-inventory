@@ -10,7 +10,10 @@ from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from erp.api.auth.dependencies import get_current_user, get_current_workspace_user
-from erp.api.auth.exceptions import CredentialsExceptionError
+from erp.api.auth.exceptions import (
+    CredentialsExceptionError,
+    UserNotWhitelistedError,
+)
 from erp.api.auth.models import User
 from erp.api.auth.utils import get_password_hash
 from erp.api.workspace.models import Workspace
@@ -36,7 +39,9 @@ def mock_user_endpoint(current_user: Annotated[User, Depends(get_current_user)])
 
 
 @app.get("/test-active-user/{workspace_id}")
-def mock_active_user_endpoint(workspace_user: Annotated[WorkspaceUser, Depends(get_current_workspace_user)]):
+def mock_active_user_endpoint(
+    workspace_user: Annotated[WorkspaceUser, Depends(get_current_workspace_user)],
+):
     return {
         "id": str(workspace_user.id),
         "user_id": str(workspace_user.user_id),
@@ -53,7 +58,7 @@ def mock_active_user_endpoint(workspace_user: Annotated[WorkspaceUser, Depends(g
 
 @pytest_asyncio.fixture
 async def test_client(db_session):
-    """Creates an AsyncClient and overrides the global 'get_db' dependency."""
+    """Creates an AsyncClient and overrides the global get_db dependency."""
 
     async def override_get_db():
         yield db_session
@@ -69,7 +74,7 @@ async def test_client(db_session):
 
 @pytest.fixture
 def create_jwt(settings: Settings):
-    """Helper tool to encode valid/invalid testing tokens using runtime settings."""
+    """Helper to encode valid and invalid testing tokens using runtime settings."""
 
     def _encode(
         user_id: str | uuid.UUID,
@@ -78,7 +83,7 @@ def create_jwt(settings: Settings):
         secret_key: str | None = None,
         algorithm: str | None = None,
     ):
-        expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=15))
+        expire = datetime.now(UTC) + (expires_delta if expires_delta is not None else timedelta(minutes=15))
         payload = {
             "sub": str(user_id),
             "type": token_type,
@@ -113,10 +118,18 @@ async def persisted_user(db_session):
 
 
 @pytest.mark.asyncio
-async def test_get_current_user_direct_happy_path(db_session, create_jwt, persisted_user):
-    """Directly calls get_current_user to reliably cover return user."""
+async def test_get_current_user_direct_happy_path(
+    db_session,
+    create_jwt,
+    persisted_user,
+):
+    """A valid access token returns the existing whitelisted user."""
     token = create_jwt(user_id=persisted_user.id)
-    user = await get_current_user(db=db_session, access_token=token)
+
+    user = await get_current_user(
+        db=db_session,
+        access_token=token,
+    )
 
     assert user is not None
     assert user.id == persisted_user.id
@@ -124,17 +137,45 @@ async def test_get_current_user_direct_happy_path(db_session, create_jwt, persis
 
 @pytest.mark.asyncio
 async def test_get_current_user_direct_user_none(db_session, create_jwt):
-    """Directly calls get_current_user with a non-existent user ID."""
+    """A valid token referencing a non-existent user is rejected."""
     token = create_jwt(user_id=uuid.uuid4())
 
     with pytest.raises(CredentialsExceptionError):
-        await get_current_user(db=db_session, access_token=token)
+        await get_current_user(
+            db=db_session,
+            access_token=token,
+        )
 
 
 @pytest.mark.asyncio
-async def test_get_current_workspace_user_direct_success(db_session, persisted_user):
-    """Directly calls get_current_workspace_user to cover return workspace_user."""
-    workspace = Workspace(name="Direct WS", email="direct@test.com")
+async def test_get_current_user_not_whitelisted(
+    db_session,
+    create_jwt,
+    persisted_user,
+):
+    """An existing user who is not whitelisted is rejected."""
+    persisted_user.is_whitelisted = False
+    await db_session.flush()
+
+    token = create_jwt(user_id=persisted_user.id)
+
+    with pytest.raises(UserNotWhitelistedError):
+        await get_current_user(
+            db=db_session,
+            access_token=token,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_current_workspace_user_direct_success(
+    db_session,
+    persisted_user,
+):
+    """Returns the active workspace membership for the current user."""
+    workspace = Workspace(
+        name="Direct WS",
+        email="direct@test.com",
+    )
     db_session.add(workspace)
     await db_session.flush()
 
@@ -159,8 +200,11 @@ async def test_get_current_workspace_user_direct_success(db_session, persisted_u
 
 
 @pytest.mark.asyncio
-async def test_get_current_workspace_user_raises_when_missing(db_session, persisted_user):
-    """Ensures WorkspaceUserNotFoundError is raised when tenancy record is missing."""
+async def test_get_current_workspace_user_raises_when_missing(
+    db_session,
+    persisted_user,
+):
+    """Raises when the user has no membership in the requested workspace."""
     with pytest.raises(WorkspaceUserNotFoundError):
         await get_current_workspace_user(
             workspace_id=uuid.uuid4(),
@@ -171,10 +215,11 @@ async def test_get_current_workspace_user_raises_when_missing(db_session, persis
 
 @pytest.mark.asyncio
 async def test_get_current_user_jwt_decode_error():
-    """Forces a PyJWTError exception during decoding to ensure robust handling."""
+    """Handles a PyJWT decoding error as an authentication failure."""
     from erp.api.auth import dependencies
 
     db = AsyncMock()
+
     with pytest.MonkeyPatch.context() as monkeypatch:
         monkeypatch.setattr(
             dependencies.jwt,
@@ -194,8 +239,13 @@ async def test_get_current_user_jwt_decode_error():
 # ============================================================================
 
 
-async def test_get_current_user_happy_path_integration(test_client, create_jwt, persisted_user):
-    """A valid access token for an existing user passes authentication via test client."""
+@pytest.mark.asyncio
+async def test_get_current_user_happy_path_integration(
+    test_client,
+    create_jwt,
+    persisted_user,
+):
+    """A valid access token authenticates an existing user."""
     token = create_jwt(user_id=persisted_user.id)
     test_client.cookies.set("access_token", token)
 
@@ -208,14 +258,17 @@ async def test_get_current_user_happy_path_integration(test_client, create_jwt, 
     }
 
 
+@pytest.mark.asyncio
 async def test_get_current_user_no_token(test_client):
-    """Missing access_token cookie rejects the request."""
+    """A missing access token cookie rejects the request."""
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
+@pytest.mark.asyncio
 async def test_get_current_user_invalid_signature(test_client, settings: Settings):
-    """Tokens signed with an incorrect key fail authentication."""
+    """A token signed with an incorrect secret is rejected."""
     bad_token = jwt.encode(
         {"sub": str(uuid.uuid4()), "type": "access"},
         "WRONG_SECRET_KEY_WRONG_SECRET_KEY_WRONG_SECRET_KEY",
@@ -224,19 +277,30 @@ async def test_get_current_user_invalid_signature(test_client, settings: Setting
     test_client.cookies.set("access_token", bad_token)
 
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
+@pytest.mark.asyncio
 async def test_get_current_user_malformed_token(test_client):
-    """Non-JWT or malformed strings fail authentication."""
+    """A malformed JWT is rejected."""
     test_client.cookies.set("access_token", "not-a-valid-jwt")
+
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
-async def test_get_current_user_missing_sub_claim(test_client, settings: Settings):
-    """Tokens missing the 'sub' claim are rejected."""
-    payload = {"type": "access", "exp": datetime.now(UTC) + timedelta(minutes=15)}
+@pytest.mark.asyncio
+async def test_get_current_user_missing_sub_claim(
+    test_client,
+    settings: Settings,
+):
+    """A token without a subject claim is rejected."""
+    payload = {
+        "type": "access",
+        "exp": datetime.now(UTC) + timedelta(minutes=15),
+    }
     token = jwt.encode(
         payload,
         settings.AUTH_SECRET_KEY,
@@ -245,11 +309,17 @@ async def test_get_current_user_missing_sub_claim(test_client, settings: Setting
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
-async def test_get_current_user_missing_token_type(test_client, settings: Settings, persisted_user):
-    """Tokens missing the 'type' claim are rejected."""
+@pytest.mark.asyncio
+async def test_get_current_user_missing_token_type(
+    test_client,
+    settings: Settings,
+    persisted_user,
+):
+    """A token without a type claim is rejected."""
     payload = {
         "sub": str(persisted_user.id),
         "exp": datetime.now(UTC) + timedelta(minutes=15),
@@ -262,30 +332,58 @@ async def test_get_current_user_missing_token_type(test_client, settings: Settin
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
-async def test_get_current_user_wrong_token_type(test_client, create_jwt, persisted_user):
-    """Passing a 'refresh' token where an 'access' token is required fails."""
-    refresh_token = create_jwt(user_id=persisted_user.id, token_type="refresh")
+@pytest.mark.asyncio
+async def test_get_current_user_wrong_token_type(
+    test_client,
+    create_jwt,
+    persisted_user,
+):
+    """A refresh token cannot be used as an access token."""
+    refresh_token = create_jwt(
+        user_id=persisted_user.id,
+        token_type="refresh",
+    )
     test_client.cookies.set("access_token", refresh_token)
 
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
-async def test_get_current_user_expired(test_client, create_jwt, persisted_user):
-    """Expired access tokens fail verification."""
-    expired_token = create_jwt(user_id=persisted_user.id, expires_delta=timedelta(minutes=-30))
+@pytest.mark.asyncio
+async def test_get_current_user_expired(
+    test_client,
+    create_jwt,
+    persisted_user,
+):
+    """An expired access token is rejected."""
+    expired_token = create_jwt(
+        user_id=persisted_user.id,
+        expires_delta=timedelta(minutes=-30),
+    )
     test_client.cookies.set("access_token", expired_token)
 
     response = await test_client.get("/test-user")
+
     assert response.status_code == 401
 
 
-async def test_get_current_workspace_user_layer(test_client, create_jwt, db_session, persisted_user):
-    """Verifies successful active workspace user tenancy retrieval via endpoint."""
-    workspace = Workspace(name="Test Base WS", email="base_ws@test.com")
+@pytest.mark.asyncio
+async def test_get_current_workspace_user_layer(
+    test_client,
+    create_jwt,
+    db_session,
+    persisted_user,
+):
+    """An active workspace membership is returned through the API dependency."""
+    workspace = Workspace(
+        name="Test Base WS",
+        email="base_ws@test.com",
+    )
     db_session.add(workspace)
     await db_session.flush()
 
@@ -314,18 +412,33 @@ async def test_get_current_workspace_user_layer(test_client, create_jwt, db_sess
     }
 
 
-async def test_get_current_workspace_user_not_found(test_client, create_jwt, persisted_user):
-    """Access is denied if the user has no link to the target workspace."""
+@pytest.mark.asyncio
+async def test_get_current_workspace_user_not_found(
+    test_client,
+    create_jwt,
+    persisted_user,
+):
+    """Access is denied when the user has no membership in the workspace."""
     token = create_jwt(user_id=persisted_user.id)
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get(f"/test-active-user/{uuid.uuid4()}")
+
     assert response.status_code in (403, 404)
 
 
-async def test_get_current_workspace_user_not_active(test_client, create_jwt, db_session, persisted_user):
-    """Users with non-ACTIVE (e.g., PENDING) status are denied access."""
-    workspace = Workspace(name="Pending WS", email="pending@test.com")
+@pytest.mark.asyncio
+async def test_get_current_workspace_user_not_active(
+    test_client,
+    create_jwt,
+    db_session,
+    persisted_user,
+):
+    """A pending workspace membership does not grant access."""
+    workspace = Workspace(
+        name="Pending WS",
+        email="pending@test.com",
+    )
     db_session.add(workspace)
     await db_session.flush()
 
@@ -343,12 +456,22 @@ async def test_get_current_workspace_user_not_active(test_client, create_jwt, db
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get(f"/test-active-user/{workspace.id}")
+
     assert response.status_code in (403, 404)
 
 
-async def test_get_current_workspace_user_deleted(test_client, create_jwt, db_session, persisted_user):
-    """Users whose workspace link has been soft-deleted are denied access."""
-    workspace = Workspace(name="Deleted Link WS", email="deleted@test.com")
+@pytest.mark.asyncio
+async def test_get_current_workspace_user_deleted(
+    test_client,
+    create_jwt,
+    db_session,
+    persisted_user,
+):
+    """A soft-deleted workspace membership does not grant access."""
+    workspace = Workspace(
+        name="Deleted Link WS",
+        email="deleted@test.com",
+    )
     db_session.add(workspace)
     await db_session.flush()
 
@@ -366,4 +489,5 @@ async def test_get_current_workspace_user_deleted(test_client, create_jwt, db_se
     test_client.cookies.set("access_token", token)
 
     response = await test_client.get(f"/test-active-user/{workspace.id}")
+
     assert response.status_code in (403, 404)

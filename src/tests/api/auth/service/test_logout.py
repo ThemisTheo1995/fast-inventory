@@ -2,7 +2,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,15 +10,46 @@ from erp.api.auth.service import AuthService
 from erp.api.auth.utils import decode_token, generate_token_pair
 
 
+async def create_user_with_sessions(
+    db_session: AsyncSession,
+    session_ids: list[str],
+) -> User:
+    user = User(
+        email=f"logout_{uuid.uuid4().hex}@example.com",
+        first_name="Logout",
+        last_name="User",
+        hashed_password="hash",
+        is_whitelisted=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    sessions = [
+        UserSession(
+            user_id=user.id,
+            session_id=session_id,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+        for session_id in session_ids
+    ]
+    db_session.add_all(sessions)
+    await db_session.commit()
+
+    return user
+
+
+async def get_user_sessions(
+    db_session: AsyncSession,
+    user_id: uuid.UUID,
+) -> list[UserSession]:
+    result = await db_session.execute(select(UserSession).where(UserSession.user_id == user_id))
+    return list(result.scalars().all())
+
+
 async def test_logout_happy_path(db_session: AsyncSession):
     auth_service = AuthService(db_session)
 
-    user = User(
-        email="logout_target@example.com", first_name="L", last_name="O", hashed_password="hash", is_whitelisted=True
-    )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
+    user = await create_user_with_sessions(db_session, [])
 
     tokens = generate_token_pair(user.id)
     payload = decode_token(tokens["refresh_token"])
@@ -27,63 +57,140 @@ async def test_logout_happy_path(db_session: AsyncSession):
     session = UserSession(
         user_id=user.id,
         session_id=payload["jti"],
-        expires_at=datetime.now(UTC) + timedelta(hours=1),
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=UTC),
     )
     db_session.add(session)
     await db_session.commit()
 
     await auth_service.logout(tokens["refresh_token"])
 
-    db_session.expire_all()
+    remaining_sessions = await get_user_sessions(db_session, user.id)
 
-    # RESTORED ORIGINAL ASSERTION
-    res_session = await db_session.execute(select(UserSession).where(UserSession.session_id == payload["jti"]))
-    assert res_session.scalar_one_or_none() is None
+    assert remaining_sessions == []
 
 
-async def test_logout_revoke_all_or_missing_session_id(db_session: AsyncSession):
+async def test_logout_revoke_all_deletes_all_user_sessions(
+    db_session: AsyncSession,
+):
+    session_ids = [
+        f"session-{uuid.uuid4().hex}",
+        f"session-{uuid.uuid4().hex}",
+    ]
+    user = await create_user_with_sessions(db_session, session_ids)
+
     auth_service = AuthService(db_session)
 
-    user = User(email=f"revoke_{uuid.uuid4().hex}@test.com", first_name="u", last_name="1")
-    db_session.add(user)
-    await db_session.flush()
+    with patch(
+        "erp.api.auth.service.decode_token",
+        return_value={"sub": str(user.id), "jti": session_ids[0]},
+    ):
+        await auth_service.logout("mock-refresh-token", revoke_all=True)
 
-    s1 = UserSession(user_id=user.id, session_id="s1", expires_at=datetime.now(UTC) + timedelta(hours=1))
-    s2 = UserSession(user_id=user.id, session_id="s2", expires_at=datetime.now(UTC) + timedelta(hours=1))
-    db_session.add_all([s1, s2])
-    await db_session.commit()
-
-    with patch("erp.api.auth.service.decode_token", return_value={"sub": str(user.id)}):
-        await auth_service.logout("token")
-
-    res = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
-    assert len(res.scalars().all()) == 0
+    assert await get_user_sessions(db_session, user.id) == []
 
 
-async def test_logout_edge_case_token_missing_claims(db_session: AsyncSession):
-    """RESTORED ORIGINAL TEST."""
+async def test_logout_revoke_current_session_only(
+    db_session: AsyncSession,
+):
+    session_ids = [
+        f"session-{uuid.uuid4().hex}",
+        f"session-{uuid.uuid4().hex}",
+    ]
+    user = await create_user_with_sessions(db_session, session_ids)
+
     auth_service = AuthService(db_session)
-    with patch("erp.api.auth.service.decode_token", return_value={"type": "refresh"}):
-        # Should not raise (missing sub -> early return)
-        await auth_service.logout("invalid-token-missing-claims")
+
+    with patch(
+        "erp.api.auth.service.decode_token",
+        return_value={"sub": str(user.id), "jti": session_ids[0]},
+    ):
+        await auth_service.logout("mock-refresh-token", revoke_all=False)
+
+    remaining_sessions = await get_user_sessions(db_session, user.id)
+
+    assert len(remaining_sessions) == 1
+    assert remaining_sessions[0].session_id == session_ids[1]
 
 
-async def test_logout_silently_swallows_decoding_exceptions(db_session: AsyncSession):
-    """RESTORED ORIGINAL TEST."""
+async def test_logout_missing_session_id_revokes_all_sessions(
+    db_session: AsyncSession,
+):
+    user = await create_user_with_sessions(
+        db_session,
+        [
+            f"session-{uuid.uuid4().hex}",
+            f"session-{uuid.uuid4().hex}",
+        ],
+    )
+
     auth_service = AuthService(db_session)
-    with patch("erp.api.auth.service.decode_token", side_effect=Exception("Invalid token")):
-        try:
-            await auth_service.logout("complete-garbage-token-string")
-        except Exception as e:
-            pytest.fail(f"Logout service leaked an exception path! Error: {e}")
+
+    with patch(
+        "erp.api.auth.service.decode_token",
+        return_value={"sub": str(user.id)},
+    ):
+        await auth_service.logout("mock-refresh-token", revoke_all=False)
+
+    assert await get_user_sessions(db_session, user.id) == []
 
 
-@patch.object(AsyncSession, "execute", side_effect=Exception("DB Failure"))
-async def test_logout_db_exception_triggers_rollback(_mock_execute, db_session: AsyncSession):
-    """NEW LOGIC: Covers the internal DB try/except rollback block."""
+async def test_logout_missing_user_id_does_not_delete_sessions(
+    db_session: AsyncSession,
+):
+    session_ids = [
+        f"session-{uuid.uuid4().hex}",
+        f"session-{uuid.uuid4().hex}",
+    ]
+    user = await create_user_with_sessions(db_session, session_ids)
+
     auth_service = AuthService(db_session)
-    with patch("erp.api.auth.service.decode_token", return_value={"sub": "u1", "jti": "s1"}):
-        try:
-            await auth_service.logout("token")
-        except Exception:
-            pytest.fail("Logout should swallow DB exceptions and rollback cleanly.")
+
+    with patch(
+        "erp.api.auth.service.decode_token",
+        return_value={"type": "refresh", "jti": session_ids[0]},
+    ):
+        await auth_service.logout("mock-refresh-token")
+
+    remaining_sessions = await get_user_sessions(db_session, user.id)
+
+    assert {session.session_id for session in remaining_sessions} == set(session_ids)
+
+
+async def test_logout_swallows_token_decoding_exception(
+    db_session: AsyncSession,
+):
+    auth_service = AuthService(db_session)
+
+    with patch(
+        "erp.api.auth.service.decode_token",
+        side_effect=Exception("Invalid token"),
+    ):
+        await auth_service.logout("invalid-token")
+
+    # The service intentionally suppresses decoding exceptions.
+
+
+async def test_logout_swallows_database_exception(
+    db_session: AsyncSession,
+):
+    auth_service = AuthService(db_session)
+
+    with (
+        patch(
+            "erp.api.auth.service.decode_token",
+            return_value={"sub": str(uuid.uuid4()), "jti": "session-id"},
+        ),
+        patch.object(
+            db_session,
+            "execute",
+            side_effect=Exception("DB Failure"),
+        ),
+        patch.object(
+            db_session,
+            "rollback",
+            wraps=db_session.rollback,
+        ) as rollback_mock,
+    ):
+        await auth_service.logout("mock-refresh-token")
+
+    rollback_mock.assert_awaited_once()

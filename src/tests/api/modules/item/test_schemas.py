@@ -14,14 +14,18 @@ from erp.api.modules.item.schemas import (
 )
 
 # ==============================================================================
-# Marketplace Schemas
+# MARKETPLACE SCHEMAS
 # ==============================================================================
 
 
 def test_marketplace_item_valid():
-    """Verifies valid marketplace item creation."""
     now = datetime.now(UTC)
-    item = MarketplaceItem(external_id="EBAY-123", marketplace="eBay", created_at=now)
+
+    item = MarketplaceItem(
+        external_id="EBAY-123",
+        marketplace="eBay",
+        created_at=now,
+    )
 
     assert item.external_id == "EBAY-123"
     assert item.marketplace == "eBay"
@@ -29,121 +33,286 @@ def test_marketplace_item_valid():
 
 
 def test_marketplace_item_missing_required():
-    """Verifies required fields are enforced for MarketplaceItem."""
     with pytest.raises(ValidationError):
         MarketplaceItem(marketplace="eBay")
 
 
 def test_marketplace_create_item_valid():
-    """Verifies valid marketplace create item parsing."""
     item = MarketplaceCreateItem(name="Vintage Lamp")
+
     assert item.name == "Vintage Lamp"
 
 
 def test_marketplace_create_item_missing_required():
-    """Verifies required fields are enforced for MarketplaceCreateItem."""
     with pytest.raises(ValidationError):
         MarketplaceCreateItem()
 
 
+def test_marketplace_create_item_empty_name():
+    with pytest.raises(ValidationError):
+        MarketplaceCreateItem(name="")
+
+
 # ==============================================================================
-# Item Base & Mutations (Create/Update)
+# ITEM CREATE SCHEMA
 # ==============================================================================
 
 
 def test_item_create_valid_all_fields():
-    """Verifies ItemCreate parses valid full payloads."""
-    payload = {
-        "title": "Industrial Desk",
-        "sku": "FURN-001",
-        "base_price": 45000,  # Stored in cents, e.g., $450.00
-    }
-    item = ItemCreate(**payload)
+    item = ItemCreate(
+        title="Industrial Desk",
+        sku="FURN-001",
+        base_price=45000,
+    )
 
     assert item.title == "Industrial Desk"
     assert item.sku == "FURN-001"
     assert item.base_price == 45000
 
 
-def test_item_create_optional_fields():
-    """Verifies ItemCreate allows missing fields due to None defaults."""
-    item = ItemCreate()
+def test_item_create_default_base_price():
+    """base_price defaults to zero when omitted."""
+    item = ItemCreate(
+        title="Industrial Desk",
+        sku="FURN-001",
+    )
 
-    assert item.title is None
-    assert item.sku is None
-    assert item.base_price is None
+    assert item.base_price == 0
 
 
-def test_item_update_inherits_base():
-    """Verifies ItemUpdate behaves identically to ItemCreate/ItemBase."""
+def test_item_create_missing_title():
+    with pytest.raises(ValidationError):
+        ItemCreate(sku="FURN-001")
+
+
+def test_item_create_missing_sku():
+    with pytest.raises(ValidationError):
+        ItemCreate(title="Industrial Desk")
+
+
+def test_item_create_missing_both_required_fields():
+    with pytest.raises(ValidationError):
+        ItemCreate()
+
+
+def test_item_create_empty_title():
+    with pytest.raises(ValidationError):
+        ItemCreate(
+            title="   ",
+            sku="FURN-001",
+        )
+
+
+def test_item_create_empty_sku():
+    with pytest.raises(ValidationError):
+        ItemCreate(
+            title="Industrial Desk",
+            sku="   ",
+        )
+
+
+def test_item_create_title_max_length():
+    with pytest.raises(ValidationError) as exc_info:
+        ItemCreate(
+            title="A" * 256,
+            sku="FURN-001",
+        )
+
+    assert "String should have at most 255 characters" in str(exc_info.value)
+
+
+def test_item_create_sku_max_length():
+    with pytest.raises(ValidationError) as exc_info:
+        ItemCreate(
+            title="Industrial Desk",
+            sku="S" * 101,
+        )
+
+    assert "String should have at most 100 characters" in str(exc_info.value)
+
+
+def test_item_create_base_price_minimum():
+    with pytest.raises(ValidationError) as exc_info:
+        ItemCreate(
+            title="Industrial Desk",
+            sku="FURN-001",
+            base_price=-1,
+        )
+
+    assert "greater than or equal to 0" in str(exc_info.value)
+
+
+# ==============================================================================
+# ITEM UPDATE SCHEMA
+# ==============================================================================
+
+
+def test_item_update_title_only():
     item = ItemUpdate(title="Updated Title")
 
     assert item.title == "Updated Title"
     assert item.sku is None
     assert item.base_price is None
+    assert item.is_deleted is None
 
 
-def test_item_title_max_length():
-    """Verifies title enforces the 255 character limit."""
-    long_title = "A" * 256
+def test_item_update_sku_only():
+    item = ItemUpdate(sku="UPDATED-SKU")
 
+    assert item.sku == "UPDATED-SKU"
+    assert item.title is None
+    assert item.base_price is None
+
+
+def test_item_update_base_price_only():
+    item = ItemUpdate(base_price=2500)
+
+    assert item.base_price == 2500
+    assert item.title is None
+    assert item.sku is None
+
+
+def test_item_update_is_deleted_only():
+    item = ItemUpdate(is_deleted=True)
+
+    assert item.is_deleted is True
+    assert item.title is None
+    assert item.sku is None
+    assert item.base_price is None
+
+
+def test_item_update_empty_payload():
+    """An empty update is valid and changes no fields."""
+    item = ItemUpdate()
+
+    assert item.model_dump(exclude_unset=True) == {}
+
+
+def test_item_update_explicit_null_title():
     with pytest.raises(ValidationError) as exc_info:
-        ItemCreate(title=long_title)
+        ItemUpdate(title=None)
 
-    assert "String should have at most 255 characters" in str(exc_info.value)
+    assert "title cannot be null" in str(exc_info.value)
 
 
-def test_item_sku_max_length():
-    """Verifies SKU enforces the 100 character limit."""
-    long_sku = "S" * 101
-
+def test_item_update_explicit_null_sku():
     with pytest.raises(ValidationError) as exc_info:
-        ItemCreate(sku=long_sku)
+        ItemUpdate(sku=None)
 
-    assert "String should have at most 100 characters" in str(exc_info.value)
+    assert "sku cannot be null" in str(exc_info.value)
 
 
-def test_item_base_price_minimum():
-    """Verifies base_price must be non-negative."""
+def test_item_update_explicit_null_base_price():
     with pytest.raises(ValidationError) as exc_info:
-        ItemCreate(base_price=-1)
+        ItemUpdate(base_price=None)
 
-    assert "Input should be greater than or equal to 0" in str(exc_info.value)
+    assert "base_price cannot be null" in str(exc_info.value)
+
+
+def test_item_update_negative_base_price():
+    with pytest.raises(ValidationError):
+        ItemUpdate(base_price=-1)
+
+
+def test_item_update_empty_title():
+    with pytest.raises(ValidationError):
+        ItemUpdate(title="   ")
+
+
+def test_item_update_empty_sku():
+    with pytest.raises(ValidationError):
+        ItemUpdate(sku="   ")
+
+
+def test_item_update_title_max_length():
+    with pytest.raises(ValidationError):
+        ItemUpdate(title="A" * 256)
+
+
+def test_item_update_sku_max_length():
+    with pytest.raises(ValidationError):
+        ItemUpdate(sku="S" * 101)
+
+
+def test_item_update_rejects_unknown_fields():
+    with pytest.raises(ValidationError):
+        ItemUpdate(unknown_field="value")
+
+
+def test_item_update_exclude_unset():
+    """Only explicitly provided fields are included in partial updates."""
+    item = ItemUpdate(title="Updated Title")
+
+    assert item.model_dump(exclude_unset=True) == {
+        "title": "Updated Title",
+    }
+
+
+def test_item_update_explicit_false_is_deleted():
+    """Explicit False must not be confused with an omitted field."""
+    item = ItemUpdate(is_deleted=False)
+
+    assert item.model_dump(exclude_unset=True) == {
+        "is_deleted": False,
+    }
 
 
 # ==============================================================================
-# Response Models
+# ITEM RESPONSE SCHEMA
 # ==============================================================================
 
 
 def test_item_response_valid():
-    """Verifies ItemResponse correctly structures the output payload."""
     now = datetime.now(UTC)
     item_id = uuid.uuid4()
     workspace_id = uuid.uuid4()
 
-    payload = {
-        "id": item_id,
-        "workspace_id": workspace_id,
-        "title": "Ergonomic Chair",
-        "sku": "CHAIR-01",
-        "base_price": 25000,
-        "barcode_id": "1234567890123",
-        "created_at": now,
-        "updated_at": now,
-        "is_deleted": False,
-    }
-
-    response = ItemResponse(**payload)
+    response = ItemResponse(
+        id=item_id,
+        workspace_id=workspace_id,
+        title="Ergonomic Chair",
+        sku="CHAIR-01",
+        base_price=25000,
+        barcode_id="1234567890123",
+        created_at=now,
+        updated_at=now,
+        is_deleted=False,
+    )
 
     assert response.id == item_id
     assert response.workspace_id == workspace_id
     assert response.title == "Ergonomic Chair"
-    assert response.stock_movements == []  # Verifies default_factory kicks in
+    assert response.sku == "CHAIR-01"
+    assert response.base_price == 25000
+    assert response.stock_movements == []
+    assert response.quantity_on_order == 0
+    assert response.quantity_allocated == 0
+    assert response.total_quantity_on_hand == 0
+
+
+def test_item_response_default_values():
+    """Response metrics and base price have defaults."""
+    now = datetime.now(UTC)
+
+    response = ItemResponse(
+        id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        title="Test Item",
+        sku="TEST-01",
+        created_at=now,
+        updated_at=now,
+        is_deleted=False,
+    )
+
+    assert response.base_price == 0
+    assert response.quantity_on_order == 0
+    assert response.quantity_allocated == 0
+    assert response.total_quantity_on_hand == 0
+    assert response.stock_movements == []
+    assert response.barcode_id is None
 
 
 def test_item_paginated_response():
-    """Verifies pagination schema correctly holds items and total."""
     now = datetime.now(UTC)
 
     item = ItemResponse(
@@ -152,21 +321,38 @@ def test_item_paginated_response():
         title="Test Item",
         sku="TEST-01",
         base_price=100,
-        barcode_id="1234567890123",
         created_at=now,
         updated_at=now,
         is_deleted=False,
     )
 
-    paginated = ItemPaginatedResponse(items=[item], total=1)
+    paginated = ItemPaginatedResponse(
+        items=[item],
+        total=1,
+    )
 
     assert paginated.total == 1
+    assert paginated.page == 1
+    assert paginated.limit == 20
     assert len(paginated.items) == 1
     assert paginated.items[0].sku == "TEST-01"
+    assert paginated.filters == []
+
+
+def test_item_paginated_response_empty():
+    paginated = ItemPaginatedResponse(
+        items=[],
+        total=0,
+    )
+
+    assert paginated.items == []
+    assert paginated.total == 0
+    assert paginated.page == 1
+    assert paginated.limit == 20
 
 
 def test_item_response_from_attributes():
-    """Verifies ItemResponse can be created directly from ORM objects."""
+    """ItemResponse can be constructed from an ORM-like object."""
 
     class DummyItemORM:
         def __init__(self):
@@ -179,10 +365,17 @@ def test_item_response_from_attributes():
             self.created_at = datetime.now(UTC)
             self.updated_at = datetime.now(UTC)
             self.is_deleted = False
+            self.quantity_on_order = 5
+            self.quantity_allocated = 2
+            self.total_quantity_on_hand = 10
             self.stock_movements = []
 
     orm_obj = DummyItemORM()
     response = ItemResponse.model_validate(orm_obj)
 
     assert response.id == orm_obj.id
-    assert response.title == "ORM Title"
+    assert response.title == orm_obj.title
+    assert response.sku == orm_obj.sku
+    assert response.quantity_on_order == 5
+    assert response.quantity_allocated == 2
+    assert response.total_quantity_on_hand == 10

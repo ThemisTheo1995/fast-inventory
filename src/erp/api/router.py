@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from erp.api.auth.router import router as auth_router
 from erp.api.dashboard.router import router as dashboard_router
 from erp.api.emails.router import router as email_router
+from erp.api.modules.bin.router import router as bin_router
 from erp.api.modules.customer.router import router as customer_router
 from erp.api.modules.inventory.router import router as inventory_router
 from erp.api.modules.item.router import router as item_router
@@ -30,6 +31,8 @@ api_router.include_router(email_router)
 api_router.include_router(customer_router)
 # Modules.inventory
 api_router.include_router(inventory_router)
+# Modules.bin
+api_router.include_router(bin_router)
 # Modules.item
 api_router.include_router(item_router)
 # Modules.purchase_order

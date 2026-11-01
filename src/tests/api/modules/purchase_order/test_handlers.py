@@ -15,10 +15,15 @@ from erp.api.modules.purchase_order.handlers import (
 
 
 @pytest.mark.asyncio
-@patch("erp.api.modules.purchase_order.handlers.process_purchase_order_search_index", new_callable=AsyncMock)
-async def test_handle_purchase_order_created(mock_process_index: AsyncMock) -> None:
+@patch(
+    "erp.api.modules.purchase_order.handlers.process_purchase_order_search_index",
+    new_callable=AsyncMock,
+)
+async def test_handle_purchase_order_created(mock_process_index: AsyncMock):
     purchase_order_id = uuid.uuid4()
-    mock_event = MagicMock()
+
+    mock_event = MagicMock(spec=PurchaseOrderCreatedEvent)
+    mock_event.purchase_order = MagicMock()
     mock_event.purchase_order.id = purchase_order_id
 
     await _handle_purchase_order_created(mock_event)
@@ -27,10 +32,15 @@ async def test_handle_purchase_order_created(mock_process_index: AsyncMock) -> N
 
 
 @pytest.mark.asyncio
-@patch("erp.api.modules.purchase_order.handlers.process_purchase_order_search_index", new_callable=AsyncMock)
-async def test_handle_purchase_order_updated(mock_process_index: AsyncMock) -> None:
+@patch(
+    "erp.api.modules.purchase_order.handlers.process_purchase_order_search_index",
+    new_callable=AsyncMock,
+)
+async def test_handle_purchase_order_updated(mock_process_index: AsyncMock):
     purchase_order_id = uuid.uuid4()
-    mock_event = MagicMock()
+
+    mock_event = MagicMock(spec=PurchaseOrderUpdatedEvent)
+    mock_event.purchase_order = MagicMock()
     mock_event.purchase_order.id = purchase_order_id
 
     await _handle_purchase_order_updated(mock_event)
@@ -38,11 +48,19 @@ async def test_handle_purchase_order_updated(mock_process_index: AsyncMock) -> N
     mock_process_index.assert_awaited_once_with(purchase_order_id)
 
 
-def test_register_purchase_order_handlers() -> None:
+def test_register_purchase_order_handlers():
     mock_bus = MagicMock()
 
     register_purchase_order_handlers(mock_bus)
 
     assert mock_bus.subscribe.call_count == 2
-    mock_bus.subscribe.assert_any_call(PurchaseOrderCreatedEvent, _handle_purchase_order_created)
-    mock_bus.subscribe.assert_any_call(PurchaseOrderUpdatedEvent, _handle_purchase_order_updated)
+
+    mock_bus.subscribe.assert_any_call(
+        PurchaseOrderCreatedEvent,
+        _handle_purchase_order_created,
+    )
+
+    mock_bus.subscribe.assert_any_call(
+        PurchaseOrderUpdatedEvent,
+        _handle_purchase_order_updated,
+    )

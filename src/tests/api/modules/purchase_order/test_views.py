@@ -30,7 +30,7 @@ async def test_router_create_purchase_order_success(client: AsyncClient, seed_wo
     assert data["status"] == "DRAFT"
     assert data["supplier_id"] == str(active_supplier.id)
     assert len(data["purchase_order_lines"]) == 2
-    assert "total_amount" in data
+    assert data["total_amount"] == 3000
 
 
 @pytest.mark.asyncio
@@ -46,6 +46,9 @@ async def test_router_create_purchase_order_empty_lines(client: AsyncClient, see
 
     assert response.status_code == status.HTTP_201_CREATED
     assert len(response.json()["purchase_order_lines"]) == 0
+    data = response.json()
+    assert data["purchase_order_lines"] == []
+    assert data["total_amount"] == 0
 
 
 @pytest.mark.asyncio
@@ -78,11 +81,8 @@ async def test_router_get_purchase_orders_success(client: AsyncClient, seed_work
 
 
 @pytest.mark.asyncio
-async def test_router_get_purchase_orders_with_pagination_and_search(
-    client: AsyncClient,
-    seed_workspace,
-    active_purchase_order,  # noqa
-):
+@pytest.mark.usefixtures("active_purchase_order")
+async def test_router_get_purchase_orders_with_pagination_and_search(client: AsyncClient, seed_workspace):
     """Verifies pagination and search query parameters bind correctly to the endpoint."""
     response = await client.get(f"/{seed_workspace}/purchase-orders?search=PO-FIXTURE&page=1&limit=5")
 
@@ -90,6 +90,8 @@ async def test_router_get_purchase_orders_with_pagination_and_search(
     data = response.json()
     assert "items" in data
     assert "total" in data
+    assert data["total"] >= 1
+    assert all("PO-FIXTURE" in item["po_number"] for item in data["items"])
 
 
 @pytest.mark.asyncio

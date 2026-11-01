@@ -12,11 +12,13 @@ async def active_item(db_session, seed_workspace) -> Item:
         id=uuid.uuid4(),
         workspace_id=seed_workspace,
         title="Active Test Item",
-        sku="TEST-SKU-ACTIVE",
+        sku=f"TEST-SKU-{uuid.uuid4().hex[:8].upper()}",
         base_price=1000,
         is_deleted=False,
     )
+
     db_session.add(item)
     await db_session.commit()
     await db_session.refresh(item)
+
     return item

@@ -9,8 +9,27 @@ class DashboardKPIs(BaseModel):
     total_revenue: int = Field(
         default=0, description="Total amount from confirmed/completed sell orders (in cents/base unit)"
     )
+    revenue_trend: str | None = Field(
+        default=None, description="Percentage change in revenue compared to the previous 30 days"
+    )
+    revenue_trend_up: bool = Field(default=True, description="Indicates if the revenue trend is positive or neutral")
+
     total_sell_orders: int = Field(default=0, description="Count of all active sell orders")
+    sell_orders_trend: str | None = Field(
+        default=None, description="Percentage change in sell orders compared to the previous 30 days"
+    )
+    sell_orders_trend_up: bool = Field(
+        default=True, description="Indicates if the sell orders trend is positive or neutral"
+    )
+
     total_purchase_orders: int = Field(default=0, description="Count of all purchase orders")
+    purchase_orders_trend: str | None = Field(
+        default=None, description="Percentage change in purchase orders compared to the previous 30 days"
+    )
+    purchase_orders_trend_up: bool = Field(
+        default=True, description="Indicates if the purchase orders trend is positive or neutral"
+    )
+
     items_low_stock: int = Field(default=0, description="Count of items where available stock is below threshold")
 
 

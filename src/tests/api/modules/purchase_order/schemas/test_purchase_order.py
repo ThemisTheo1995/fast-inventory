@@ -20,11 +20,13 @@ from erp.api.modules.purchase_order.schemas.purchase_order import (
 
 
 def test_purchase_order_line_create_valid():
-    """Verifies a valid line payload parses successfully."""
     item_id = uuid.uuid4()
-    payload = {"item_id": item_id, "quantity": 10, "unit_cost": 250}
 
-    line = PurchaseOrderLineCreate(**payload)
+    line = PurchaseOrderLineCreate(
+        item_id=item_id,
+        quantity=10,
+        unit_cost=250,
+    )
 
     assert line.item_id == item_id
     assert line.quantity == 10
@@ -32,39 +34,95 @@ def test_purchase_order_line_create_valid():
 
 
 def test_purchase_order_line_create_optional_item():
-    """Verifies item_id is optional for non-inventory lines."""
-    payload = {"quantity": 5, "unit_cost": 100}
+    """A PO line may exist without an associated item."""
 
-    line = PurchaseOrderLineCreate(**payload)
+    line = PurchaseOrderLineCreate(
+        quantity=5,
+        unit_cost=100,
+    )
+
+    assert line.item_id is None
+    assert line.quantity == 5
+    assert line.unit_cost == 100
+
+
+def test_purchase_order_line_create_explicit_none_item():
+    line = PurchaseOrderLineCreate(
+        item_id=None,
+        quantity=5,
+        unit_cost=100,
+    )
 
     assert line.item_id is None
 
 
 def test_purchase_order_line_quantity_validation():
-    """Verifies quantity must be >= 1."""
     with pytest.raises(ValidationError) as exc_info:
-        PurchaseOrderLineCreate(quantity=0, unit_cost=100)
+        PurchaseOrderLineCreate(
+            quantity=0,
+            unit_cost=100,
+        )
 
-    assert "Input should be greater than or equal to 1" in str(exc_info.value)
+    assert "greater than or equal to 1" in str(exc_info.value)
+
+
+def test_purchase_order_line_negative_quantity_validation():
+    with pytest.raises(ValidationError):
+        PurchaseOrderLineCreate(
+            quantity=-1,
+            unit_cost=100,
+        )
 
 
 def test_purchase_order_line_price_validation():
-    """Verifies unit_cost must be >= 0."""
     with pytest.raises(ValidationError) as exc_info:
-        PurchaseOrderLineCreate(quantity=1, unit_cost=-5)
+        PurchaseOrderLineCreate(
+            quantity=1,
+            unit_cost=-5,
+        )
 
-    assert "Input should be greater than or equal to 0" in str(exc_info.value)
+    assert "greater than or equal to 0" in str(exc_info.value)
 
 
-def test_purchase_order_line_update():
-    """Verifies line update schema inherits base constraints."""
+def test_purchase_order_line_zero_price_allowed():
+    line = PurchaseOrderLineCreate(
+        quantity=1,
+        unit_cost=0,
+    )
+
+    assert line.unit_cost == 0
+
+
+def test_purchase_order_line_update_valid():
     item_id = uuid.uuid4()
-    # Since it inherits PurchaseOrderLineBase directly, quantity and unit_cost are required
-    line = PurchaseOrderLineUpdate(item_id=item_id, quantity=2, unit_cost=50)
-    assert line.quantity == 2
 
+    line = PurchaseOrderLineUpdate(
+        item_id=item_id,
+        quantity=2,
+        unit_cost=50,
+    )
+
+    assert line.item_id == item_id
+    assert line.quantity == 2
+    assert line.unit_cost == 50
+
+
+def test_purchase_order_line_update_requires_quantity():
     with pytest.raises(ValidationError):
-        PurchaseOrderLineUpdate(quantity=0, unit_cost=50)  # Invalid quantity
+        PurchaseOrderLineUpdate(unit_cost=50)
+
+
+def test_purchase_order_line_update_requires_unit_cost():
+    with pytest.raises(ValidationError):
+        PurchaseOrderLineUpdate(quantity=2)
+
+
+def test_purchase_order_line_update_quantity_validation():
+    with pytest.raises(ValidationError):
+        PurchaseOrderLineUpdate(
+            quantity=0,
+            unit_cost=50,
+        )
 
 
 # ==============================================================================
@@ -73,19 +131,21 @@ def test_purchase_order_line_update():
 
 
 def test_purchase_order_create_valid():
-    """Verifies a valid PO payload with nested lines parses correctly."""
     supplier_id = uuid.uuid4()
-    payload = {
-        "po_number": "PO-2023-001",
-        "supplier_id": supplier_id,
-        "status": POStatusEnum.DRAFT,
-        "purchase_order_lines": [
-            {"quantity": 5, "unit_cost": 100},
-            {"item_id": uuid.uuid4(), "quantity": 2, "unit_cost": 500},
-        ],
-    }
 
-    po = PurchaseOrderCreate(**payload)
+    po = PurchaseOrderCreate(
+        po_number="PO-2023-001",
+        supplier_id=supplier_id,
+        status=POStatusEnum.DRAFT,
+        purchase_order_lines=[
+            {"quantity": 5, "unit_cost": 100},
+            {
+                "item_id": uuid.uuid4(),
+                "quantity": 2,
+                "unit_cost": 500,
+            },
+        ],
+    )
 
     assert po.po_number == "PO-2023-001"
     assert po.supplier_id == supplier_id
@@ -93,36 +153,89 @@ def test_purchase_order_create_valid():
     assert len(po.purchase_order_lines) == 2
 
 
-def test_purchase_order_create_default_status():
-    """Verifies status defaults to DRAFT if omitted."""
-    payload = {"po_number": "PO-DEFAULT", "purchase_order_lines": []}
+def test_purchase_order_create_optional_supplier():
+    po = PurchaseOrderCreate(
+        po_number="PO-NO-SUPPLIER",
+        purchase_order_lines=[],
+    )
 
-    po = PurchaseOrderCreate(**payload)
+    assert po.supplier_id is None
+
+
+def test_purchase_order_create_default_status():
+    po = PurchaseOrderCreate(
+        po_number="PO-DEFAULT",
+        purchase_order_lines=[],
+    )
+
     assert po.status == POStatusEnum.DRAFT
 
 
+def test_purchase_order_create_empty_lines_allowed():
+    po = PurchaseOrderCreate(
+        po_number="PO-EMPTY",
+        purchase_order_lines=[],
+    )
+
+    assert po.purchase_order_lines == []
+
+
 def test_purchase_order_po_number_max_length():
-    """Verifies po_number cannot exceed 100 characters."""
-    long_po_number = "A" * 101
-
     with pytest.raises(ValidationError) as exc_info:
-        PurchaseOrderCreate(po_number=long_po_number, purchase_order_lines=[])
+        PurchaseOrderCreate(
+            po_number="A" * 101,
+            purchase_order_lines=[],
+        )
 
-    assert "String should have at most 100 characters" in str(exc_info.value)
+    assert "100 characters" in str(exc_info.value)
 
 
-def test_purchase_order_update_optional_fields():
-    """Verifies all fields in PurchaseOrderUpdate are optional."""
-    # Empty payload should be valid
+def test_purchase_order_po_number_max_length_boundary():
+    po_number = "A" * 100
+
+    po = PurchaseOrderCreate(
+        po_number=po_number,
+        purchase_order_lines=[],
+    )
+
+    assert po.po_number == po_number
+
+
+def test_purchase_order_po_number_required():
+    with pytest.raises(ValidationError):
+        PurchaseOrderCreate(
+            purchase_order_lines=[],
+        )
+
+
+def test_purchase_order_update_empty_payload():
     update = PurchaseOrderUpdate()
+
     assert update.po_number is None
     assert update.supplier_id is None
     assert update.status is None
 
-    # Partial update should be valid
-    update_partial = PurchaseOrderUpdate(status=POStatusEnum.SENT)
-    assert update_partial.po_number is None
-    assert update_partial.status == POStatusEnum.SENT
+
+def test_purchase_order_update_partial_payload():
+    update = PurchaseOrderUpdate(
+        status=POStatusEnum.SENT,
+    )
+
+    assert update.po_number is None
+    assert update.supplier_id is None
+    assert update.status == POStatusEnum.SENT
+
+
+def test_purchase_order_update_explicit_none_values_allowed():
+    update = PurchaseOrderUpdate(
+        po_number=None,
+        supplier_id=None,
+        status=None,
+    )
+
+    assert update.po_number is None
+    assert update.supplier_id is None
+    assert update.status is None
 
 
 # ==============================================================================
@@ -130,12 +243,34 @@ def test_purchase_order_update_optional_fields():
 # ==============================================================================
 
 
+def test_purchase_order_line_response_attributes():
+    line_id = uuid.uuid4()
+    po_id = uuid.uuid4()
+
+    line_response = PurchaseOrderLineResponse(
+        id=line_id,
+        purchase_order_id=po_id,
+        quantity=5,
+        unit_cost=100,
+        item=None,
+    )
+
+    assert line_response.id == line_id
+    assert line_response.purchase_order_id == po_id
+    assert line_response.quantity == 5
+    assert line_response.unit_cost == 100
+    assert line_response.item is None
+
+
 def test_purchase_order_response_attributes():
-    """Verifies response model can be constructed (e.g., from ORM objects)."""
     now = datetime.now(UTC)
 
     line_response = PurchaseOrderLineResponse(
-        id=uuid.uuid4(), purchase_order_id=uuid.uuid4(), quantity=5, unit_cost=100, item=None
+        id=uuid.uuid4(),
+        purchase_order_id=uuid.uuid4(),
+        quantity=5,
+        unit_cost=100,
+        item=None,
     )
 
     po_response = PurchaseOrderResponse(
@@ -143,6 +278,7 @@ def test_purchase_order_response_attributes():
         workspace_id=uuid.uuid4(),
         po_number="PO-RESP-1",
         total_amount=500,
+        status=POStatusEnum.DRAFT,
         created_at=now,
         updated_at=now,
         purchase_order_lines=[line_response],
@@ -150,5 +286,7 @@ def test_purchase_order_response_attributes():
     )
 
     assert po_response.total_amount == 500
+    assert po_response.status == POStatusEnum.DRAFT
     assert len(po_response.purchase_order_lines) == 1
     assert po_response.purchase_order_lines[0].quantity == 5
+    assert po_response.supplier is None

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from erp.services.emails.builder import (
+    build_email_change_email,
     build_invite_email,
     build_onboard_email,
     build_password_reset_email,
@@ -281,3 +282,78 @@ def test_build_password_reset_email_missing_domain_url(
             "action_url": "/auth/reset-password?token=token789",
         },
     )
+
+
+# ==============================================================================
+# build_email_change_email Tests
+# ==============================================================================
+
+
+def test_build_email_change_email_success(
+    mock_renderer: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verifies email change email construction and action URL."""
+    fake_settings = type(
+        "Settings",
+        (),
+        {"DOMAIN_URL": "https://app.aegis.com/"},
+    )()
+
+    monkeypatch.setattr(
+        "erp.services.emails.builder.get_settings",
+        lambda: fake_settings,
+    )
+
+    msg = build_email_change_email(
+        recipient="new@example.com",
+        token="change-token-123",
+        user_name="Alice",
+    )
+
+    expected_action_url = "https://app.aegis.com/auth/verify?token=change-token-123&type=email_change"
+
+    mock_renderer.render.assert_called_once_with(
+        "email_change",
+        {
+            "user_name": "Alice",
+            "action_url": expected_action_url,
+            "new_email": "new@example.com",
+        },
+    )
+
+    assert isinstance(msg, EmailMessage)
+    assert msg.subject == "Confirm your new email address"
+    assert msg.recipients == ["new@example.com"]
+    assert msg.body_text == "rendered plain text"
+    assert msg.body_html == "<h1>rendered html</h1>"
+
+
+def test_build_email_change_email_default_user_name(
+    mock_renderer: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verifies default user name and missing DOMAIN_URL fallback."""
+    fake_settings = type("Settings", (), {})()
+
+    monkeypatch.setattr(
+        "erp.services.emails.builder.get_settings",
+        lambda: fake_settings,
+    )
+
+    msg = build_email_change_email(
+        recipient="new@example.com",
+        token="change-token-456",
+    )
+
+    mock_renderer.render.assert_called_once_with(
+        "email_change",
+        {
+            "user_name": "there",
+            "action_url": "/auth/verify?token=change-token-456&type=email_change",
+            "new_email": "new@example.com",
+        },
+    )
+
+    assert msg.subject == "Confirm your new email address"
+    assert msg.recipients == ["new@example.com"]

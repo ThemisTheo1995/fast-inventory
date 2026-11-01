@@ -104,3 +104,34 @@ async def test_router_get_workspace_usage_invalid_workspace_id(client):
     response = await client.get(f"/{invalid_uuid}/usage")
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+# ============================================================================
+# GET /plans Tests
+# ============================================================================
+
+
+async def test_router_get_plans_success(client, pricing_plan):
+    """Verifies retrieving available pricing plans."""
+    response = await client.get("/plans")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+    plan = next(
+        (item for item in data if item["id"] == str(pricing_plan.id)),
+        None,
+    )
+
+    assert plan is not None
+    assert plan["name"] == pricing_plan.name.value.title()
+    assert plan["price"] == (pricing_plan.price_monthly if pricing_plan.price_monthly > 0 else "Custom")
+    assert plan["limits"]["listings"] == f"{pricing_plan.listings_limit:,}"
+    assert plan["limits"]["api"] == f"{pricing_plan.api_limit:,}"
+    assert isinstance(plan["features"], list)
+    assert "tagline" in plan
+    assert "icon" in plan

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from erp.api.modules.customer.schemas import CustomerResponse
 from erp.api.modules.item.schemas import ItemResponse
 from erp.api.modules.sell_order.enums import SOStatusEnum
+from erp.core.filter import TableFilter
 
 # =======================================================
 # Common Types
@@ -95,3 +96,4 @@ class SellOrderPaginatedResponse(BaseModel):
 
     items: list[SellOrderResponse]
     total: int
+    filters: list[TableFilter] = Field(default_factory=list)

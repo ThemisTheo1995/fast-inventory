@@ -2,8 +2,9 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from erp.api.modules.inventory.service import InventoryService
+from erp.api.modules.inventory.exceptions import InsufficientInventoryError
 from erp.api.modules.item.exceptions import ItemExistsError, ItemNotFoundError
 from erp.api.modules.item.filters.item import ItemFilter
 from erp.api.modules.item.models import Item
@@ -14,43 +15,60 @@ from erp.services.barcode.events import send_barcode_generation_event
 class ItemService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-        self.inventory_service = InventoryService(db)
 
     @staticmethod
     def _generate_barcode_id(workspace_id: UUID, sku: str) -> str:
         """Constructs the unique barcode identifier."""
         return f"{workspace_id}_{sku}"
 
-    async def _get_active_item(self, workspace_id: UUID, item_id: UUID, include_deleted: bool = False) -> Item:
-        """Securely fetch an item enforcing workspace isolation."""
-        conditions = [
-            Item.workspace_id == workspace_id,
-            Item.id == item_id,
-        ]
+    async def _get_active_item(
+        self,
+        workspace_id: UUID,
+        item_id: UUID,
+        include_deleted: bool = False,
+        lock_for_update: bool = False,
+    ) -> Item:
+        conditions = [Item.workspace_id == workspace_id, Item.id == item_id]
+
         if not include_deleted:
             conditions.append(Item.is_deleted.is_(False))
 
-        stmt = select(Item).where(*conditions)
+        stmt = (
+            select(Item)
+            .options(selectinload(Item.inventory_items))
+            .where(*conditions)
+            .execution_options(populate_existing=True)
+        )
+
+        if lock_for_update:
+            stmt = stmt.with_for_update()
+
         result = await self.db.execute(stmt)
         item = result.scalar_one_or_none()
 
         if not item:
             raise ItemNotFoundError()
+
         return item
 
-    async def _check_sku_unique(self, workspace_id: UUID, sku: str, exclude_item_id: UUID | None = None) -> None:
-        """Ensures SKU is unique within the workspace."""
-        stmt = select(Item).where(Item.workspace_id == workspace_id, Item.sku == sku, Item.is_deleted.is_(False))
+    async def _check_sku_unique(
+        self,
+        workspace_id: UUID,
+        sku: str,
+        exclude_item_id: UUID | None = None,
+    ) -> None:
+        stmt = select(Item).where(Item.workspace_id == workspace_id, Item.sku == sku)
 
-        if exclude_item_id:
+        if exclude_item_id is not None:
             stmt = stmt.where(Item.id != exclude_item_id)
 
         result = await self.db.execute(stmt)
+
         if result.scalar_one_or_none():
             raise ItemExistsError()
 
     async def create_item(self, workspace_id: UUID, data: ItemCreate) -> Item:
-        """Creates an item, generates barcode_id, and initialises its inventory record."""
+        """Creates an item and generates its barcode_id (no bin inventory created until stock arrives)."""
         await self._check_sku_unique(workspace_id, data.sku)
 
         barcode_id = self._generate_barcode_id(workspace_id, data.sku)
@@ -62,13 +80,6 @@ class ItemService:
         )
 
         self.db.add(item)
-        await self.db.flush()
-
-        await self.inventory_service.get_inventory_by_item(
-            workspace_id=workspace_id,
-            item_id=item.id,
-        )
-
         await self.db.commit()
         await self.db.refresh(item)
 
@@ -113,7 +124,8 @@ class ItemService:
 
         skip = (page - 1) * limit
         items_query = (
-            base_query.order_by(
+            base_query.options(selectinload(Item.inventory_items))
+            .order_by(
                 Item.is_deleted.asc(),
                 Item.created_at.desc(),
                 Item.id.desc(),
@@ -121,6 +133,7 @@ class ItemService:
             .offset(skip)
             .limit(limit)
         )
+
         items_result = await self.db.execute(items_query)
         items = list(items_result.scalars().all())
 
@@ -129,6 +142,8 @@ class ItemService:
         return ItemPaginatedResponse(
             items=items,
             total=total,
+            page=page,
+            limit=limit,
             filters=table_filters,
         )
 
@@ -138,7 +153,6 @@ class ItemService:
 
     async def update_item(self, workspace_id: UUID, item_id: UUID, data: ItemUpdate) -> Item:
         """Applies partial updates, validating uniqueness if the SKU changes."""
-
         update_data = data.model_dump(exclude_unset=True)
         include_deleted = "is_deleted" in update_data
 
@@ -173,3 +187,31 @@ class ItemService:
         item = await self._get_active_item(workspace_id, item_id)
         item.soft_delete()
         await self.db.commit()
+
+    async def adjust_quantity_on_order(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
+        """Adjusts global incoming purchase order quantity for an item."""
+        if delta == 0:
+            return
+
+        item = await self._get_active_item(workspace_id, item_id)
+        if item.quantity_on_order + delta < 0:
+            raise InsufficientInventoryError()
+
+        item.quantity_on_order += delta
+        await self.db.flush()
+
+    async def adjust_quantity_allocated(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
+        """Adjusts global sell order allocation for an item, verifying available physical stock across bins."""
+        if delta == 0:
+            return
+
+        item = await self._get_active_item(workspace_id, item_id, lock_for_update=True)
+
+        if item.quantity_allocated + delta < 0:
+            raise InsufficientInventoryError()
+
+        if delta > 0 and (item.total_quantity_on_hand - item.quantity_allocated) < delta:
+            raise InsufficientInventoryError()
+
+        item.quantity_allocated += delta
+        await self.db.flush()

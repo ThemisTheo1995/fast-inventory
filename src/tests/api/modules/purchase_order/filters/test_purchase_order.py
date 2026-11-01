@@ -20,47 +20,71 @@ from erp.api.modules.purchase_order.models import PurchaseOrder
 
 @pytest.mark.asyncio
 async def test_get_po_amount_range_empty_database():
-    """Returns fallback (0, 10000) when no purchase orders exist."""
+    """Returns fallback range and step when no purchase orders exist."""
     db_mock = AsyncMock(spec=AsyncSession)
     result_mock = MagicMock()
     result_mock.first.return_value = (None, None)
     db_mock.execute.return_value = result_mock
 
-    workspace_id = uuid.uuid4()
-    amount_range = await get_po_amount_range(db_mock, workspace_id)
+    amount_range = await get_po_amount_range(db_mock, uuid.uuid4())
 
-    assert amount_range == (0, 10000)
+    assert amount_range == (0, 10000, 500)
 
 
 @pytest.mark.asyncio
 async def test_get_po_amount_range_normal_bounds():
-    """Rounds min down and max up to the nearest step (2000)."""
+    """Returns rounded bounds and a dynamically calculated step."""
     db_mock = AsyncMock(spec=AsyncSession)
     result_mock = MagicMock()
-    # Min = 1500 -> floor to 0; Max = 4500 -> ceil to 6000
     result_mock.first.return_value = (1500, 4500)
     db_mock.execute.return_value = result_mock
 
-    workspace_id = uuid.uuid4()
-    amount_range = await get_po_amount_range(db_mock, workspace_id)
+    min_amt, max_amt, step = await get_po_amount_range(
+        db_mock,
+        uuid.uuid4(),
+    )
 
-    assert amount_range == (0, 6000)
+    assert min_amt <= 1500
+    assert max_amt >= 4500
+    assert step > 0
+    assert (max_amt - min_amt) / step <= 21
 
 
 @pytest.mark.asyncio
 async def test_get_po_amount_range_equal_min_max():
-    """Ensures a movable range when all POs have the exact same amount."""
+    """Returns a useful slider range when all POs have the same amount."""
     db_mock = AsyncMock(spec=AsyncSession)
     result_mock = MagicMock()
-    # Min = 2500, Max = 2500 -> clean_min = 2000, clean_max = 2000
+    result_mock.first.return_value = (10, 10)
+    db_mock.execute.return_value = result_mock
+
+    min_amt, max_amt, step = await get_po_amount_range(
+        db_mock,
+        uuid.uuid4(),
+    )
+
+    assert min_amt < 10
+    assert max_amt > 10
+    assert step > 0
+    assert min_amt <= 10 <= max_amt
+
+
+@pytest.mark.asyncio
+async def test_get_po_amount_range_single_large_amount():
+    """Handles a single large PO amount without producing a narrow range."""
+    db_mock = AsyncMock(spec=AsyncSession)
+    result_mock = MagicMock()
     result_mock.first.return_value = (2500, 2500)
     db_mock.execute.return_value = result_mock
 
-    workspace_id = uuid.uuid4()
-    amount_range = await get_po_amount_range(db_mock, workspace_id)
+    min_amt, max_amt, step = await get_po_amount_range(
+        db_mock,
+        uuid.uuid4(),
+    )
 
-    # Should expand max by step (2000)
-    assert amount_range == (2000, 4000)
+    assert min_amt < 2500
+    assert max_amt > 2500
+    assert step > 0
 
 
 # ============================================================================
@@ -104,49 +128,56 @@ def test_purchase_order_filter_apply_amount_between_range():
 
 
 # ============================================================================
-# Integration Tests with Async Database Session (Optional / DB-backed)
+# Integration Tests with Async Database Session
 # ============================================================================
 
 
 @pytest.mark.asyncio
-async def test_get_po_amount_range_db_isolation(db_session: AsyncSession, seed_workspace, alt_workspace):
-    """Verifies deleted POs and other workspace POs are ignored in DB query."""
+async def test_get_po_amount_range_db_isolation(
+    db_session: AsyncSession,
+    seed_workspace,
+    alt_workspace,
+):
+    """Ignores deleted POs and POs belonging to other workspaces."""
 
-    # Create test POs
+    status = next(iter(POStatusEnum))
+
     po1 = PurchaseOrder(
         po_number="PO-1",
         workspace_id=seed_workspace,
         total_amount=3500,
-        status=next(iter(POStatusEnum)),
+        status=status,
     )
     po2 = PurchaseOrder(
         po_number="PO-2",
         workspace_id=seed_workspace,
         total_amount=8200,
-        status=next(iter(POStatusEnum)),
+        status=status,
     )
-    # Deleted PO in same workspace (should be ignored)
     po_deleted = PurchaseOrder(
         po_number="PO-DELETED",
         workspace_id=seed_workspace,
         total_amount=50000,
         is_deleted=True,
-        status=next(iter(POStatusEnum)),
+        status=status,
     )
-    # PO in another workspace (should be ignored)
     po_other = PurchaseOrder(
         po_number="PO-OTHER",
         workspace_id=alt_workspace,
         total_amount=100,
-        status=next(iter(POStatusEnum)),
+        status=status,
     )
 
     db_session.add_all([po1, po2, po_deleted, po_other])
     await db_session.flush()
 
-    # Execute range query
-    min_amt, max_amt = await get_po_amount_range(db_session, seed_workspace)
+    min_amt, max_amt, step = await get_po_amount_range(
+        db_session,
+        seed_workspace,
+    )
 
-    # 3500 floors to 2000; 8200 ceils to 10000
-    assert min_amt == 2000
-    assert max_amt == 10000
+    assert min_amt <= 3500
+    assert max_amt >= 8200
+    assert max_amt < 50000
+    assert min_amt > 100
+    assert step > 0

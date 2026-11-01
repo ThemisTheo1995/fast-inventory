@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -32,7 +32,6 @@ from erp.api.modules.purchase_order.schemas.purchase_order import (
     PurchaseOrderPaginatedResponse,
     PurchaseOrderUpdate,
 )
-from erp.api.modules.supplier.models import Supplier
 from erp.core.event_bus import EventBus
 
 TRANSITION_EVENTS: dict[tuple[str, str], type] = {
@@ -131,10 +130,10 @@ class PurchaseOrderService:
         self,
         workspace_id: UUID,
         filters: PurchaseOrderFilter | None = None,
-        search: str | None = None,
         page: int = 1,
         limit: int = 20,
     ) -> PurchaseOrderPaginatedResponse:
+        """Fetch paginated purchase orders using configured filters."""
         filters = filters or PurchaseOrderFilter()
 
         base_query = select(PurchaseOrder).where(
@@ -142,38 +141,42 @@ class PurchaseOrderService:
             PurchaseOrder.is_deleted.is_(False),
         )
 
-        if search:
-            search_term = f"%{search}%"
-            base_query = base_query.outerjoin(PurchaseOrder.supplier).where(
-                or_(
-                    PurchaseOrder.po_number.ilike(search_term),
-                    Supplier.name.ilike(search_term),
-                    Supplier.email.ilike(search_term),
-                )
-            )
-
+        # Apply search, status and amount filters.
         base_query = filters.apply(base_query, PurchaseOrder)
 
+        # Count matching purchase orders before pagination.
         count_query = select(func.count()).select_from(base_query.subquery())
         count_result = await self.db.execute(count_query)
         total = count_result.scalar_one()
 
         skip = (page - 1) * limit
+
         purchase_orders_query = (
             base_query.options(
                 selectinload(PurchaseOrder.supplier),
                 selectinload(PurchaseOrder.purchase_order_lines).selectinload(PurchaseOrderLine.item),
             )
-            .order_by(PurchaseOrder.created_at.desc(), PurchaseOrder.id.desc())
+            .order_by(
+                PurchaseOrder.created_at.desc(),
+                PurchaseOrder.id.desc(),
+            )
             .offset(skip)
             .limit(limit)
         )
+
         purchase_orders_result = await self.db.execute(purchase_orders_query)
         purchase_orders = list(purchase_orders_result.scalars().all())
 
-        table_filters = await filters.build_ui_filters(self.db, workspace_id)
+        table_filters = await filters.build_ui_filters(
+            self.db,
+            workspace_id,
+        )
 
-        return PurchaseOrderPaginatedResponse(items=purchase_orders, total=total, filters=table_filters)
+        return PurchaseOrderPaginatedResponse(
+            items=purchase_orders,
+            total=total,
+            filters=table_filters,
+        )
 
     async def get_purchase_order(self, workspace_id: UUID, purchase_order_id: UUID) -> PurchaseOrder:
         return await self._get_active_purchase_order(workspace_id, purchase_order_id)

@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.api.auth.models import User
@@ -44,10 +45,23 @@ async def alt_workspace(db_session: AsyncSession) -> uuid.UUID:
 
 @pytest_asyncio.fixture
 async def pricing_plan(db_session: AsyncSession) -> PricingPlan:
-    """Seeds a real default pricing plan required by subscriptions."""
-    plan = PricingPlan(id=uuid.uuid4(), name=next(iter(PlanName)), listings_limit=100, api_limit=1000, price_monthly=0)
-    db_session.add(plan)
-    await db_session.commit()
+    """Reuse the default pricing plan, creating it only when necessary."""
+    plan_name = next(iter(PlanName))
+
+    result = await db_session.execute(select(PricingPlan).where(PricingPlan.name == plan_name).limit(1))
+    plan = result.scalar_one_or_none()
+
+    if plan is None:
+        plan = PricingPlan(
+            id=uuid.uuid4(),
+            name=plan_name,
+            listings_limit=100,
+            api_limit=1000,
+            price_monthly=0,
+        )
+        db_session.add(plan)
+        await db_session.flush()
+
     return plan
 
 

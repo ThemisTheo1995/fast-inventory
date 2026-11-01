@@ -9,14 +9,52 @@ from erp.api.modules.purchase_order.service import PurchaseOrderService
 
 
 @pytest.mark.asyncio
-async def test_get_purchase_order_not_found(db_session, seed_workspace, event_bus):
+async def test_get_purchase_order_not_found(
+    db_session,
+    seed_workspace,
+    event_bus,
+):
     service = PurchaseOrderService(db_session, event_bus)
+
     with pytest.raises(PurchaseOrderNotFoundError):
-        await service.get_purchase_order(seed_workspace, uuid.uuid4())
+        await service.get_purchase_order(
+            seed_workspace,
+            uuid.uuid4(),
+        )
 
 
 @pytest.mark.asyncio
-async def test_get_purchase_order_tenant_isolation(db_session, alt_workspace, active_purchase_order, event_bus):
+async def test_get_purchase_order_tenant_isolation(
+    db_session,
+    alt_workspace,
+    active_purchase_order,
+    event_bus,
+):
+    """A workspace cannot retrieve another workspace's purchase order."""
     service = PurchaseOrderService(db_session, event_bus)
+
     with pytest.raises(PurchaseOrderNotFoundError):
-        await service.get_purchase_order(alt_workspace, active_purchase_order.id)
+        await service.get_purchase_order(
+            alt_workspace,
+            active_purchase_order.id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_purchase_order_soft_deleted_not_found(
+    db_session,
+    seed_workspace,
+    active_purchase_order,
+    event_bus,
+):
+    """Soft-deleted purchase orders cannot be retrieved."""
+    service = PurchaseOrderService(db_session, event_bus)
+
+    active_purchase_order.soft_delete()
+    await db_session.commit()
+
+    with pytest.raises(PurchaseOrderNotFoundError):
+        await service.get_purchase_order(
+            seed_workspace,
+            active_purchase_order.id,
+        )

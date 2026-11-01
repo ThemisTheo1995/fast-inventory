@@ -12,6 +12,9 @@ from erp.api.base.models import AuditLog
 from erp.api.auth.models import User
 from erp.api.auth.models import UserSession
 
+# Modules.Bin
+from erp.api.modules.bin.models import Bin
+
 # Workspace
 from erp.api.workspace.models import Workspace
 from erp.api.workspace_user.models import WorkspaceUser
@@ -48,6 +51,7 @@ __all__ = [
     "Base",
     "User",
     "UserSession",
+    "Bin",
     "Workspace",
     "WorkspaceUser",
     "WorkspaceUserNote",

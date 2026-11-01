@@ -1,7 +1,9 @@
 from enum import StrEnum
 
 
-class OrderType(StrEnum):
+class StockMovementType(StrEnum):
     SELL_ORDER = "SELL_ORDER"
     PURCHASE_ORDER = "PURCHASE_ORDER"
     MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT"
+    BIN_TRANSFER = "BIN_TRANSFER"
+    BIN_MERGE = "BIN_MERGE"

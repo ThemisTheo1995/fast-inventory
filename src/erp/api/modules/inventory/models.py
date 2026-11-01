@@ -1,40 +1,28 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, Enum as SQLAlchemyEnum, ForeignKey, Integer, String
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import CheckConstraint, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from erp.api.base.models import BaseModel
-from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.enums import StockMovementType
 
 
 class Inventory(BaseModel):
     __tablename__ = "inventory"
     __table_args__ = (
-        CheckConstraint("quantity_allocated >= 0", name="chk_inventory_allocated_positive"),
-        CheckConstraint("quantity_on_order >= 0", name="chk_inventory_on_order_positive"),
+        UniqueConstraint("workspace_id", "item_id", "bin_id", name="uix_workspace_item_bin"),
         CheckConstraint("quantity_on_hand >= 0", name="chk_inventory_on_hand_positive"),
     )
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
-    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), unique=True, index=True)
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), index=True)
+    bin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bins.id"), index=True)
 
     quantity_on_hand: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    quantity_allocated: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    quantity_on_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     # Relationships
-    item: Mapped["Item"] = relationship("Item", back_populates="inventory", lazy="noload")
-
-    @hybrid_property
-    def quantity_available(self) -> int:
-        """Stock available to pack and ship right now."""
-        return self.quantity_on_hand - self.quantity_allocated
-
-    @hybrid_property
-    def expected_available(self) -> int:
-        """Stock available to sell (including incoming POs)."""
-        return (self.quantity_on_hand + self.quantity_on_order) - self.quantity_allocated
+    item: Mapped["Item"] = relationship("Item", back_populates="inventory_items")
+    bin: Mapped["Bin"] = relationship("Bin", back_populates="inventory_items")
 
 
 class StockMovement(BaseModel):
@@ -42,13 +30,17 @@ class StockMovement(BaseModel):
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), index=True)
     item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("items.id"), index=True)
+    bin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("bins.id"), nullable=True, index=True)
 
     quantity_change: Mapped[int] = mapped_column(Integer)
 
-    reference_type: Mapped[OrderType] = mapped_column(SQLAlchemyEnum(OrderType), nullable=False)
+    reference_type: Mapped[StockMovementType] = mapped_column(
+        SQLAlchemyEnum(StockMovementType, native_enum=False, length=50), nullable=False
+    )
     reference_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
 
     notes: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relationships
     item: Mapped["Item"] = relationship("Item", back_populates="stock_movements")
+    bin: Mapped["Bin | None"] = relationship("Bin", lazy="noload")

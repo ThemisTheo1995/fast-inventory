@@ -8,6 +8,7 @@ from erp.api.modules.sell_order.events import (
     SellOrderCreatedEvent,
     SellOrderUpdatedEvent,
 )
+from erp.api.modules.sell_order.filters.sell_order import SellOrderFilter
 from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
     SellOrderLineCreate,
@@ -55,14 +56,14 @@ async def create_sell_order(
 async def get_sell_orders(
     workspace_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    search: str | None = None,
+    filters: Annotated[SellOrderFilter, Depends()],
     page: int = 1,
     limit: int = 20,
 ) -> SellOrderPaginatedResponse:
 
     service = SellOrderService(db)
 
-    return await service.get_sell_orders(workspace_id, search, page, limit)
+    return await service.get_sell_orders(workspace_id, filters, page, limit)
 
 
 @router.get("/sell-orders/{sell_order_id}", response_model=SellOrderResponse)

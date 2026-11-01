@@ -248,20 +248,21 @@ def test_sell_order_line_response_dictionary_deserialization():
     assert schema_with_item.item.base_price == 50
 
 
-def test_sell_order_line_response_item_base_price_can_be_none():
-    """Verifies ItemResponse inside SellOrderLineResponse accepts base_price=None."""
+def test_sell_order_line_response_rejects_none_item_base_price():
     now = datetime.now(UTC)
+
     item_dict = {
         "id": uuid.uuid4(),
         "workspace_id": uuid.uuid4(),
         "title": "Custom Service",
         "sku": "SRV-001",
-        "base_price": None,  # Optional int
+        "base_price": None,
         "barcode_id": None,
         "created_at": now,
         "updated_at": now,
         "is_deleted": False,
     }
+
     payload = {
         "id": uuid.uuid4(),
         "sell_order_id": uuid.uuid4(),
@@ -270,10 +271,9 @@ def test_sell_order_line_response_item_base_price_can_be_none():
         "unit_cost": 1000,
         "item": item_dict,
     }
-    schema = SellOrderLineResponse(**payload)
-    assert schema.item is not None
-    assert schema.item.barcode_id is None
-    assert schema.item.base_price is None
+
+    with pytest.raises(ValidationError):
+        SellOrderLineResponse(**payload)
 
 
 def test_sell_order_line_response_from_orm():

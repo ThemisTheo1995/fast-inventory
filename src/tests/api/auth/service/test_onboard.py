@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.api.auth.exceptions import (
@@ -9,22 +10,40 @@ from erp.api.auth.exceptions import (
     InvitationNotFoundExceptionError,
     OnboardingFailedExceptionError,
 )
-from erp.api.auth.models import User
+from erp.api.auth.models import User, UserSession
 from erp.api.auth.schemas.user import UserCreate
 from erp.api.auth.service import AuthService
+from erp.api.auth.utils import decode_token
 from erp.api.workspace.models import Workspace
 from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from erp.api.workspace_user.models import WorkspaceUser
 
 
-@patch("erp.api.auth.service.get_email_provider")
-async def test_onboard_happy_path(mock_get_email, db_session: AsyncSession):
-    auth_service = AuthService(db_session)
-    mock_email_provider = AsyncMock()
-    mock_get_email.return_value = mock_email_provider
+def unique_email(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex}@test.com"
 
-    user = User(email="invitee@test.com", first_name=None, last_name=None, is_whitelisted=True, hashed_password=None)
-    workspace = Workspace(name="Invite Workspace", email="ws@test.com")
+
+async def create_invited_user(
+    db_session: AsyncSession,
+    *,
+    is_whitelisted: bool = True,
+    hashed_password: str | None = None,
+    status: InvitationStatusEnum = InvitationStatusEnum.PENDING,
+    is_deleted: bool = False,
+) -> tuple[User, Workspace, WorkspaceUser]:
+    user = User(
+        email=unique_email("invitee"),
+        first_name=None,
+        last_name=None,
+        is_whitelisted=is_whitelisted,
+        hashed_password=hashed_password,
+    )
+
+    workspace = Workspace(
+        name=f"Invite Workspace {uuid.uuid4().hex[:8]}",
+        email=unique_email("workspace"),
+    )
+
     db_session.add_all([user, workspace])
     await db_session.flush()
 
@@ -32,131 +51,223 @@ async def test_onboard_happy_path(mock_get_email, db_session: AsyncSession):
         user_id=user.id,
         workspace_id=workspace.id,
         role=WorkspaceRoleEnum.EDIT_ONLY,
-        status=InvitationStatusEnum.PENDING.value,
-        is_deleted=False,
+        status=status,
+        is_deleted=is_deleted,
     )
+
     db_session.add(link)
     await db_session.commit()
+    await db_session.refresh(user)
+    await db_session.refresh(link)
 
-    data = UserCreate(email="invitee@test.com", password="NewPassword123", first_name="Jane", last_name="Doe")
-    result = await auth_service.onboard(data)
+    return user, workspace, link
 
-    # RESTORED ORIGINAL ASSERTIONS
-    assert result.access_token is not None
+
+async def test_onboard_happy_path(db_session: AsyncSession):
+    auth_service = AuthService(db_session)
+
+    user, workspace, link = await create_invited_user(
+        db_session,
+        is_whitelisted=True,
+    )
+
+    email_provider = AsyncMock()
+
+    with patch(
+        "erp.api.auth.service.get_email_provider",
+        return_value=email_provider,
+    ):
+        data = UserCreate(
+            email=user.email,
+            password="NewPassword123!",
+            first_name="Jane",
+            last_name="Doe",
+        )
+
+        result = await auth_service.onboard(data)
+
+    assert result.access_token
+    assert result.refresh_token
     assert result.workspace_id == workspace.id
+    assert result.is_whitelisted is True
+    assert result.whitelisted_token is None
 
     await db_session.refresh(user)
     await db_session.refresh(link)
 
     assert user.first_name == "Jane"
+    assert user.last_name == "Doe"
     assert user.hashed_password is not None
-    assert link.status == InvitationStatusEnum.ACTIVE.value
+    assert user.hashed_password != "NewPassword123!"
+    assert link.status == InvitationStatusEnum.ACTIVE
 
-    # Whitelisted users don't get verification email in onboarding
-    mock_email_provider.send_email.assert_not_called()
+    # Whitelisted users do not receive a verification email.
+    email_provider.send_email.assert_not_called()
+
+    # Onboarding creates a refresh-token-backed session.
+    refresh_payload = decode_token(result.refresh_token)
+
+    session_result = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
+    session = session_result.scalar_one()
+
+    assert session.session_id == refresh_payload["jti"]
 
 
-@patch("erp.api.auth.service.get_email_provider")
-async def test_onboard_unwhitelisted_user_sends_email(mock_get_email, db_session: AsyncSession):
-    mock_email_provider = AsyncMock()
-    mock_get_email.return_value = mock_email_provider
-
+async def test_onboard_unwhitelisted_user_sends_verification_email(
+    db_session: AsyncSession,
+):
     auth_service = AuthService(db_session)
-    email = f"unverified_{uuid.uuid4().hex}@test.com"
 
-    user = User(email=email, is_whitelisted=False)
-    workspace = Workspace(name="Invite Workspace", email=f"ws_{uuid.uuid4().hex}@test.com")
-    db_session.add_all([user, workspace])
-    await db_session.flush()
-
-    link = WorkspaceUser(
-        user_id=user.id,
-        workspace_id=workspace.id,
-        role=WorkspaceRoleEnum.EDIT_ONLY,
-        status=InvitationStatusEnum.PENDING.value,
-        is_deleted=False,
+    user, workspace, link = await create_invited_user(
+        db_session,
+        is_whitelisted=False,
     )
-    db_session.add(link)
-    await db_session.commit()
 
-    data = UserCreate(email=email, password="pw", first_name="Un", last_name="Verified")
-    await auth_service.onboard(data)
+    email_provider = AsyncMock()
 
-    mock_email_provider.send_email.assert_called_once()
+    with patch(
+        "erp.api.auth.service.get_email_provider",
+        return_value=email_provider,
+    ):
+        data = UserCreate(
+            email=user.email,
+            password="NewPassword123!",
+            first_name="Un",
+            last_name="Verified",
+        )
+
+        result = await auth_service.onboard(data)
+
+    assert result.workspace_id == workspace.id
+    assert result.is_whitelisted is False
+
+    email_provider.send_email.assert_awaited_once()
+
+    sent_message = email_provider.send_email.await_args.args[0]
+
+    assert user.email in sent_message.recipients
+    assert sent_message.subject
+
+    await db_session.refresh(link)
+    assert link.status == InvitationStatusEnum.ACTIVE
 
 
-async def test_onboard_exception_user_not_found(db_session: AsyncSession):
+async def test_onboard_user_not_found(db_session: AsyncSession):
     auth_service = AuthService(db_session)
-    data = UserCreate(email="ghost@test.com", password="pw", first_name="Ghost", last_name="User")
+
+    data = UserCreate(
+        email=unique_email("ghost"),
+        password="NewPassword123!",
+        first_name="Ghost",
+        last_name="User",
+    )
 
     with pytest.raises(InvitationNotFoundExceptionError):
         await auth_service.onboard(data)
 
 
-async def test_onboard_exception_workspace_link_not_found(db_session: AsyncSession):
+async def test_onboard_user_without_invitation_raises_not_found(
+    db_session: AsyncSession,
+):
     auth_service = AuthService(db_session)
-    user = User(email="nolink@test.com", first_name=None)
+
+    user = User(
+        email=unique_email("nolink"),
+        first_name=None,
+        hashed_password=None,
+        is_whitelisted=True,
+    )
+
     db_session.add(user)
     await db_session.commit()
 
-    data = UserCreate(email="nolink@test.com", password="pw", first_name="No", last_name="Link")
+    data = UserCreate(
+        email=user.email,
+        password="NewPassword123!",
+        first_name="No",
+        last_name="Link",
+    )
 
     with pytest.raises(InvitationNotFoundExceptionError):
         await auth_service.onboard(data)
 
 
-async def test_onboard_exception_already_onboarded(db_session: AsyncSession):
+async def test_onboard_already_onboarded_user_raises_error(
+    db_session: AsyncSession,
+):
     auth_service = AuthService(db_session)
-    user = User(email="active@test.com", hashed_password="existing_hash", is_whitelisted=True)
-    workspace = Workspace(name="Active WS", email="activews@test.com")
-    db_session.add_all([user, workspace])
-    await db_session.flush()
 
-    link = WorkspaceUser(
-        user_id=user.id,
-        workspace_id=workspace.id,
-        status=InvitationStatusEnum.ACTIVE.value,
-        is_deleted=False,
+    user, _, _ = await create_invited_user(
+        db_session,
+        hashed_password="existing_hash",
+        status=InvitationStatusEnum.ACTIVE,
     )
-    db_session.add(link)
-    await db_session.commit()
 
-    data = UserCreate(email="active@test.com", password="pw", first_name="A", last_name="B")
+    data = UserCreate(
+        email=user.email,
+        password="NewPassword123!",
+        first_name="Already",
+        last_name="Onboarded",
+    )
 
     with pytest.raises(AccountAlreadyOnboardedExceptionError):
         await auth_service.onboard(data)
 
 
-async def test_onboard_exception_database_failure_triggers_rollback(db_session: AsyncSession):
+async def test_onboard_soft_deleted_invitation_raises_not_found(
+    db_session: AsyncSession,
+):
     auth_service = AuthService(db_session)
 
-    user = User(email="fail@test.com", first_name=None, hashed_password=None, is_whitelisted=True)
-    workspace = Workspace(name="Fail WS", email="faledws@test.com")
-    db_session.add_all([user, workspace])
-    await db_session.flush()
-
-    link = WorkspaceUser(
-        user_id=user.id,
-        workspace_id=workspace.id,
-        status=InvitationStatusEnum.PENDING.value,
-        is_deleted=False,
+    user, _, _ = await create_invited_user(
+        db_session,
+        is_deleted=True,
     )
-    db_session.add(link)
-    await db_session.commit()
 
-    data = UserCreate(email="fail@test.com", password="pw", first_name="Should", last_name="Fail")
+    data = UserCreate(
+        email=user.email,
+        password="NewPassword123!",
+        first_name="Deleted",
+        last_name="Invitation",
+    )
+
+    with pytest.raises(InvitationNotFoundExceptionError):
+        await auth_service.onboard(data)
+
+
+async def test_onboard_database_failure_rolls_back_changes(
+    db_session: AsyncSession,
+):
+    auth_service = AuthService(db_session)
+
+    user, _, link = await create_invited_user(
+        db_session,
+        is_whitelisted=True,
+    )
+
+    data = UserCreate(
+        email=user.email,
+        password="NewPassword123!",
+        first_name="Should",
+        last_name="Fail",
+    )
 
     with (
-        patch("erp.api.auth.service.generate_token_pair", side_effect=Exception("Crypto Error")),
+        patch(
+            "erp.api.auth.service.generate_token_pair",
+            side_effect=Exception("Crypto Error"),
+        ),
         pytest.raises(OnboardingFailedExceptionError),
     ):
         await auth_service.onboard(data)
 
-    # Verify Rollback
-    db_session.expire_all()
     await db_session.refresh(user)
     await db_session.refresh(link)
 
     assert user.first_name is None
+    assert user.last_name is None
     assert user.hashed_password is None
-    assert link.status == InvitationStatusEnum.PENDING.value
+    assert link.status == InvitationStatusEnum.PENDING
+
+    session_result = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
+    assert session_result.scalar_one_or_none() is None

@@ -3,16 +3,19 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from erp.api.modules.inventory.enums import OrderType
+from erp.api.modules.inventory.enums import StockMovementType
 
 
 class StockMovementCreate(BaseModel):
     """Payload for creating a new stock movement (adjusts inventory)."""
 
     item_id: UUID
+    bin_id: UUID
+
     quantity_change: int
-    reference_type: OrderType
+    reference_type: StockMovementType
     reference_id: UUID | None = None
+    notes: str | None = None
 
 
 class StockMovementResponse(BaseModel):
@@ -21,11 +24,14 @@ class StockMovementResponse(BaseModel):
     id: UUID
     workspace_id: UUID
     item_id: UUID
+    bin_id: UUID
+
     quantity_change: int
-    reference_type: OrderType
+    reference_type: StockMovementType
     reference_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    notes: str | None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -5,17 +5,27 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.api.base.service import BaseService
-from erp.api.modules.inventory.exceptions import InsufficientInventoryError
+from erp.api.modules.inventory.enums import StockMovementType
+from erp.api.modules.inventory.exceptions import (
+    InsufficientInventoryError,
+    InventoryNotFoundError,
+    PickPackInvalidQuantityError,
+    TransferStockSameBinError,
+)
 from erp.api.modules.inventory.filters.inventory import InventoryFilter
 from erp.api.modules.inventory.models import Inventory, StockMovement
-from erp.api.modules.inventory.schemas.inventory import (
-    InventoryPaginatedResponse,
+from erp.api.modules.inventory.schemas.inventory import InventoryPaginatedResponse, InventoryResponse
+from erp.api.modules.inventory.schemas.inventory_expanded import (
+    InventoryExpandedPaginatedResponse,
+    InventoryExpandedResponse,
 )
 from erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementCreate,
     StockMovementPaginatedResponse,
 )
+from erp.api.modules.inventory.schemas.transfer import InventoryTransferRequest
 from erp.api.modules.item.models import Item
+from erp.api.modules.item.service import ItemService
 
 
 class InventoryService(BaseService[Inventory]):
@@ -23,14 +33,14 @@ class InventoryService(BaseService[Inventory]):
         super().__init__(db, Inventory)
 
     async def _get_or_create_inventory(
-        self, workspace_id: UUID, item_id: UUID, lock_for_update: bool = False
+        self, workspace_id: UUID, item_id: UUID, bin_id: UUID, lock_for_update: bool = False
     ) -> Inventory:
-        """
-        Helper method to securely fetch an item's inventory.
-        If it doesn't exist, it initialises it at 0.
-        Only locks the row with FOR UPDATE if lock_for_update is True.
-        """
-        base_stmt = select(Inventory).where(Inventory.workspace_id == workspace_id, Inventory.item_id == item_id)
+        """Fetch an inventory record for a specific item and bin within a workspace, creating it if it doesn't exist."""
+        base_stmt = select(Inventory).where(
+            Inventory.workspace_id == workspace_id,
+            Inventory.item_id == item_id,
+            Inventory.bin_id == bin_id,
+        )
 
         stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
 
@@ -43,9 +53,8 @@ class InventoryService(BaseService[Inventory]):
                     inventory = Inventory(
                         workspace_id=workspace_id,
                         item_id=item_id,
+                        bin_id=bin_id,
                         quantity_on_hand=0,
-                        quantity_allocated=0,
-                        quantity_on_order=0,
                     )
                     self.db.add(inventory)
                     await self.db.flush()
@@ -53,6 +62,26 @@ class InventoryService(BaseService[Inventory]):
                 retry_stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
                 result = await self.db.execute(retry_stmt)
                 inventory = result.scalar_one()
+
+        return inventory
+
+    async def _get_inventory(
+        self, workspace_id: UUID, inventory_id: UUID, expand: list[str] | None = None
+    ) -> Inventory:
+        """Fetch a specific inventory record by its ID within a workspace."""
+        base_stmt = select(Inventory).where(
+            Inventory.workspace_id == workspace_id, Inventory.id == inventory_id, Inventory.is_deleted.is_(False)
+        )
+
+        if expand:
+            loader_options = self.build_loader_options(expand)
+            base_stmt = base_stmt.options(*loader_options)
+
+        result = await self.db.execute(base_stmt)
+        inventory = result.unique().scalar_one_or_none()
+
+        if not inventory:
+            raise InventoryNotFoundError()
 
         return inventory
 
@@ -64,18 +93,12 @@ class InventoryService(BaseService[Inventory]):
         page: int = 1,
         limit: int = 20,
         expand: list[str] | None = None,
-    ) -> InventoryPaginatedResponse:
+    ) -> InventoryPaginatedResponse | InventoryExpandedPaginatedResponse:
+        """Fetch a paginated list of inventory records within a workspace, applying filters, search, and expansion."""
+
         filters = filters or InventoryFilter()
 
-        base_query = (
-            select(Inventory)
-            .join(Item, Inventory.item_id == Item.id)
-            .where(
-                Inventory.workspace_id == workspace_id,
-                Inventory.is_deleted.is_(False),
-                Item.is_deleted.is_(False),
-            )
-        )
+        base_query = select(Inventory).where(Inventory.workspace_id == workspace_id, Inventory.is_deleted.is_(False))
 
         if search:
             search_term = f"%{search}%"
@@ -107,22 +130,36 @@ class InventoryService(BaseService[Inventory]):
 
         table_filters = await filters.build_ui_filters(self.db, workspace_id)
 
-        return InventoryPaginatedResponse(
-            items=items,
-            total=total,
-            filters=table_filters,
-        )
+        if expand:
+            return InventoryExpandedPaginatedResponse(items=items, total=total, filters=table_filters)
 
-    async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID) -> Inventory:
-        """Fetches a single inventory balance by item_id (no lock)."""
-        return await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=False)
+        return InventoryPaginatedResponse(items=items, total=total, filters=table_filters)
+
+    async def get_inventory(self, workspace_id: UUID, inventory_id: UUID, expand: list[str] | None = None) -> Inventory:
+        """Fetch a single inventory record by its ID within a workspace."""
+
+        inventory = await self._get_inventory(workspace_id, inventory_id, expand=expand)
+
+        if expand:
+            return InventoryExpandedResponse.model_validate(inventory)
+
+        return InventoryResponse.model_validate(inventory)
+
+    async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID, bin_id: UUID) -> Inventory:
+        """Fetches a single inventory balance by item_id and bin_id (no lock)."""
+        return await self._get_or_create_inventory(workspace_id, item_id, bin_id=bin_id, lock_for_update=False)
+
+    # STOCK MOVEMENT METHODS
 
     async def create_stock_movement(self, workspace_id: UUID, data: StockMovementCreate) -> StockMovement:
         """
-        Creates a stock movement and automatically updates the ON-HAND inventory.
+        Creates a stock movement and automatically updates the ON-HAND inventory in the specific bin.
         Locks the inventory row during update and commits the transaction.
         """
-        inventory = await self._get_or_create_inventory(workspace_id, data.item_id, lock_for_update=True)
+
+        inventory = await self._get_or_create_inventory(
+            workspace_id, data.item_id, bin_id=data.bin_id, lock_for_update=True
+        )
 
         if inventory.quantity_on_hand + data.quantity_change < 0:
             raise InsufficientInventoryError()
@@ -143,9 +180,14 @@ class InventoryService(BaseService[Inventory]):
         return movement
 
     async def get_stock_movements(
-        self, workspace_id: UUID, item_id: UUID | None = None, page: int = 1, limit: int = 20
+        self,
+        workspace_id: UUID,
+        item_id: UUID | None = None,
+        bin_id: UUID | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> StockMovementPaginatedResponse:
-        """Fetches paginated stock movements, optionally filtered by item_id."""
+        """Fetches paginated stock movements, optionally filtered by item_id & bin_id."""
         base_query = select(StockMovement).where(
             StockMovement.workspace_id == workspace_id,
             StockMovement.is_deleted.is_(False),
@@ -153,8 +195,9 @@ class InventoryService(BaseService[Inventory]):
 
         if item_id:
             base_query = base_query.where(StockMovement.item_id == item_id)
+        if bin_id:
+            base_query = base_query.where(StockMovement.bin_id == bin_id)
 
-        # Order by newest first
         base_query = base_query.order_by(StockMovement.created_at.desc())
 
         count_query = select(func.count()).select_from(base_query.subquery())
@@ -168,33 +211,200 @@ class InventoryService(BaseService[Inventory]):
 
         return StockMovementPaginatedResponse(items=items, total=total)
 
-    async def adjust_quantity_on_order(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
-        if delta == 0:
-            return
 
-        inventory = await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+class InventoryTransferService:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+        self.inventory_service = InventoryService(db)
 
-        if inventory.quantity_on_order + delta < 0:
+    async def bin_to_bin_transfer(
+        self, workspace_id: UUID, data: InventoryTransferRequest
+    ) -> tuple[StockMovement | None, StockMovement | None]:
+
+        if data.source_bin_id == data.destination_bin_id:
+            raise TransferStockSameBinError()
+
+        source = await self.inventory_service._get_or_create_inventory(
+            workspace_id,
+            data.item_id,
+            bin_id=data.source_bin_id,
+            lock_for_update=True,
+        )
+
+        destination = await self.inventory_service._get_or_create_inventory(
+            workspace_id,
+            data.item_id,
+            bin_id=data.destination_bin_id,
+            lock_for_update=True,
+        )
+
+        if data.quantity > source.quantity_on_hand:
             raise InsufficientInventoryError()
 
-        inventory.quantity_on_order += delta
-        self.db.add(inventory)
+        if data.quantity == source.quantity_on_hand:
+            return await self._execute_full_transfer_keep_empty(workspace_id, data, source, destination)
 
-    async def adjust_quantity_allocated(self, workspace_id: UUID, item_id: UUID, delta: int) -> None:
-        if delta == 0:
-            return
+        return await self._execute_partial_transfer(workspace_id, data, source, destination)
 
-        inventory = await self._get_or_create_inventory(workspace_id, item_id, lock_for_update=True)
+    async def _execute_full_transfer_keep_empty(
+        self, workspace_id: UUID, data: InventoryTransferRequest, source: Inventory, destination: Inventory
+    ) -> tuple[StockMovement, StockMovement]:
+        """Transfer all physical stock, keeping source bin active with 0 quantity."""
+        transfer_qty = source.quantity_on_hand
 
-        # 1. Prevent negative allocation when decreasing (delta < 0)
-        if inventory.quantity_allocated + delta < 0:
+        destination.quantity_on_hand += transfer_qty
+        source.quantity_on_hand = 0
+
+        out_movement, in_movement = self._build_movements(
+            workspace_id, data, source.bin_id, destination.bin_id, transfer_qty, action_label="Transfer"
+        )
+
+        self.db.add(source)
+        self.db.add(destination)
+        self.db.add(out_movement)
+        self.db.add(in_movement)
+
+        await self.db.commit()
+        await self.db.refresh(out_movement)
+        await self.db.refresh(in_movement)
+
+        return out_movement, in_movement
+
+    async def _execute_partial_transfer(
+        self, workspace_id: UUID, data: InventoryTransferRequest, source: Inventory, destination: Inventory
+    ) -> tuple[StockMovement, StockMovement]:
+        """Transfer a subset of physical stock between bins."""
+        transfer_qty = data.quantity
+
+        source.quantity_on_hand -= transfer_qty
+        destination.quantity_on_hand += transfer_qty
+
+        out_movement, in_movement = self._build_movements(
+            workspace_id, data, source.bin_id, destination.bin_id, transfer_qty, action_label="Transfer"
+        )
+
+        self.db.add(source)
+        self.db.add(destination)
+        self.db.add(out_movement)
+        self.db.add(in_movement)
+
+        await self.db.commit()
+        await self.db.refresh(out_movement)
+        await self.db.refresh(in_movement)
+
+        return out_movement, in_movement
+
+    def _build_movements(
+        self,
+        workspace_id: UUID,
+        data: InventoryTransferRequest,
+        source_bin_id: UUID,
+        destination_bin_id: UUID,
+        transfer_qty: int,
+        action_label: str,
+    ) -> tuple[StockMovement, StockMovement]:
+        notes_text = f"{action_label} from bin {source_bin_id} to bin {destination_bin_id}"
+
+        if data.notes and data.notes.strip():
+            notes_text += f"\n\n{data.notes.strip()}"
+
+        out_movement = StockMovement(
+            workspace_id=workspace_id,
+            item_id=data.item_id,
+            bin_id=source_bin_id,
+            quantity_change=-transfer_qty,
+            reference_type=StockMovementType.MANUAL_ADJUSTMENT,
+            notes=f"OUT: {notes_text}",
+        )
+
+        in_movement = StockMovement(
+            workspace_id=workspace_id,
+            item_id=data.item_id,
+            bin_id=destination_bin_id,
+            quantity_change=transfer_qty,
+            reference_type=StockMovementType.MANUAL_ADJUSTMENT,
+            notes=f"IN: {notes_text}",
+        )
+
+        return out_movement, in_movement
+
+
+class PickPackService:
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+        self.inventory_service = InventoryService(db)
+        self.item_service = ItemService(db)
+
+    async def pickpack_sell_order_line(
+        self,
+        workspace_id: UUID,
+        sell_order_id: UUID,
+        item_id: UUID,
+        bin_id: UUID,
+        quantity_to_fulfill: int,
+    ) -> StockMovement:
+        """Executes physical pickpacking for a sell order line."""
+        if quantity_to_fulfill <= 0:
+            msg = "Fulfillment quantity must be greater than zero."
+            raise PickPackInvalidQuantityError(detail=msg)
+
+        inventory = await self.inventory_service._get_or_create_inventory(
+            workspace_id, item_id, bin_id=bin_id, lock_for_update=True
+        )
+
+        if inventory.quantity_on_hand < quantity_to_fulfill:
             raise InsufficientInventoryError()
 
-        # 2. Prevent over-allocation when increasing (delta > 0)
-        if delta > 0:
-            available_stock = inventory.quantity_on_hand - inventory.quantity_allocated
-            if available_stock < delta:
-                raise InsufficientInventoryError()
-
-        inventory.quantity_allocated += delta
+        inventory.quantity_on_hand -= quantity_to_fulfill
         self.db.add(inventory)
+
+        movement = StockMovement(
+            workspace_id=workspace_id,
+            item_id=item_id,
+            bin_id=bin_id,
+            quantity_change=-quantity_to_fulfill,
+            reference_type=StockMovementType.SELL_ORDER,
+            reference_id=sell_order_id,
+            notes=f"Fulfilled {quantity_to_fulfill} units for Sell Order {sell_order_id} from bin {bin_id}",
+        )
+        self.db.add(movement)
+
+        await self.db.flush()
+        await self.db.refresh(movement)
+
+        return movement
+
+    async def pickpack_purchase_order_line(
+        self,
+        workspace_id: UUID,
+        purchase_order_id: UUID,
+        item_id: UUID,
+        bin_id: UUID,
+        quantity_received: int,
+    ) -> StockMovement:
+        """Executes physical pickpacking for a purchase order line."""
+        if quantity_received <= 0:
+            msg = "Received quantity must be greater than zero."
+            raise PickPackInvalidQuantityError(detail=msg)
+
+        inventory = await self.inventory_service._get_or_create_inventory(
+            workspace_id, item_id, bin_id=bin_id, lock_for_update=True
+        )
+
+        inventory.quantity_on_hand += quantity_received
+        self.db.add(inventory)
+
+        movement = StockMovement(
+            workspace_id=workspace_id,
+            item_id=item_id,
+            bin_id=bin_id,
+            quantity_change=quantity_received,
+            reference_type=StockMovementType.PURCHASE_ORDER,
+            reference_id=purchase_order_id,
+            notes=f"Received {quantity_received} units for Purchase Order {purchase_order_id} into bin {bin_id}",
+        )
+        self.db.add(movement)
+
+        await self.db.flush()
+        await self.db.refresh(movement)
+        return movement

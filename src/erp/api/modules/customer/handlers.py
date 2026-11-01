@@ -8,15 +8,11 @@ from erp.api.modules.customer.events import (
 from erp.core.event_bus import EventBus
 
 
-async def _handle_customer_created(
-    event: CustomerCreatedEvent,
-) -> None:
+async def _handle_customer_created(event: CustomerCreatedEvent) -> None:
     await process_customer_search_index(event.customer.id)
 
 
-async def _handle_customer_updated(
-    event: CustomerUpdatedEvent,
-) -> None:
+async def _handle_customer_updated(event: CustomerUpdatedEvent) -> None:
     await process_customer_search_index(event.customer.id)
 
 

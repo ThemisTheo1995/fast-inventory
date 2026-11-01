@@ -24,6 +24,7 @@ from erp.api.modules.sell_order.exceptions import (
     SellOrderStatusTerminalError,
     SellOrderStatusTransitionError,
 )
+from erp.api.modules.sell_order.filters.sell_order import SellOrderFilter
 from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 from erp.api.modules.sell_order.schemas import (
     SellOrderCreate,
@@ -148,35 +149,54 @@ class SellOrderService:
         return await self._get_active_sell_order(workspace_id, sell_order.id)
 
     async def get_sell_orders(
-        self, workspace_id: UUID, search: str | None = None, page: int = 1, limit: int = 20
+        self,
+        workspace_id: UUID,
+        filters: SellOrderFilter | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> SellOrderPaginatedResponse:
-        """Fetches paginated SOs with lines eager-loaded."""
+        """Fetch paginated SOs with filters and lines eager-loaded."""
+        filters = filters or SellOrderFilter()
+
         base_query = select(SellOrder).where(
             SellOrder.workspace_id == workspace_id,
             SellOrder.is_deleted.is_(False),
         )
 
-        if search:
-            base_query = base_query.where(SellOrder.so_number.ilike(f"%{search}%"))
+        base_query = filters.apply(base_query, SellOrder)
 
         count_query = select(func.count()).select_from(base_query.subquery())
-        total_result = await self.db.execute(count_query)
-        total = total_result.scalar_one()
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar_one()
 
         skip = (page - 1) * limit
+
         sell_orders_query = (
             base_query.options(
                 selectinload(SellOrder.sell_order_lines).selectinload(SellOrderLine.item),
                 selectinload(SellOrder.customer),
             )
-            .order_by(SellOrder.created_at.desc(), SellOrder.id.desc())
+            .order_by(
+                SellOrder.created_at.desc(),
+                SellOrder.id.desc(),
+            )
             .offset(skip)
             .limit(limit)
         )
+
         sell_orders_result = await self.db.execute(sell_orders_query)
         sell_orders = list(sell_orders_result.scalars().all())
 
-        return SellOrderPaginatedResponse(items=sell_orders, total=total)
+        table_filters = await filters.build_ui_filters(
+            self.db,
+            workspace_id,
+        )
+
+        return SellOrderPaginatedResponse(
+            items=sell_orders,
+            total=total,
+            filters=table_filters,
+        )
 
     async def get_sell_order(self, workspace_id: UUID, sell_order_id: UUID) -> SellOrder:
         return await self._get_active_sell_order(workspace_id, sell_order_id)

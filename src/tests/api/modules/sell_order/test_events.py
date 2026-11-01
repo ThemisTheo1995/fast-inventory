@@ -7,11 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from erp.api.modules.sell_order.events import (
     SellOrderCancelledEvent,
     SellOrderConfirmedEvent,
+    SellOrderCreatedEvent,
     SellOrderFulfilledEvent,
     SellOrderLineAddedEvent,
     SellOrderLineRemovedEvent,
     SellOrderLineUpdatedEvent,
     SellOrderReturnedEvent,
+    SellOrderUpdatedEvent,
 )
 from erp.api.modules.sell_order.models import SellOrder, SellOrderLine
 
@@ -41,7 +43,32 @@ def sell_order_line_mock():
 
 
 # ==============================================================================
-# TESTS
+# GLOBAL SEARCH EVENTS
+# ==============================================================================
+
+
+def test_sell_order_created_event_initialization(workspace_id, sell_order_mock):
+    event = SellOrderCreatedEvent(
+        workspace_id=workspace_id,
+        sell_order=sell_order_mock,
+    )
+
+    assert event.workspace_id == workspace_id
+    assert event.sell_order is sell_order_mock
+
+
+def test_sell_order_updated_event_initialization(workspace_id, sell_order_mock):
+    event = SellOrderUpdatedEvent(
+        workspace_id=workspace_id,
+        sell_order=sell_order_mock,
+    )
+
+    assert event.workspace_id == workspace_id
+    assert event.sell_order is sell_order_mock
+
+
+# ==============================================================================
+# INVENTORY EVENTS
 # ==============================================================================
 
 
@@ -91,6 +118,11 @@ def test_sell_order_returned_event_initialization(db_session_mock, workspace_id,
     assert event.db is db_session_mock
     assert event.workspace_id == workspace_id
     assert event.sell_order is sell_order_mock
+
+
+# ==============================================================================
+# SELL ORDER LINE EVENTS
+# ==============================================================================
 
 
 def test_sell_order_line_added_event_initialization(

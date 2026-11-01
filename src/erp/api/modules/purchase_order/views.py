@@ -57,7 +57,6 @@ async def get_purchase_orders(
     workspace_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     filters: Annotated[PurchaseOrderFilter, Depends()],
-    search: str | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> PurchaseOrderPaginatedResponse:
@@ -67,7 +66,6 @@ async def get_purchase_orders(
     return await service.get_purchase_orders(
         workspace_id=workspace_id,
         filters=filters,
-        search=search,
         page=page,
         limit=limit,
     )

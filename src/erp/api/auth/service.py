@@ -394,12 +394,17 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if user.last_email_change_sent_at:
+            print(now)
+            print(user.last_email_change_sent_at)
             cooldown = user.last_email_change_sent_at + timedelta(minutes=settings.CHANGE_EMAIL_COOLDOWN_MINUTES)
             if now < cooldown:
                 return
 
         user.last_email_change_sent_at = now
         await self.db.commit()
+
+        print(now)
+        print(user.last_email_change_sent_at)
 
         # Send verification email
         change_token = generate_email_change_token(user_id, new_email)

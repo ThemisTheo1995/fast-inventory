@@ -40,7 +40,11 @@ class FilterSpec:
         options_fn: Callable[[AsyncSession, UUID], list[FilterOption]] | None = None,
         min_val: float | None = None,
         max_val: float | None = None,
-        range_fn: Callable[[AsyncSession, UUID], tuple[float, float]] | None = None,
+        range_fn: Callable[
+            [AsyncSession, UUID],
+            tuple[float, float] | tuple[float, float, float],
+        ]
+        | None = None,
         step: float | None = None,
         prefix: str | None = None,
     ) -> None:
@@ -103,18 +107,28 @@ class BaseFilter(BaseModel):
 
         return query
 
-    async def build_ui_filters(self, db: AsyncSession, workspace_id: UUID) -> list[TableFilter]:
+    async def build_ui_filters(
+        self,
+        db: AsyncSession,
+        workspace_id: UUID,
+    ) -> list[TableFilter]:
         table_filters: list[TableFilter] = []
 
         for field_name, spec in self.__filter_config__.items():
             options: list[FilterOption] = []
             min_val = spec.min_val
             max_val = spec.max_val
+            step = spec.step
 
             if spec.enum_type:
                 for item in spec.enum_type:
-                    label = getattr(item, "label", item.name.replace("_", " ").title())
+                    label = getattr(
+                        item,
+                        "label",
+                        item.name.replace("_", " ").title(),
+                    )
                     options.append(FilterOption(label=label, value=item.value))
+
             elif spec.options_fn:
                 if inspect.iscoroutinefunction(spec.options_fn):
                     options = await spec.options_fn(db, workspace_id)
@@ -123,9 +137,14 @@ class BaseFilter(BaseModel):
 
             if spec.type == "range" and spec.range_fn:
                 if inspect.iscoroutinefunction(spec.range_fn):
-                    min_val, max_val = await spec.range_fn(db, workspace_id)
+                    range_result = await spec.range_fn(db, workspace_id)
                 else:
-                    min_val, max_val = spec.range_fn(db, workspace_id)
+                    range_result = spec.range_fn(db, workspace_id)
+
+                min_val, max_val = range_result[:2]
+
+                if len(range_result) == 3:
+                    step = range_result[2]
 
             table_filters.append(
                 TableFilter(
@@ -136,7 +155,7 @@ class BaseFilter(BaseModel):
                     options=options,
                     min=min_val,
                     max=max_val,
-                    step=spec.step,
+                    step=step,
                     prefix=spec.prefix,
                 )
             )

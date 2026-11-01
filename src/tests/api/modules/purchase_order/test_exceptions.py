@@ -19,7 +19,6 @@ from erp.core.exceptions import BaseAppError
 
 
 def test_purchase_order_not_found_error():
-    """Verifies PurchaseOrderNotFoundError initializes with 404 status code and expected detail."""
     err = PurchaseOrderNotFoundError()
 
     assert isinstance(err, BaseAppError)
@@ -28,7 +27,6 @@ def test_purchase_order_not_found_error():
 
 
 def test_purchase_order_exists_error():
-    """Verifies PurchaseOrderExistsError initializes with 409 status code and expected detail."""
     err = PurchaseOrderExistsError()
 
     assert isinstance(err, BaseAppError)
@@ -37,7 +35,6 @@ def test_purchase_order_exists_error():
 
 
 def test_purchase_order_line_not_found_error():
-    """Verifies PurchaseOrderLineNotFoundError initializes with 404 status code and expected detail."""
     err = PurchaseOrderLineNotFoundError()
 
     assert isinstance(err, BaseAppError)
@@ -46,7 +43,6 @@ def test_purchase_order_line_not_found_error():
 
 
 def test_purchase_order_line_item_change_error():
-    """Verifies PurchaseOrderLineItemChangeError initializes with 409 status code and expected detail."""
     err = PurchaseOrderLineItemChangeError()
 
     assert isinstance(err, BaseAppError)
@@ -55,7 +51,6 @@ def test_purchase_order_line_item_change_error():
 
 
 def test_purchase_order_not_editable_error():
-    """Verifies PurchaseOrderNotEditableError initializes with 409 status code and expected detail."""
     status = "RECEIVED"
     err = PurchaseOrderNotEditableError(status=status)
 
@@ -65,10 +60,13 @@ def test_purchase_order_not_editable_error():
 
 
 def test_purchase_order_status_transition_error():
-    """Verifies PurchaseOrderStatusTransitionError initializes with 409 status code and expected detail."""
     old_status = "DRAFT"
     new_status = "RETURNED"
-    err = PurchaseOrderStatusTransitionError(old_status=old_status, new_status=new_status)
+
+    err = PurchaseOrderStatusTransitionError(
+        old_status=old_status,
+        new_status=new_status,
+    )
 
     assert isinstance(err, BaseAppError)
     assert err.status_code == 409
@@ -80,21 +78,35 @@ def test_purchase_order_status_transition_error():
 # ============================================================================
 
 
-@pytest.mark.parametrize("status_label", ["FULFILLED", "APPROVED", "CLOSED"])
+@pytest.mark.parametrize(
+    "status_label",
+    [
+        "DRAFT",
+        "SENT",
+        "IN_TRANSIT",
+        "RECEIVED",
+        "RETURNED",
+        "CANCELLED",
+        "CLOSED",
+    ],
+)
 def test_purchase_order_cannot_delete_error_formatting(status_label: str):
-    """Verifies PurchaseOrderCannotDeleteError formats the exception message with status_label."""
     err = PurchaseOrderCannotDeleteError(status_label=status_label)
 
     expected_msg = f"Cannot delete purchase order in status: {status_label}. Cancel the order first."
 
     assert isinstance(err, ValueError)
+    assert not isinstance(err, BaseAppError)
     assert str(err) == expected_msg
 
 
 def test_purchase_order_cannot_delete_error_raises():
-    """Verifies PurchaseOrderCannotDeleteError is catchable via pytest.raises using re.escape."""
-    status_label = "PROCESSING"
+    status_label = "RECEIVED"
+
     expected_msg = f"Cannot delete purchase order in status: {status_label}. Cancel the order first."
 
-    with pytest.raises(PurchaseOrderCannotDeleteError, match=re.escape(expected_msg)):
+    with pytest.raises(
+        PurchaseOrderCannotDeleteError,
+        match=re.escape(expected_msg),
+    ):
         raise PurchaseOrderCannotDeleteError(status_label=status_label)

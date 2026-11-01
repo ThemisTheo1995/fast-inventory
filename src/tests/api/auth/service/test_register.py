@@ -1,9 +1,9 @@
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.api.auth.exceptions import (
@@ -14,8 +14,9 @@ from erp.api.auth.exceptions import (
 from erp.api.auth.models import User, UserSession
 from erp.api.auth.schemas.user import RegisterRequest, UserCreate
 from erp.api.auth.service import AuthService
+from erp.api.auth.utils import decode_token
 from erp.api.pricing.enums import PlanName
-from erp.api.pricing.models import PricingPlan
+from erp.api.pricing.models import PricingPlan, PricingSubscription
 from erp.api.workspace.exceptions import WorkspaceAlreadyExistsError
 from erp.api.workspace.models import Workspace
 from erp.api.workspace.schemas import WorkspaceCreate
@@ -23,60 +24,136 @@ from erp.api.workspace_user.enums import InvitationStatusEnum, WorkspaceRoleEnum
 from erp.api.workspace_user.models import WorkspaceUser
 
 
-@patch("erp.api.auth.service.get_email_provider")
-async def test_register_happy_path(mock_get_email, db_session: AsyncSession):
-    mock_email_provider = AsyncMock()
-    mock_get_email.return_value = mock_email_provider
-    auth_service = AuthService(db_session)
+def unique_email(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex}@example.com"
 
-    request_data = RegisterRequest(
-        user=UserCreate(email="happy@example.com", password="SecurePassword123!", first_name="John", last_name="Doe"),
-        workspace=WorkspaceCreate(name="Happy Tech LLC", email="billing@happytech.com"),
-        plan=next(iter(PlanName)),
+
+def build_register_request(
+    *,
+    user_email: str | None = None,
+    workspace_name: str | None = None,
+    workspace_email: str | None = None,
+    plan: PlanName | None = None,
+) -> RegisterRequest:
+    return RegisterRequest(
+        user=UserCreate(
+            email=user_email or unique_email("register"),
+            password="SecurePassword123!",
+            first_name="John",
+            last_name="Doe",
+        ),
+        workspace=WorkspaceCreate(
+            name=workspace_name or f"Workspace {uuid.uuid4().hex[:8]}",
+            email=workspace_email or unique_email("workspace"),
+        ),
+        plan=plan or next(iter(PlanName)),
     )
 
-    result = await auth_service.register(request_data)
 
-    # Check side effects
-    mock_email_provider.send_email.assert_called_once()
+async def test_register_happy_path(
+    db_session: AsyncSession,
+    pricing_plan: PricingPlan,
+):
+    auth_service = AuthService(db_session)
+    email_provider = AsyncMock()
+    email_message = object()
+
+    request_data = build_register_request(plan=pricing_plan.name)
+
+    with (
+        patch(
+            "erp.api.auth.service.get_email_provider",
+            return_value=email_provider,
+        ),
+        patch(
+            "erp.api.auth.service.build_welcome_email",
+            return_value=email_message,
+        ) as build_email,
+    ):
+        result = await auth_service.register(request_data)
+
+    email_provider.send_email.assert_awaited_once_with(email_message)
+
+    build_email.assert_called_once()
+    assert build_email.call_args.kwargs["recipient"] == request_data.user.email
+    assert build_email.call_args.kwargs["whitelisted_token"] == result.whitelisted_token
+
+    assert result.access_token
+    assert result.refresh_token
+    assert result.whitelisted_token
     assert result.is_whitelisted is False
 
-    res_ws_user = await db_session.execute(select(WorkspaceUser).join(User).where(User.email == "happy@example.com"))
-    workspace_user = res_ws_user.scalar_one_or_none()
+    access_payload = decode_token(result.access_token)
+    refresh_payload = decode_token(result.refresh_token)
 
-    # Check returned DTO and link state (RESTORED ORIGINAL ASSERTIONS)
-    assert workspace_user is not None
-    assert workspace_user.role == WorkspaceRoleEnum.FULL_ADMIN
-    assert workspace_user.status == InvitationStatusEnum.ACTIVE
+    assert access_payload["sub"]
+    assert refresh_payload["sub"] == access_payload["sub"]
+    assert refresh_payload["type"] == "refresh"
 
-    # Check Database Mutations (RESTORED ORIGINAL ASSERTIONS)
-    res_user = await db_session.execute(select(User).where(User.email == "happy@example.com"))
-    user = res_user.scalar_one_or_none()
-    assert user is not None
+    user_result = await db_session.execute(select(User).where(User.email == request_data.user.email))
+    user = user_result.scalar_one()
+
     assert user.first_name == "John"
+    assert user.last_name == "Doe"
+    assert user.hashed_password is not None
+    assert user.is_whitelisted is False
 
-    res_ws = await db_session.execute(select(Workspace).where(Workspace.name == "Happy Tech LLC"))
-    workspace = res_ws.scalar_one_or_none()
-    assert workspace is not None
-    assert workspace.email == "billing@happytech.com"
+    workspace_result = await db_session.execute(
+        select(Workspace).where(Workspace.email == request_data.workspace.email)
+    )
+    workspace = workspace_result.scalar_one()
 
-    res_session = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
-    session = res_session.scalar_one_or_none()
-    assert session is not None
-    assert session.expires_at > datetime.now(UTC)
+    assert workspace.name == request_data.workspace.name
+    assert result.workspace_id == workspace.id
+
+    membership_result = await db_session.execute(
+        select(WorkspaceUser).where(
+            WorkspaceUser.user_id == user.id,
+            WorkspaceUser.workspace_id == workspace.id,
+        )
+    )
+    membership = membership_result.scalar_one()
+
+    assert membership.role == WorkspaceRoleEnum.FULL_ADMIN
+    assert membership.status == InvitationStatusEnum.ACTIVE
+
+    subscription_result = await db_session.execute(
+        select(PricingSubscription).where(PricingSubscription.workspace_id == workspace.id)
+    )
+    subscription = subscription_result.scalar_one()
+
+    assert subscription.plan_id == pricing_plan.id
+    assert subscription.is_active is True
+    assert subscription.is_paused is False
+
+    session_result = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
+    session = session_result.scalar_one()
+
+    assert session.session_id == refresh_payload["jti"]
+    assert session.expires_at == datetime.fromtimestamp(
+        refresh_payload["exp"],
+        tz=UTC,
+    )
 
 
-async def test_register_exception_user_already_exists(db_session: AsyncSession, pricing_plan: PricingPlan):
+async def test_register_user_already_exists(
+    db_session: AsyncSession,
+    pricing_plan: PricingPlan,
+):
     auth_service = AuthService(db_session)
 
-    # Setup pre-existing state
-    existing_user = User(email="exists@example.com", first_name="Im", last_name="Here", hashed_password="hashed")
+    email = unique_email("existing")
+    existing_user = User(
+        email=email,
+        first_name="Existing",
+        last_name="User",
+        hashed_password="hashed",
+    )
     db_session.add(existing_user)
     await db_session.commit()
 
-    request_data = RegisterRequest(
-        user=UserCreate(email="exists@example.com", password="password123"),
-        workspace=WorkspaceCreate(name="Ghost Corp", email="ghost@corp.com"),
+    request_data = build_register_request(
+        user_email=email,
         plan=pricing_plan.name,
     )
 
@@ -84,65 +161,128 @@ async def test_register_exception_user_already_exists(db_session: AsyncSession, 
         await auth_service.register(request_data)
 
 
-async def test_register_exception_workspace_already_exists(db_session: AsyncSession):
+async def test_register_workspace_already_exists(
+    db_session: AsyncSession,
+    pricing_plan: PricingPlan,
+):
     auth_service = AuthService(db_session)
 
-    await db_session.execute(delete(PricingPlan))
-    plan = PricingPlan(name=PlanName.PRO, listings_limit=10000, api_limit=10000, price_monthly=4800)
-    db_session.add(plan)
-
-    taken_email = f"taken_{uuid.uuid4().hex}@corp.com"
-    workspace = Workspace(name="Existing", email=taken_email)
+    taken_email = unique_email("taken")
+    workspace = Workspace(
+        name="Existing Workspace",
+        email=taken_email,
+    )
     db_session.add(workspace)
     await db_session.commit()
 
-    request_data = RegisterRequest(
-        user=UserCreate(
-            email=f"new_{uuid.uuid4().hex}@example.com", password="password123", first_name="N", last_name="U"
-        ),
-        workspace=WorkspaceCreate(name="Whatever", email=taken_email),
-        plan=PlanName.PRO,
+    request_data = build_register_request(
+        workspace_email=taken_email,
+        plan=pricing_plan.name,
     )
 
     with pytest.raises(WorkspaceAlreadyExistsError):
         await auth_service.register(request_data)
 
+    # User creation must not happen when workspace validation fails.
+    user_result = await db_session.execute(select(User).where(User.email == request_data.user.email))
+    assert user_result.scalar_one_or_none() is None
 
-async def test_register_exception_database_failure_triggers_rollback(db_session: AsyncSession):
+
+async def test_register_pricing_plan_does_not_exist():
+    """Registration fails when the requested pricing plan cannot be found."""
+    db_session = AsyncMock(spec=AsyncSession)
+
+    empty_result = MagicMock()
+    empty_result.scalar_one_or_none.return_value = None
+
+    db_session.execute.side_effect = [
+        empty_result,
+        empty_result,
+    ]
+
     auth_service = AuthService(db_session)
-    request_data = RegisterRequest(
-        user=UserCreate(email="rollback@example.com", password="password123"),
-        workspace=WorkspaceCreate(name="Rollback Inc", email="rb@inc.com"),
-        plan=next(iter(PlanName)),
+    request_data = build_register_request(plan=PlanName.PRO)
+
+    with pytest.raises(PricingPlanDoesNotExistError):
+        await auth_service.register(request_data)
+
+    assert db_session.execute.await_count == 2
+    db_session.add.assert_not_called()
+    db_session.commit.assert_not_awaited()
+
+
+async def test_register_database_failure_rolls_back(
+    db_session: AsyncSession,
+    pricing_plan: PricingPlan,
+):
+    auth_service = AuthService(db_session)
+
+    request_data = build_register_request(
+        plan=pricing_plan.name,
     )
 
-    # Force an internal failure mid-flight
     with (
-        patch("erp.api.auth.service.generate_token_pair", side_effect=ValueError("JWT Crypto System Error")),
+        patch(
+            "erp.api.auth.service.generate_token_pair",
+            side_effect=ValueError("JWT Crypto System Error"),
+        ),
         pytest.raises(OnboardingFailedExceptionError),
     ):
         await auth_service.register(request_data)
 
-    # Assert that rollback successfully kept database clean of partial/orphaned items (RESTORED ORIGINAL ASSERTIONS)
-    db_session.expire_all()
+    user_result = await db_session.execute(select(User).where(User.email == request_data.user.email))
+    assert user_result.scalar_one_or_none() is None
 
-    res_user = await db_session.execute(select(User).where(User.email == "rollback@example.com"))
-    assert res_user.scalar_one_or_none() is None
-
-    res_ws = await db_session.execute(select(Workspace).where(Workspace.name == "Rollback Inc"))
-    assert res_ws.scalar_one_or_none() is None
-
-
-async def test_register_exception_pricing_plan_does_not_exist(db_session: AsyncSession):
-    await db_session.execute(delete(PricingPlan))
-    await db_session.commit()
-
-    auth_service = AuthService(db_session)
-    request_data = RegisterRequest(
-        user=UserCreate(email="noplan@example.com", password="SecurePassword123!"),
-        workspace=WorkspaceCreate(name="No Plan LLC", email="noplan@corp.com"),
-        plan=PlanName.PRO,
+    workspace_result = await db_session.execute(
+        select(Workspace).where(Workspace.email == request_data.workspace.email)
     )
+    assert workspace_result.scalar_one_or_none() is None
 
-    with pytest.raises(PricingPlanDoesNotExistError):
+
+async def test_register_email_failure_keeps_committed_registration(
+    db_session: AsyncSession,
+    pricing_plan: PricingPlan,
+):
+    auth_service = AuthService(db_session)
+
+    email_provider = AsyncMock()
+    email_provider.send_email.side_effect = RuntimeError("Email delivery failed")
+
+    request_data = build_register_request(plan=pricing_plan.name)
+
+    with (
+        patch(
+            "erp.api.auth.service.get_email_provider",
+            return_value=email_provider,
+        ),
+        patch(
+            "erp.api.auth.service.build_welcome_email",
+            return_value=object(),
+        ),
+        pytest.raises(RuntimeError, match="Email delivery failed"),
+    ):
         await auth_service.register(request_data)
+
+    # Registration was committed before email delivery was attempted.
+    user_result = await db_session.execute(select(User).where(User.email == request_data.user.email))
+    user = user_result.scalar_one()
+
+    assert user.is_whitelisted is False
+
+    workspace_result = await db_session.execute(
+        select(Workspace).where(Workspace.email == request_data.workspace.email)
+    )
+    workspace = workspace_result.scalar_one()
+
+    assert workspace.name == request_data.workspace.name
+
+    membership_result = await db_session.execute(
+        select(WorkspaceUser).where(
+            WorkspaceUser.user_id == user.id,
+            WorkspaceUser.workspace_id == workspace.id,
+        )
+    )
+    assert membership_result.scalar_one_or_none() is not None
+
+    session_result = await db_session.execute(select(UserSession).where(UserSession.user_id == user.id))
+    assert session_result.scalar_one_or_none() is not None

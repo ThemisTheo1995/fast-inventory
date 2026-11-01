@@ -9,6 +9,9 @@ from erp.core.config import get_settings
 def send_barcode_generation_event(data: ItemBarcode) -> dict[str, Any]:
     settings = get_settings()
 
+    if settings.ENVIRONMENT not in ["production", "staging", "testing"]:
+        return {}
+
     sqs_client = boto3.client(
         "sqs",
         region_name=settings.AWS_REGION,
