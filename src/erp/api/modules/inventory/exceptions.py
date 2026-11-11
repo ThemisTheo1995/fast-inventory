@@ -9,6 +9,14 @@ class InsufficientInventoryError(BaseAppError):
         )
 
 
+class InventoryNotEmptyError(BaseAppError):
+    def __init__(self) -> None:
+        super().__init__(
+            status_code=400,
+            detail="Inventory is not empty.",
+        )
+
+
 class InventoryNotFoundError(BaseAppError):
     def __init__(self) -> None:
         super().__init__(

@@ -108,3 +108,17 @@ async def get_inventories(
         limit=limit,
         expand=expand,
     )
+
+
+@router.delete(
+    "/inventory/{inventory_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_inventory(
+    workspace_id: UUID,
+    inventory_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    service = InventoryService(db)
+
+    await service.delete_inventory(workspace_id, inventory_id)

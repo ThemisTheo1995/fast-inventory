@@ -8,6 +8,7 @@ from erp.api.base.service import BaseService
 from erp.api.modules.inventory.enums import StockMovementType
 from erp.api.modules.inventory.exceptions import (
     InsufficientInventoryError,
+    InventoryNotEmptyError,
     InventoryNotFoundError,
     PickPackInvalidQuantityError,
     TransferStockSameBinError,
@@ -33,9 +34,13 @@ class InventoryService(BaseService[Inventory]):
         super().__init__(db, Inventory)
 
     async def _get_or_create_inventory(
-        self, workspace_id: UUID, item_id: UUID, bin_id: UUID, lock_for_update: bool = False
+        self,
+        workspace_id: UUID,
+        item_id: UUID,
+        bin_id: UUID,
+        lock_for_update: bool = False,
     ) -> Inventory:
-        """Fetch an inventory record for a specific item and bin within a workspace, creating it if it doesn't exist."""
+        """Fetch or create inventory, reinstating it if it was previously soft-deleted."""
         base_stmt = select(Inventory).where(
             Inventory.workspace_id == workspace_id,
             Inventory.item_id == item_id,
@@ -47,21 +52,30 @@ class InventoryService(BaseService[Inventory]):
         result = await self.db.execute(stmt)
         inventory = result.scalar_one_or_none()
 
-        if not inventory:
-            try:
-                async with self.db.begin_nested():
-                    inventory = Inventory(
-                        workspace_id=workspace_id,
-                        item_id=item_id,
-                        bin_id=bin_id,
-                        quantity_on_hand=0,
-                    )
-                    self.db.add(inventory)
-                    await self.db.flush()
-            except IntegrityError:
-                retry_stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
-                result = await self.db.execute(retry_stmt)
-                inventory = result.scalar_one()
+        if inventory:
+            if inventory.is_deleted:
+                inventory.is_deleted = False
+
+            return inventory
+
+        try:
+            async with self.db.begin_nested():
+                inventory = Inventory(
+                    workspace_id=workspace_id,
+                    item_id=item_id,
+                    bin_id=bin_id,
+                    quantity_on_hand=0,
+                )
+                self.db.add(inventory)
+                await self.db.flush()
+
+        except IntegrityError:
+            retry_stmt = base_stmt.with_for_update() if lock_for_update else base_stmt
+            result = await self.db.execute(retry_stmt)
+            inventory = result.scalar_one()
+
+            if inventory.is_deleted:
+                inventory.is_deleted = False
 
         return inventory
 
@@ -148,6 +162,19 @@ class InventoryService(BaseService[Inventory]):
     async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID, bin_id: UUID) -> Inventory:
         """Fetches a single inventory balance by item_id and bin_id (no lock)."""
         return await self._get_or_create_inventory(workspace_id, item_id, bin_id=bin_id, lock_for_update=False)
+
+    async def delete_inventory(self, workspace_id: UUID, inventory_id: UUID) -> None:
+        """Soft-deletes an inventory record if it is empty."""
+        inventory = await self._get_inventory(
+            workspace_id=workspace_id,
+            inventory_id=inventory_id,
+        )
+
+        if inventory.quantity_on_hand != 0:
+            raise InventoryNotEmptyError()
+
+        inventory.soft_delete()
+        await self.db.commit()
 
     # STOCK MOVEMENT METHODS
 
