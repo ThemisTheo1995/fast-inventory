@@ -15,11 +15,6 @@ Parameters:
     - production
     Description: Target deployment environment (dictates scaling and limits).
 
-  CorsAllowedOrigins:
-    Type: String
-    Default: "https://vue-inventory-six.vercel.app"
-    Description: Comma-separated list of allowed CORS origins.
-
 # ==============================================================================
 # CONDITIONS & MAPPINGS
 # ==============================================================================
@@ -68,22 +63,6 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: "$default"
-      CorsConfiguration:
-        AllowOrigins: !Split [ ",", !Ref CorsAllowedOrigins ]
-        AllowHeaders:
-        - Authorization
-        - Content-Type
-        - X-Amz-Date
-        - X-Api-Key
-        - X-Amz-Security-Token
-        AllowMethods:
-        - GET
-        - POST
-        - PUT
-        - PATCH
-        - DELETE
-        - OPTIONS
-        MaxAge: 600
       DefaultRouteSettings:
         ThrottlingBurstLimit: !FindInMap [ EnvironmentConfig, !Ref Environment, ApiBurstLimit ]
         ThrottlingRateLimit: !FindInMap [ EnvironmentConfig, !Ref Environment, ApiRateLimit ]

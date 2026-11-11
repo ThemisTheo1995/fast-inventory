@@ -20,5 +20,6 @@ class ItemFilter(BaseFilter):
             operator="eq",
             type="select",
             enum_type=StatusFilterEnum,
+            default_value=False,
         ),
     }

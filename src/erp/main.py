@@ -46,7 +46,6 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://vue-inventory-six.vercel.app",
 ]
 
 app.add_middleware(

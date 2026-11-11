@@ -18,6 +18,7 @@ def inventory_data():
         "id": uuid.uuid4(),
         "created_at": now,
         "updated_at": now,
+        "is_deleted": False,
         "workspace_id": uuid.uuid4(),
         "item_id": uuid.uuid4(),
         "bin_id": uuid.uuid4(),

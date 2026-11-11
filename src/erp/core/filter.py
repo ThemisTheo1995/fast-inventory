@@ -22,6 +22,7 @@ class TableFilter(BaseModel):
     placeholder: str | None = None
     type: Literal["select", "range"] = "select"
     options: list[FilterOption] = Field(default_factory=list)
+    default_value: Any = None
     min: float | None = None
     max: float | None = None
     step: float | None = None
@@ -47,6 +48,7 @@ class FilterSpec:
         | None = None,
         step: float | None = None,
         prefix: str | None = None,
+        default_value: object = None,
     ) -> None:
         self.column_name = column_name
         self.operator = operator
@@ -60,6 +62,7 @@ class FilterSpec:
         self.range_fn = range_fn
         self.step = step
         self.prefix = prefix
+        self.default_value = default_value
 
 
 class BaseFilter(BaseModel):
@@ -80,7 +83,6 @@ class BaseFilter(BaseModel):
             if column is None:
                 continue
 
-            # Automatically coerce string values to booleans for PostgreSQL boolean columns
             if isinstance(column.type, Boolean) and isinstance(value, str):
                 val_lower = value.lower()
                 if val_lower in ("true", "1", "yes", "t"):
@@ -153,6 +155,7 @@ class BaseFilter(BaseModel):
                     placeholder=spec.placeholder,
                     type=spec.type,
                     options=options,
+                    default_value=spec.default_value,
                     min=min_val,
                     max=max_val,
                     step=step,

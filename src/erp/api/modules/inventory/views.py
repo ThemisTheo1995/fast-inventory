@@ -5,10 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from erp.api.modules.inventory.filters.inventory import InventoryFilter
-from erp.api.modules.inventory.schemas.inventory import (
-    InventoryPaginatedResponse,
-    InventoryResponse,
-)
+from erp.api.modules.inventory.schemas.inventory import InventoryPaginatedResponse, InventoryResponse, InventoryUpdate
 from erp.api.modules.inventory.schemas.inventory_expanded import (
     InventoryExpandedPaginatedResponse,
     InventoryExpandedResponse,
@@ -108,3 +105,33 @@ async def get_inventories(
         limit=limit,
         expand=expand,
     )
+
+
+@router.patch("/inventory/{inventory_id}", response_model=InventoryResponse, status_code=status.HTTP_200_OK)
+async def update_inventory(
+    workspace_id: UUID,
+    inventory_id: UUID,
+    data: InventoryUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> InventoryResponse:
+    service = InventoryService(db)
+
+    return await service.update_inventory(
+        workspace_id=workspace_id,
+        inventory_id=inventory_id,
+        data=data,
+    )
+
+
+@router.delete(
+    "/inventory/{inventory_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_inventory(
+    workspace_id: UUID,
+    inventory_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    service = InventoryService(db)
+
+    await service.delete_inventory(workspace_id, inventory_id)
