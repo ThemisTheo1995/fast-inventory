@@ -101,7 +101,11 @@ class ItemService:
         limit: int = 20,
     ) -> ItemPaginatedResponse:
         """Fetches paginated items and the total count."""
-        filters = filters or ItemFilter()
+        if filters is None:
+            filters = ItemFilter()
+
+        if filters.is_deleted is None:
+            filters = filters.model_copy(update={"is_deleted": False})
 
         base_query = select(Item).where(
             Item.workspace_id == workspace_id,

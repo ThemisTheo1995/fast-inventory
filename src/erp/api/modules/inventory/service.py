@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from erp.api.modules.inventory.exceptions import (
 )
 from erp.api.modules.inventory.filters.inventory import InventoryFilter
 from erp.api.modules.inventory.models import Inventory, StockMovement
-from erp.api.modules.inventory.schemas.inventory import InventoryPaginatedResponse, InventoryResponse
+from erp.api.modules.inventory.schemas.inventory import InventoryPaginatedResponse, InventoryResponse, InventoryUpdate
 from erp.api.modules.inventory.schemas.inventory_expanded import (
     InventoryExpandedPaginatedResponse,
     InventoryExpandedResponse,
@@ -25,7 +25,6 @@ from erp.api.modules.inventory.schemas.stock_movement import (
     StockMovementPaginatedResponse,
 )
 from erp.api.modules.inventory.schemas.transfer import InventoryTransferRequest
-from erp.api.modules.item.models import Item
 from erp.api.modules.item.service import ItemService
 
 
@@ -108,46 +107,56 @@ class InventoryService(BaseService[Inventory]):
         limit: int = 20,
         expand: list[str] | None = None,
     ) -> InventoryPaginatedResponse | InventoryExpandedPaginatedResponse:
-        """Fetch a paginated list of inventory records within a workspace, applying filters, search, and expansion."""
+        """Fetch a paginated list of inventory records within a workspace."""
 
-        filters = filters or InventoryFilter()
+        if filters is None:
+            inventory_filter = InventoryFilter(is_deleted=False)
+        elif filters.is_deleted is None:
+            inventory_filter = filters.model_copy(update={"is_deleted": False})
+        else:
+            inventory_filter = filters
 
-        base_query = select(Inventory).where(Inventory.workspace_id == workspace_id, Inventory.is_deleted.is_(False))
+        query = select(Inventory).where(Inventory.workspace_id == workspace_id)
 
-        if search:
-            search_term = f"%{search}%"
-            base_query = base_query.where(
-                or_(
-                    Item.title.ilike(search_term),
-                    Item.sku.ilike(search_term),
-                )
-            )
+        query = inventory_filter.apply(query, Inventory)
+        query = inventory_filter.apply_search(query, search)
 
-        base_query = filters.apply(base_query, Inventory)
-
-        count_query = select(func.count()).select_from(base_query.subquery())
-        count_result = await self.db.execute(count_query)
+        count_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
         total = count_result.scalar_one()
 
-        loader_options = self.build_loader_options(expand)
-
-        skip = (page - 1) * limit
         items_query = (
-            base_query.options(*loader_options)
-            .order_by(Inventory.created_at.desc(), Inventory.id.desc())
-            .offset(skip)
+            query.options(*self.build_loader_options(expand))
+            .order_by(
+                Inventory.created_at.desc(),
+                Inventory.id.desc(),
+            )
+            .offset((page - 1) * limit)
             .limit(limit)
         )
 
-        items_result = await self.db.execute(items_query)
-        items = list(items_result.scalars().unique().all())
+        if expand:
+            items_query = items_query.execution_options(populate_existing=True)
 
-        table_filters = await filters.build_ui_filters(self.db, workspace_id)
+        result = await self.db.execute(items_query)
+        items = list(result.scalars().unique().all())
+
+        table_filters = await inventory_filter.build_ui_filters(
+            self.db,
+            workspace_id,
+        )
 
         if expand:
-            return InventoryExpandedPaginatedResponse(items=items, total=total, filters=table_filters)
+            return InventoryExpandedPaginatedResponse(
+                items=items,
+                total=total,
+                filters=table_filters,
+            )
 
-        return InventoryPaginatedResponse(items=items, total=total, filters=table_filters)
+        return InventoryPaginatedResponse(
+            items=items,
+            total=total,
+            filters=table_filters,
+        )
 
     async def get_inventory(self, workspace_id: UUID, inventory_id: UUID, expand: list[str] | None = None) -> Inventory:
         """Fetch a single inventory record by its ID within a workspace."""
@@ -162,6 +171,34 @@ class InventoryService(BaseService[Inventory]):
     async def get_inventory_by_item(self, workspace_id: UUID, item_id: UUID, bin_id: UUID) -> Inventory:
         """Fetches a single inventory balance by item_id and bin_id (no lock)."""
         return await self._get_or_create_inventory(workspace_id, item_id, bin_id=bin_id, lock_for_update=False)
+
+    async def update_inventory(
+        self,
+        workspace_id: UUID,
+        inventory_id: UUID,
+        data: InventoryUpdate,
+    ) -> InventoryResponse:
+        """Update an inventory record within a workspace."""
+
+        result = await self.db.execute(
+            select(Inventory).where(
+                Inventory.workspace_id == workspace_id,
+                Inventory.id == inventory_id,
+            )
+        )
+
+        inventory = result.scalar_one_or_none()
+
+        if inventory is None:
+            raise InventoryNotFoundError()
+
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(inventory, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(inventory)
+
+        return InventoryResponse.model_validate(inventory)
 
     async def delete_inventory(self, workspace_id: UUID, inventory_id: UUID) -> None:
         """Soft-deletes an inventory record if it is empty."""
